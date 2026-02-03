@@ -1,40 +1,42 @@
-import { mkdirSync, renameSync } from "node:fs";
+import { mkdirSync, readFileSync as nodeReadFileSync, renameSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { Config, WorkspaceConfig } from "./types.ts";
 
-const DATA_DIR = join(homedir(), ".orchester");
-const CONFIG_PATH = join(DATA_DIR, "config.json");
+let dataDir = join(homedir(), ".orchester");
 
-export { DATA_DIR, CONFIG_PATH };
+export function setDataDir(dir: string) {
+  dataDir = dir;
+}
+
+export function getDataDir() {
+  return dataDir;
+}
+
+export function getConfigPath() {
+  return join(dataDir, "config.json");
+}
 
 export function ensureDataDir(): void {
-  mkdirSync(DATA_DIR, { recursive: true });
+  mkdirSync(dataDir, { recursive: true });
 }
 
 export function readConfig(): Config {
-  const file = Bun.file(CONFIG_PATH);
-  if (!file.size) return { workspaces: [] };
-  // Synchronous read via textSync not available; use a blocking pattern
-  const text = readFileSync(CONFIG_PATH);
-  return JSON.parse(text) as Config;
-}
-
-// Separate sync reader since Bun.file is async
-import { readFileSync as nodeReadFileSync } from "node:fs";
-function readFileSync(path: string): string {
+  const configPath = getConfigPath();
   try {
-    return nodeReadFileSync(path, "utf-8");
+    const text = nodeReadFileSync(configPath, "utf-8");
+    return JSON.parse(text) as Config;
   } catch {
-    return '{"workspaces":[]}';
+    return { workspaces: [] };
   }
 }
 
 export async function writeConfig(config: Config): Promise<void> {
   ensureDataDir();
-  const tmp = CONFIG_PATH + ".tmp";
+  const configPath = getConfigPath();
+  const tmp = configPath + ".tmp";
   await Bun.write(tmp, JSON.stringify(config, null, 2) + "\n");
-  renameSync(tmp, CONFIG_PATH);
+  renameSync(tmp, configPath);
 }
 
 const INTERVAL_RE = /^(\d+)(s|m|h|d)$/;

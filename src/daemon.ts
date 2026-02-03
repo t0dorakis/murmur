@@ -1,15 +1,16 @@
 import { writeFileSync, unlinkSync } from "node:fs";
 import { join } from "node:path";
-import { DATA_DIR, ensureDataDir, isDue, readConfig, writeConfig } from "./config.ts";
+import { getDataDir, setDataDir, ensureDataDir, isDue, parseInterval, readConfig, writeConfig } from "./config.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
 
-const PID_PATH = join(DATA_DIR, "orchester.pid");
-let running = true;
+function getPidPath() {
+  return join(getDataDir(), "orchester.pid");
+}
 
 function cleanup() {
   try {
-    unlinkSync(PID_PATH);
+    unlinkSync(getPidPath());
   } catch {}
   process.exit(0);
 }
@@ -17,11 +18,26 @@ function cleanup() {
 process.on("SIGTERM", cleanup);
 process.on("SIGINT", cleanup);
 
-async function main() {
-  ensureDataDir();
-  writeFileSync(PID_PATH, String(process.pid));
+function parseArgs() {
+  const args = process.argv.slice(2);
+  let dataDir: string | undefined;
+  let tick = "10s";
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--data-dir") dataDir = args[++i];
+    else if (args[i] === "--tick") tick = args[++i]!;
+  }
+  return { dataDir, tick };
+}
 
-  while (running) {
+async function main() {
+  const { dataDir, tick } = parseArgs();
+  if (dataDir) setDataDir(dataDir);
+  const tickMs = parseInterval(tick);
+
+  ensureDataDir();
+  writeFileSync(getPidPath(), String(process.pid));
+
+  while (true) {
     const config = readConfig();
 
     for (const ws of config.workspaces) {
@@ -40,7 +56,7 @@ async function main() {
       await writeConfig(config);
     }
 
-    await Bun.sleep(10_000);
+    await Bun.sleep(tickMs);
   }
 }
 

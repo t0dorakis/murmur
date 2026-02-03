@@ -1,15 +1,17 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { DATA_DIR, ensureDataDir, readConfig } from "./config.ts";
+import { getDataDir, setDataDir, ensureDataDir, readConfig } from "./config.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
 
-const PID_PATH = join(DATA_DIR, "orchester.pid");
+function getPidPath() {
+  return join(getDataDir(), "orchester.pid");
+}
 
 function readPid(): number | null {
   try {
-    return Number(readFileSync(PID_PATH, "utf-8").trim());
+    return Number(readFileSync(getPidPath(), "utf-8").trim());
   } catch {
     return null;
   }
@@ -24,6 +26,26 @@ function isProcessAlive(pid: number): boolean {
   }
 }
 
+function parseGlobalArgs() {
+  const raw = process.argv.slice(2);
+  let dataDir: string | undefined;
+  let tick: string | undefined;
+  const rest: string[] = [];
+  for (let i = 0; i < raw.length; i++) {
+    if (raw[i] === "--data-dir") {
+      dataDir = raw[++i];
+    } else if (raw[i] === "--tick") {
+      tick = raw[++i];
+    } else {
+      rest.push(raw[i]!);
+    }
+  }
+  return { dataDir, tick, command: rest[0], arg: rest[1] ?? "." };
+}
+
+const { dataDir, tick, command, arg } = parseGlobalArgs();
+if (dataDir) setDataDir(dataDir);
+
 async function start() {
   ensureDataDir();
   const pid = readPid();
@@ -33,7 +55,11 @@ async function start() {
   }
 
   const daemonPath = join(import.meta.dir, "daemon.ts");
-  const proc = Bun.spawn(["bun", daemonPath], {
+  const daemonArgs = ["bun", daemonPath];
+  if (dataDir) daemonArgs.push("--data-dir", dataDir);
+  if (tick) daemonArgs.push("--tick", tick);
+
+  const proc = Bun.spawn(daemonArgs, {
     stdio: ["ignore", "ignore", "ignore"],
   });
   proc.unref();
@@ -122,9 +148,6 @@ async function init(path: string) {
   console.log(`Created ${heartbeatFile}`);
 }
 
-const command = process.argv[2];
-const arg = process.argv[3] ?? ".";
-
 switch (command) {
   case "start":
     await start();
@@ -142,6 +165,6 @@ switch (command) {
     await init(arg);
     break;
   default:
-    console.log(`Usage: orchester <start|stop|status|beat|init> [path]`);
+    console.log(`Usage: orchester [--data-dir <path>] <start [--tick <interval>]|stop|status|beat|init> [path]`);
     process.exit(command ? 1 : 0);
 }
