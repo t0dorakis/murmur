@@ -71,6 +71,7 @@ export async function runHeartbeat(
   );
 
   let stdout = "";
+  if (!proc.stdout) throw new Error("Spawned process stdout is not piped");
   const reader = (proc.stdout as ReadableStream<Uint8Array>).getReader();
   const decoder = new TextDecoder();
 

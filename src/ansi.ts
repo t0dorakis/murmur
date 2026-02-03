@@ -1,6 +1,4 @@
-// ANSI escape code helpers — zero dependencies
-
-export const ESC = "\x1b[";
+const ESC = "\x1b[";
 
 // Screen
 export const altScreenOn = `${ESC}?1049h`;
@@ -8,17 +6,11 @@ export const altScreenOff = `${ESC}?1049l`;
 export const cursorHide = `${ESC}?25l`;
 export const cursorShow = `${ESC}?25h`;
 export const cursorHome = `${ESC}H`;
-export const clearScreen = `${ESC}2J`;
 export const clearLine = `${ESC}2K`;
 export const clearToEnd = `${ESC}J`;
 
-// Cursor positioning
-export function moveTo(row: number, col: number): string {
-  return `${ESC}${row};${col}H`;
-}
-
 // Text attributes
-export const reset = `${ESC}0m`;
+const reset = `${ESC}0m`;
 export const bold = `${ESC}1m`;
 export const dim = `${ESC}2m`;
 
@@ -27,7 +19,6 @@ export const green = `${ESC}32m`;
 export const yellow = `${ESC}33m`;
 export const red = `${ESC}31m`;
 export const white = `${ESC}37m`;
-export const gray = `${ESC}90m`;
 
 // Composites
 export function styled(text: string, ...codes: string[]): string {
@@ -49,6 +40,10 @@ export function padRight(text: string, width: number): string {
   return text + " ".repeat(width - text.length);
 }
 
-export function write(s: string): void {
-  process.stdout.write(s);
+export function write(content: string): void {
+  try {
+    process.stdout.write(content);
+  } catch {
+    // stdout gone (pipe closed, terminal detached)
+  }
 }

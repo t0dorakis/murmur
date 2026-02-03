@@ -5,10 +5,12 @@ export type SocketServer = {
   stop(): void;
 };
 
-export function startSocketServer(bus: EventBus, socketPath: string): SocketServer {
+export function startSocketServer(bus: EventBus, socketPath: string, workspaceCount: number): SocketServer {
   const clients = new Set<{ write(data: string): void }>();
+  let lastTickEvent: DaemonEvent | null = null;
 
   function broadcast(event: DaemonEvent) {
+    if (event.type === "tick") lastTickEvent = event;
     const line = JSON.stringify(event) + "\n";
     for (const client of clients) {
       try {
@@ -26,16 +28,18 @@ export function startSocketServer(bus: EventBus, socketPath: string): SocketServ
     socket: {
       open(socket) {
         clients.add(socket);
-        // Send current state as first message
-        const ready: DaemonEvent = { type: "daemon:ready", pid: process.pid, workspaceCount: 0 };
-        try { socket.write(JSON.stringify(ready) + "\n"); } catch {}
+        const ready: DaemonEvent = { type: "daemon:ready", pid: process.pid, workspaceCount };
+        try {
+          socket.write(JSON.stringify(ready) + "\n");
+          if (lastTickEvent) socket.write(JSON.stringify(lastTickEvent) + "\n");
+        } catch {
+          clients.delete(socket);
+        }
       },
       close(socket) {
         clients.delete(socket);
       },
-      data() {
-        // Clients are passive consumers — ignore incoming data
-      },
+      data() {},
       error(_socket, err) {
         console.error("Socket client error:", err.message);
       },

@@ -1,24 +1,22 @@
 import { writeFileSync, unlinkSync, readFileSync } from "node:fs";
-import { join } from "node:path";
-import { setDataDir, ensureDataDir, isDue, parseInterval, readConfig, writeConfig, getPidPath, getDataDir } from "./config.ts";
+import { basename, join } from "node:path";
+import { setDataDir, ensureDataDir, isDue, parseInterval, readConfig, writeConfig, getPidPath, getSocketPath } from "./config.ts";
 import { createEventBus, type EventBus } from "./events.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
 import type { WorkspaceConfig, WorkspaceStatus } from "./types.ts";
 
-export const SOCKET_FILENAME = "murmur.sock";
-
-export function getSocketPath() {
-  return join(getDataDir(), SOCKET_FILENAME);
-}
-
-export function workspaceName(ws: WorkspaceConfig): string {
+function workspaceName(ws: WorkspaceConfig): string {
   try {
     const text = readFileSync(join(ws.path, "HEARTBEAT.md"), "utf-8");
     const match = /^#\s+(.+)/m.exec(text);
     if (match) return match[1]!.trim();
-  } catch {}
-  return ws.path.split("/").pop() ?? ws.path;
+  } catch (err: any) {
+    if (err?.code !== "ENOENT") {
+      console.error(`Warning: could not read HEARTBEAT.md in ${ws.path}: ${err?.message}`);
+    }
+  }
+  return basename(ws.path);
 }
 
 export function buildWorkspaceStatuses(workspaces: WorkspaceConfig[]): WorkspaceStatus[] {
@@ -42,10 +40,6 @@ export type DaemonHandle = {
   stop(): void;
 };
 
-/**
- * Start the daemon loop. Returns a handle with the event bus and a stop function.
- * The caller is responsible for PID file management and signal handling.
- */
 export function startDaemon(tickMs: number): DaemonHandle {
   const bus = createEventBus();
   let running = true;
@@ -55,18 +49,22 @@ export function startDaemon(tickMs: number): DaemonHandle {
 
   (async () => {
     while (running) {
-      const config = readConfig();
-      bus.emit({ type: "tick", workspaces: buildWorkspaceStatuses(config.workspaces) });
+      try {
+        const config = readConfig();
+        bus.emit({ type: "tick", workspaces: buildWorkspaceStatuses(config.workspaces) });
 
-      for (const ws of config.workspaces) {
-        if (!running) break;
-        if (!isDue(ws)) continue;
+        for (const ws of config.workspaces) {
+          if (!running) break;
+          if (!isDue(ws)) continue;
 
-        const entry = await runHeartbeat(ws, bus.emit.bind(bus));
-        appendLog(entry);
+          const entry = await runHeartbeat(ws, bus.emit.bind(bus));
+          appendLog(entry);
 
-        ws.lastRun = entry.ts;
-        await writeConfig(config);
+          ws.lastRun = entry.ts;
+          await writeConfig(config);
+        }
+      } catch (err) {
+        console.error("Daemon loop error:", err);
       }
 
       if (running) await Bun.sleep(tickMs);
@@ -101,7 +99,6 @@ function parseArgs() {
   return { dataDir, tick };
 }
 
-// Only run main() when executed directly (not imported)
 if (import.meta.main) {
   const { dataDir, tick } = parseArgs();
   if (dataDir) setDataDir(dataDir);

@@ -23,6 +23,12 @@ export function getPidPath() {
   return join(dataDir, PID_FILENAME);
 }
 
+export const SOCKET_FILENAME = "murmur.sock";
+
+export function getSocketPath() {
+  return join(dataDir, SOCKET_FILENAME);
+}
+
 export function ensureDataDir(): void {
   mkdirSync(dataDir, { recursive: true });
 }

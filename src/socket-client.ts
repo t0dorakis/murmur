@@ -1,28 +1,22 @@
-import type { EventSource } from "./tui.ts";
+import { createEventBus, type EventSource } from "./events.ts";
 import type { DaemonEvent } from "./types.ts";
 
 export async function connectToSocket(socketPath: string): Promise<EventSource & { close(): void }> {
-  type Callback = (event: DaemonEvent) => void;
-  const listeners: Callback[] = [];
+  const bus = createEventBus();
   let buffer = "";
-  let sock: ReturnType<typeof Bun.connect> extends Promise<infer T> ? T : never;
+  let connected = false;
 
   return new Promise((resolve, reject) => {
     Bun.connect({
       unix: socketPath,
       socket: {
         open(socket) {
-          sock = socket;
+          connected = true;
           resolve({
-            subscribe(cb: Callback) {
-              listeners.push(cb);
-            },
-            unsubscribe(cb: Callback) {
-              const idx = listeners.indexOf(cb);
-              if (idx !== -1) listeners.splice(idx, 1);
-            },
+            subscribe: bus.subscribe,
+            unsubscribe: bus.unsubscribe,
             close() {
-              sock.end();
+              socket.end();
             },
           });
         },
@@ -33,20 +27,26 @@ export async function connectToSocket(socketPath: string): Promise<EventSource &
 
           for (const line of lines) {
             if (!line.trim()) continue;
+            let event: DaemonEvent;
             try {
-              const event = JSON.parse(line) as DaemonEvent;
-              for (const cb of listeners) cb(event);
+              const parsed = JSON.parse(line);
+              if (!parsed || typeof parsed.type !== "string") continue;
+              event = parsed as DaemonEvent;
             } catch {
-              // Skip malformed lines
+              continue;
             }
+            bus.emit(event);
           }
         },
         close() {
-          const shutdown: DaemonEvent = { type: "daemon:shutdown" };
-          for (const cb of listeners) cb(shutdown);
+          bus.emit({ type: "daemon:shutdown" });
         },
         error(_socket, err) {
-          reject(new Error(`Connection failed: ${err.message}`));
+          if (connected) {
+            console.error(`Socket error: ${err.message}`);
+          } else {
+            reject(new Error(`Connection failed: ${err.message}`));
+          }
         },
       },
     });

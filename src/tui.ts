@@ -1,15 +1,12 @@
+import { basename } from "node:path";
 import {
   altScreenOn, altScreenOff, cursorHide, cursorShow, cursorHome,
-  clearLine, clearToEnd, moveTo, write,
-  reset, bold, dim, green, yellow, red, white, gray,
+  clearLine, clearToEnd, write,
+  bold, dim, green, yellow, red, white,
   styled, terminalWidth, truncate, padRight,
 } from "./ansi.ts";
+import type { EventSource } from "./events.ts";
 import type { DaemonEvent, Outcome, WorkspaceStatus } from "./types.ts";
-
-export type EventSource = {
-  subscribe(callback: (event: DaemonEvent) => void): void;
-  unsubscribe(callback: (event: DaemonEvent) => void): void;
-};
 
 type FeedEntry = {
   workspace: string;
@@ -65,6 +62,10 @@ function formatAgo(epochMs: number): string {
   return `${d}d ago`;
 }
 
+function workspaceDisplayName(path: string, workspaces: WorkspaceStatus[]): string {
+  return workspaces.find((w) => w.path === path)?.name ?? basename(path);
+}
+
 function outcomeIcon(outcome: Outcome | null): string {
   switch (outcome) {
     case "ok": return styled("✓", green, dim);
@@ -89,21 +90,22 @@ function renderHeader(state: TuiState): string {
   return ` ${styled("murmur", bold, white)} ${styled("∙", dim)} ${wsCount} workspace${wsCount !== 1 ? "s" : ""} ${styled("∙", dim)} pid ${state.pid}`;
 }
 
-function renderWorkspaceRow(ws: WorkspaceStatus, active: boolean, tw: number): string {
-  const nameWidth = Math.min(24, Math.floor(tw * 0.3));
-  const name = truncate(ws.name, nameWidth);
-  const interval = padRight(ws.interval, 5);
-
-  let status: string;
+function workspaceStatusText(ws: WorkspaceStatus, active: boolean): string {
   if (active) {
     const elapsed = formatDuration(Date.now() - (ws.lastRunAt ?? Date.now()));
-    status = styled(`▶ running (${elapsed})`, bold, white);
-  } else {
-    const countdown = formatCountdown(ws.nextRunAt);
-    status = countdown === "due"
-      ? styled("due", dim)
-      : `next in ${styled(padRight(countdown, 12), white)}`;
+    return styled(`▶ running (${elapsed})`, bold, white);
   }
+  const countdown = formatCountdown(ws.nextRunAt);
+  return countdown === "due"
+    ? styled("due", dim)
+    : `next in ${styled(padRight(countdown, 12), white)}`;
+}
+
+function renderWorkspaceRow(ws: WorkspaceStatus, active: boolean, termWidth: number): string {
+  const nameWidth = Math.min(24, Math.floor(termWidth * 0.3));
+  const name = truncate(ws.name, nameWidth);
+  const interval = padRight(ws.interval, 5);
+  const status = workspaceStatusText(ws, active);
 
   let lastCol: string;
   if (ws.lastRunAt) {
@@ -113,72 +115,119 @@ function renderWorkspaceRow(ws: WorkspaceStatus, active: boolean, tw: number): s
   }
 
   const nameStr = active ? styled(padRight(name, nameWidth), bold, white) : styled(padRight(name, nameWidth), white);
-
   return ` ${nameStr}  ${styled(interval, dim)}  ${status}  ${lastCol}`;
 }
 
-function renderSeparator(tw: number): string {
-  return styled("─".repeat(tw), dim);
+function renderSeparator(termWidth: number): string {
+  return styled("─".repeat(termWidth), dim);
 }
 
-function renderActiveBeat(state: TuiState, tw: number, maxLines: number): string[] {
+function renderActiveBeat(state: TuiState, termWidth: number, maxLines: number): string[] {
   if (!state.activeBeat) return [];
   const { workspace, output, startedAt } = state.activeBeat;
-  const feed = state.feed.length > 0 ? state.feed : [];
-  // Find name from workspaces or feed
-  const wsInfo = state.workspaces.find((w) => w.path === workspace);
-  const name = wsInfo?.name ?? workspace.split("/").pop() ?? workspace;
+  const name = workspaceDisplayName(workspace, state.workspaces);
   const elapsed = formatDuration(Date.now() - startedAt);
 
   const lines: string[] = [];
-  lines.push(` ${styled("▶", bold, white)} ${styled(name, bold, white)}${" ".repeat(Math.max(1, tw - name.length - elapsed.length - 6))}${styled(elapsed, dim)}`);
+  lines.push(` ${styled("▶", bold, white)} ${styled(name, bold, white)}${" ".repeat(Math.max(1, termWidth - name.length - elapsed.length - 6))}${styled(elapsed, dim)}`);
 
-  // Find prompt preview from last feed entry for this workspace
-  const feedEntry = [...feed].reverse().find((f) => f.workspace === workspace);
+  const feedEntry = state.feed.findLast((f) => f.workspace === workspace);
   if (feedEntry?.promptPreview) {
-    lines.push(`   ${styled(truncate(feedEntry.promptPreview, tw - 4), dim)}`);
+    lines.push(`   ${styled(truncate(feedEntry.promptPreview, termWidth - 4), dim)}`);
     lines.push(`   ${styled("┄┄┄", dim)}`);
   }
 
-  // Stream output (last N lines that fit)
   if (output) {
     const outputLines = output.split("\n");
     const available = maxLines - lines.length;
     const start = Math.max(0, outputLines.length - available);
     for (let i = start; i < outputLines.length; i++) {
-      lines.push(`   ${truncate(outputLines[i]!, tw - 4)}`);
+      lines.push(`   ${truncate(outputLines[i]!, termWidth - 4)}`);
     }
   }
 
   return lines;
 }
 
-function renderFeedEntry(entry: FeedEntry, tw: number): string[] {
+function renderFeedEntry(entry: FeedEntry, termWidth: number): string[] {
   const name = entry.name;
   const dur = entry.durationMs != null ? formatDuration(entry.durationMs) : "";
 
   if (entry.outcome === "ok") {
-    return [` ${outcomeIcon("ok")} ${styled(name, dim)}${" ".repeat(Math.max(1, tw - name.length - dur.length - 14))}${outcomeLabel("ok")}  ${styled(dur, dim)}`];
+    return [` ${outcomeIcon("ok")} ${styled(name, dim)}${" ".repeat(Math.max(1, termWidth - name.length - dur.length - 14))}${outcomeLabel("ok")}  ${styled(dur, dim)}`];
   }
 
   const icon = outcomeIcon(entry.outcome);
   const label = entry.outcome ? outcomeLabel(entry.outcome) : "";
   const lines: string[] = [];
-  lines.push(` ${icon} ${styled(name, bold, white)}${" ".repeat(Math.max(1, tw - name.length - dur.length - (entry.outcome?.length ?? 0) - 10))}${label}  ${styled(dur, dim)}`);
+  lines.push(` ${icon} ${styled(name, bold, white)}${" ".repeat(Math.max(1, termWidth - name.length - dur.length - (entry.outcome?.length ?? 0) - 10))}${label}  ${styled(dur, dim)}`);
 
   if (entry.promptPreview) {
-    lines.push(`   ${styled(truncate(entry.promptPreview, tw - 4), dim)}`);
+    lines.push(`   ${styled(truncate(entry.promptPreview, termWidth - 4), dim)}`);
     lines.push(`   ${styled("┄┄┄", dim)}`);
   }
 
   if (entry.output) {
-    const outputLines = entry.output.split("\n");
-    for (const line of outputLines) {
-      lines.push(`   ${truncate(line, tw - 4)}`);
+    for (const line of entry.output.split("\n")) {
+      lines.push(`   ${truncate(line, termWidth - 4)}`);
     }
   }
 
   return lines;
+}
+
+// --- State reducer ---
+
+function reduceEvent(state: TuiState, event: DaemonEvent): boolean {
+  switch (event.type) {
+    case "daemon:ready":
+      state.pid = event.pid;
+      return false;
+
+    case "tick":
+      state.workspaces = event.workspaces;
+      return true;
+
+    case "heartbeat:start": {
+      state.activeBeat = { workspace: event.workspace, output: "", startedAt: Date.now() };
+      const name = workspaceDisplayName(event.workspace, state.workspaces);
+      state.feed.push({
+        workspace: event.workspace,
+        name,
+        promptPreview: event.promptPreview,
+        outcome: null,
+        durationMs: null,
+        output: "",
+      });
+      return true;
+    }
+
+    case "heartbeat:stdout":
+      if (state.activeBeat?.workspace === event.workspace) {
+        state.activeBeat.output += event.chunk;
+      }
+      return true;
+
+    case "heartbeat:done": {
+      const idx = state.feed.findLastIndex((f) => f.workspace === event.workspace && f.outcome === null);
+      if (idx !== -1) {
+        const feedEntry = state.feed[idx]!;
+        feedEntry.outcome = event.entry.outcome;
+        feedEntry.durationMs = event.entry.durationMs;
+        feedEntry.output = state.activeBeat?.workspace === event.workspace
+          ? state.activeBeat.output
+          : "";
+      }
+      if (state.activeBeat?.workspace === event.workspace) {
+        state.activeBeat = null;
+      }
+      if (state.feed.length > 50) state.feed.splice(0, state.feed.length - 50);
+      return true;
+    }
+
+    case "daemon:shutdown":
+      return false;
+  }
 }
 
 // --- Main TUI ---
@@ -194,7 +243,7 @@ export function createTui(eventSource: EventSource): Tui {
   let countdownTimer: ReturnType<typeof setInterval> | null = null;
 
   function render() {
-    const tw = terminalWidth();
+    const termWidth = terminalWidth();
     const rows = process.stdout.rows ?? 24;
 
     write(cursorHome);
@@ -206,7 +255,7 @@ export function createTui(eventSource: EventSource): Tui {
     // Workspace rows
     for (const ws of state.workspaces) {
       const active = state.activeBeat?.workspace === ws.path;
-      write(clearLine + renderWorkspaceRow(ws, active, tw) + "\n");
+      write(clearLine + renderWorkspaceRow(ws, active, termWidth) + "\n");
     }
 
     if (state.workspaces.length === 0) {
@@ -215,34 +264,30 @@ export function createTui(eventSource: EventSource): Tui {
     }
 
     write(clearLine + "\n");
-    write(clearLine + renderSeparator(tw) + "\n");
+    write(clearLine + renderSeparator(termWidth) + "\n");
     write(clearLine + "\n");
 
     // Fixed region height: header(1) + blank(1) + workspaces(N) + blank(1) + sep(1) + blank(1)
     const fixedLines = 5 + Math.max(state.workspaces.length, 2);
     const feedArea = rows - fixedLines;
 
-    if (state.activeBeat) {
-      // Render active beat
-      const beatLines = renderActiveBeat(state, tw, Math.floor(feedArea * 0.6));
-      for (const line of beatLines) {
-        write(clearLine + line + "\n");
-      }
-      write(clearLine + "\n");
+    // Render active beat
+    const beatLines = renderActiveBeat(state, termWidth, Math.floor(feedArea * 0.6));
+    for (const line of beatLines) {
+      write(clearLine + line + "\n");
     }
+    if (beatLines.length > 0) write(clearLine + "\n");
 
     // Render completed feed entries (most recent first, fill remaining space)
-    const usedByActive = state.activeBeat ? renderActiveBeat(state, tw, Math.floor(feedArea * 0.6)).length + 1 : 0;
-    const feedSpace = feedArea - usedByActive;
+    const feedSpace = feedArea - beatLines.length - (beatLines.length > 0 ? 1 : 0);
 
     if (state.feed.length === 0 && !state.activeBeat) {
       write(clearLine + styled(" Waiting for first heartbeat...", dim) + "\n");
     } else {
       let linesUsed = 0;
-      // Show most recent feed entries first
       for (let i = state.feed.length - 1; i >= 0 && linesUsed < feedSpace; i--) {
         const entry = state.feed[i]!;
-        const entryLines = renderFeedEntry(entry, tw);
+        const entryLines = renderFeedEntry(entry, termWidth);
         if (linesUsed + entryLines.length > feedSpace) break;
         for (const line of entryLines) {
           write(clearLine + line + "\n");
@@ -255,67 +300,8 @@ export function createTui(eventSource: EventSource): Tui {
   }
 
   function handleEvent(event: DaemonEvent) {
-    switch (event.type) {
-      case "daemon:ready":
-        state.pid = event.pid;
-        break;
-
-      case "tick":
-        state.workspaces = event.workspaces;
-        render();
-        break;
-
-      case "heartbeat:start": {
-        state.activeBeat = {
-          workspace: event.workspace,
-          output: "",
-          startedAt: Date.now(),
-        };
-        // Create a feed entry placeholder
-        const wsInfo = state.workspaces.find((w) => w.path === event.workspace);
-        state.feed.push({
-          workspace: event.workspace,
-          name: wsInfo?.name ?? event.workspace.split("/").pop() ?? event.workspace,
-          promptPreview: event.promptPreview,
-          outcome: null,
-          durationMs: null,
-          output: "",
-        });
-        render();
-        break;
-      }
-
-      case "heartbeat:stdout":
-        if (state.activeBeat?.workspace === event.workspace) {
-          state.activeBeat.output += event.chunk;
-        }
-        render();
-        break;
-
-      case "heartbeat:done": {
-        // Finalize the feed entry
-        const idx = state.feed.findLastIndex((f) => f.workspace === event.workspace && f.outcome === null);
-        if (idx !== -1) {
-          const feedEntry = state.feed[idx]!;
-          feedEntry.outcome = event.entry.outcome;
-          feedEntry.durationMs = event.entry.durationMs;
-          feedEntry.output = state.activeBeat?.workspace === event.workspace
-            ? state.activeBeat.output
-            : "";
-        }
-        if (state.activeBeat?.workspace === event.workspace) {
-          state.activeBeat = null;
-        }
-        // Keep feed bounded
-        if (state.feed.length > 50) state.feed.splice(0, state.feed.length - 50);
-        render();
-        break;
-      }
-
-      case "daemon:shutdown":
-        // Will be handled by stop()
-        break;
-    }
+    const shouldRender = reduceEvent(state, event);
+    if (shouldRender) render();
   }
 
   return {
@@ -323,7 +309,6 @@ export function createTui(eventSource: EventSource): Tui {
       write(altScreenOn + cursorHide);
       eventSource.subscribe(handleEvent);
 
-      // Countdown refresh every second
       countdownTimer = setInterval(() => {
         if (state.workspaces.length > 0) render();
       }, 1000);

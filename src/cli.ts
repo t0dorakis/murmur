@@ -1,10 +1,9 @@
 #!/usr/bin/env bun
-import { existsSync, readFileSync, unlinkSync } from "node:fs";
-import { writeFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { getDataDir, setDataDir, ensureDataDir, readConfig, getConfigPath, getPidPath, parseInterval } from "./config.ts";
-import { startDaemon, getSocketPath } from "./daemon.ts";
-import { startSocketServer } from "./socket.ts";
+import { setDataDir, ensureDataDir, readConfig, getConfigPath, getPidPath, getSocketPath, parseInterval } from "./config.ts";
+import { startDaemon } from "./daemon.ts";
+import { startSocketServer, type SocketServer } from "./socket.ts";
 import { connectToSocket } from "./socket-client.ts";
 import { createTui } from "./tui.ts";
 import { runHeartbeat } from "./heartbeat.ts";
@@ -38,8 +37,19 @@ function isProcessAlive(pid: number): boolean {
 function cleanStaleSocket() {
   const sockPath = getSocketPath();
   if (existsSync(sockPath)) {
-    try { unlinkSync(sockPath); } catch {}
+    try {
+      unlinkSync(sockPath);
+    } catch (err: any) {
+      if (err?.code !== "ENOENT") {
+        console.error(`Warning: could not remove stale socket ${sockPath}: ${err?.message}`);
+      }
+    }
   }
+}
+
+function cleanupFiles() {
+  try { unlinkSync(getPidPath()); } catch {}
+  try { unlinkSync(getSocketPath()); } catch {}
 }
 
 function parseGlobalArgs() {
@@ -59,10 +69,10 @@ function parseGlobalArgs() {
       rest.push(raw[i]!);
     }
   }
-  return { dataDir, tick, detach, command: rest[0], arg: rest[1] ?? "." };
+  return { dataDir, tick, detach, command: rest[0], targetPath: rest[1] ?? "." };
 }
 
-const { dataDir, tick, detach, command, arg } = parseGlobalArgs();
+const { dataDir, tick, detach, command, targetPath } = parseGlobalArgs();
 if (dataDir) setDataDir(dataDir);
 
 // --- Keyboard input handling ---
@@ -80,17 +90,15 @@ function createKeyHandler(): KeyHandler {
     if (!callbacks) return;
     const key = data.toString();
     if (key === "q" || key === "\x03") {
-      // q or Ctrl+C
       callbacks.onQuit();
     } else if (key === "\x04") {
-      // Ctrl+D
       callbacks.onDetach();
     }
   }
 
   return {
-    start(cbs) {
-      callbacks = cbs;
+    start(newCallbacks) {
+      callbacks = newCallbacks;
       if (process.stdin.isTTY) {
         process.stdin.setRawMode(true);
         process.stdin.resume();
@@ -123,21 +131,25 @@ async function startForeground() {
   cleanStaleSocket();
 
   const tickMs = parseInterval(tick ?? "10s");
+  const config = readConfig();
 
-  // Write our own PID
   writeFileSync(getPidPath(), String(process.pid));
 
-  // Start daemon loop
   const handle = startDaemon(tickMs);
 
-  // Start socket server for watch clients
-  const socketServer = startSocketServer(handle.bus, getSocketPath());
+  let socketServer: SocketServer;
+  try {
+    socketServer = startSocketServer(handle.bus, getSocketPath(), config.workspaces.length);
+  } catch (err: any) {
+    handle.stop();
+    cleanupFiles();
+    console.error(`Failed to start socket server: ${err?.message}`);
+    process.exit(1);
+  }
 
-  // Start TUI
   const tui = createTui(handle.bus);
   tui.start();
 
-  // Keyboard handling
   const keys = createKeyHandler();
 
   function shutdown() {
@@ -145,18 +157,14 @@ async function startForeground() {
     tui.stop();
     socketServer.stop();
     handle.stop();
-    try { unlinkSync(getPidPath()); } catch {}
-    try { unlinkSync(getSocketPath()); } catch {}
+    cleanupFiles();
     process.exit(0);
   }
 
   function detachToBackground() {
     keys.stop();
     tui.stop();
-    // Daemon loop + socket server keep running in this process
-    // The user can reattach with murmur watch
     console.log("Detached. Reattach with: murmur watch");
-    // Redirect stdio so the process can survive terminal close
     process.stdin.unref();
   }
 
@@ -257,13 +265,11 @@ async function watch() {
     process.exit(0);
   }
 
-  // Watch mode: q/Ctrl+C disconnects. Ctrl+D also disconnects (no daemon to detach from).
   keys.start({
     onQuit: disconnect,
     onDetach: disconnect,
   });
 
-  // Handle daemon going away
   conn.subscribe((event) => {
     if (event.type === "daemon:shutdown") {
       keys.stop();
@@ -337,10 +343,10 @@ switch (command) {
     await watch();
     break;
   case "beat":
-    await beat(arg);
+    await beat(targetPath);
     break;
   case "init":
-    await init(arg);
+    await init(targetPath);
     break;
   default:
     console.log(`Usage: murmur [--data-dir <path>] <command> [options]
