@@ -1,8 +1,11 @@
 {
   "name": "orchester",
-  "module": "index.ts",
+  "module": "src/cli.ts",
   "type": "module",
   "private": true,
+  "bin": {
+    "orchester": "./src/cli.ts"
+  },
   "devDependencies": {
     "@types/bun": "latest"
   },
