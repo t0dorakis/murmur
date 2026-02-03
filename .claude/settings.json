@@ -1,0 +1,59 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(bun --version)",
+      "Bash(bun dev *)",
+      "Bash(bun install *)",
+      "Bash(bun build *)",
+      "Bash(bun test *)",
+      "Bash(bun run *)",
+      "Bash(bun typecheck *)",
+      "Bash(bunx *)",
+      "Bash(cat *)",
+      "Bash(find *)",
+      "Bash(gh pr checks *)",
+      "Bash(gh pr comment *)",
+      "Bash(gh pr create *)",
+      "Bash(gh pr list *)",
+      "Bash(gh pr view *)",
+      "Bash(gh run list *)",
+      "Bash(gh run view *)",
+      "Bash(git add *)",
+      "Bash(git branch *)",
+      "Bash(git checkout *)",
+      "Bash(git commit *)",
+      "Bash(git diff *)",
+      "Bash(git fetch *)",
+      "Bash(git log *)",
+      "Bash(git push *)",
+      "Bash(git restore *)",
+      "Bash(git rev-parse *)",
+      "Bash(git show *)",
+      "Bash(git status *)",
+      "Bash(git switch *)",
+      "Bash(grep *)",
+      "Bash(ls *)",
+      "Bash(pwd)",
+      "Bash(rg *)",
+      "Bash(sed *)",
+      "Bash(test *)",
+      "Bash(awk *)"
+    ],
+    "ask": [
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git push --force-with-lease *)",
+      "Bash(git push --delete *)",
+      "Bash(gh pr merge *)",
+      "Bash(gh api *)"
+    ],
+    "deny": [
+      "Bash(rm -rf *)",
+      "Bash(rm -r *)",
+      "Bash(sudo *)",
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(rsync *)"
+    ]
+  }
+}
