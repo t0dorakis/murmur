@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { LogEntry, Outcome, WorkspaceConfig } from "./types.ts";
+import type { DaemonEvent, LogEntry, Outcome, WorkspaceConfig } from "./types.ts";
 
 export async function buildPrompt(ws: WorkspaceConfig): Promise<string> {
   const heartbeatPath = join(ws.path, "HEARTBEAT.md");
@@ -30,7 +30,15 @@ export function classify(stdout: string, exitCode: number): Outcome {
   return "attention";
 }
 
-export async function runHeartbeat(ws: WorkspaceConfig): Promise<LogEntry> {
+export function promptPreview(prompt: string): string {
+  const lines = prompt.split("\n").filter((l) => l.trim());
+  return lines.slice(0, 3).join(" ").slice(0, 120);
+}
+
+export async function runHeartbeat(
+  ws: WorkspaceConfig,
+  emit?: (event: DaemonEvent) => void,
+): Promise<LogEntry> {
   const ts = new Date().toISOString();
   const start = Date.now();
 
@@ -38,14 +46,18 @@ export async function runHeartbeat(ws: WorkspaceConfig): Promise<LogEntry> {
   try {
     prompt = await buildPrompt(ws);
   } catch (err) {
-    return {
+    const entry: LogEntry = {
       ts,
       workspace: ws.path,
       outcome: "error",
       durationMs: Date.now() - start,
       error: err instanceof Error ? err.message : String(err),
     };
+    emit?.({ type: "heartbeat:done", workspace: ws.path, entry });
+    return entry;
   }
+
+  emit?.({ type: "heartbeat:start", workspace: ws.path, promptPreview: promptPreview(prompt) });
 
   const proc = Bun.spawn(
     ["claude", "--print", "--dangerously-skip-permissions", "--max-turns", String(ws.maxTurns ?? 3)],
@@ -58,8 +70,19 @@ export async function runHeartbeat(ws: WorkspaceConfig): Promise<LogEntry> {
     },
   );
 
+  let stdout = "";
+  const reader = (proc.stdout as ReadableStream<Uint8Array>).getReader();
+  const decoder = new TextDecoder();
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    const chunk = decoder.decode(value);
+    stdout += chunk;
+    emit?.({ type: "heartbeat:stdout", workspace: ws.path, chunk });
+  }
+
   const exitCode = await proc.exited;
-  const stdout = await new Response(proc.stdout).text();
   const stderr = await new Response(proc.stderr).text();
   const durationMs = Date.now() - start;
 
@@ -73,5 +96,6 @@ export async function runHeartbeat(ws: WorkspaceConfig): Promise<LogEntry> {
     entry.error = (stderr || stdout).slice(0, 200);
   }
 
+  emit?.({ type: "heartbeat:done", workspace: ws.path, entry });
   return entry;
 }

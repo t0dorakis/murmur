@@ -1,19 +1,94 @@
-import { writeFileSync, unlinkSync } from "node:fs";
-import { setDataDir, ensureDataDir, isDue, parseInterval, readConfig, writeConfig, getPidPath } from "./config.ts";
+import { writeFileSync, unlinkSync, readFileSync } from "node:fs";
+import { join } from "node:path";
+import { setDataDir, ensureDataDir, isDue, parseInterval, readConfig, writeConfig, getPidPath, getDataDir } from "./config.ts";
+import { createEventBus, type EventBus } from "./events.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
+import type { WorkspaceConfig, WorkspaceStatus } from "./types.ts";
 
-function cleanup(exitCode = 0) {
-  try {
-    unlinkSync(getPidPath());
-  } catch {
-    // PID file may already be gone; nothing to do during shutdown
-  }
-  process.exit(exitCode);
+export const SOCKET_FILENAME = "murmur.sock";
+
+export function getSocketPath() {
+  return join(getDataDir(), SOCKET_FILENAME);
 }
 
-process.on("SIGTERM", () => cleanup(0));
-process.on("SIGINT", () => cleanup(0));
+export function workspaceName(ws: WorkspaceConfig): string {
+  try {
+    const text = readFileSync(join(ws.path, "HEARTBEAT.md"), "utf-8");
+    const match = /^#\s+(.+)/m.exec(text);
+    if (match) return match[1]!.trim();
+  } catch {}
+  return ws.path.split("/").pop() ?? ws.path;
+}
+
+export function buildWorkspaceStatuses(workspaces: WorkspaceConfig[]): WorkspaceStatus[] {
+  return workspaces.map((ws) => {
+    const intervalMs = parseInterval(ws.interval);
+    const lastRunAt = ws.lastRun ? new Date(ws.lastRun).getTime() : null;
+    const nextRunAt = lastRunAt ? lastRunAt + intervalMs : Date.now();
+    return {
+      path: ws.path,
+      name: workspaceName(ws),
+      interval: ws.interval,
+      nextRunAt,
+      lastOutcome: null,
+      lastRunAt,
+    };
+  });
+}
+
+export type DaemonHandle = {
+  bus: EventBus;
+  stop(): void;
+};
+
+/**
+ * Start the daemon loop. Returns a handle with the event bus and a stop function.
+ * The caller is responsible for PID file management and signal handling.
+ */
+export function startDaemon(tickMs: number): DaemonHandle {
+  const bus = createEventBus();
+  let running = true;
+
+  const config = readConfig();
+  bus.emit({ type: "daemon:ready", pid: process.pid, workspaceCount: config.workspaces.length });
+
+  (async () => {
+    while (running) {
+      const config = readConfig();
+      bus.emit({ type: "tick", workspaces: buildWorkspaceStatuses(config.workspaces) });
+
+      for (const ws of config.workspaces) {
+        if (!running) break;
+        if (!isDue(ws)) continue;
+
+        const entry = await runHeartbeat(ws, bus.emit.bind(bus));
+        appendLog(entry);
+
+        ws.lastRun = entry.ts;
+        await writeConfig(config);
+      }
+
+      if (running) await Bun.sleep(tickMs);
+    }
+  })();
+
+  return {
+    bus,
+    stop() {
+      running = false;
+      bus.emit({ type: "daemon:shutdown" });
+    },
+  };
+}
+
+// --- Entry point when run as detached daemon process ---
+
+function cleanup(exitCode = 0) {
+  try { unlinkSync(getPidPath()); } catch {}
+  try { unlinkSync(getSocketPath()); } catch {}
+  process.exit(exitCode);
+}
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -26,7 +101,8 @@ function parseArgs() {
   return { dataDir, tick };
 }
 
-async function main() {
+// Only run main() when executed directly (not imported)
+if (import.meta.main) {
   const { dataDir, tick } = parseArgs();
   if (dataDir) setDataDir(dataDir);
   const tickMs = parseInterval(tick);
@@ -34,30 +110,8 @@ async function main() {
   ensureDataDir();
   writeFileSync(getPidPath(), String(process.pid));
 
-  while (true) {
-    const config = readConfig();
+  const handle = startDaemon(tickMs);
 
-    for (const ws of config.workspaces) {
-      if (!isDue(ws)) continue;
-
-      const entry = await runHeartbeat(ws);
-      appendLog(entry);
-
-      if (entry.outcome === "attention") {
-        console.log(`[${entry.ts}] ${ws.path}: ${entry.summary}`);
-      } else if (entry.outcome === "error") {
-        console.error(`[${entry.ts}] ${ws.path}: ERROR — ${entry.error}`);
-      }
-
-      ws.lastRun = entry.ts;
-      await writeConfig(config);
-    }
-
-    await Bun.sleep(tickMs);
-  }
+  process.on("SIGTERM", () => { handle.stop(); cleanup(0); });
+  process.on("SIGINT", () => { handle.stop(); cleanup(0); });
 }
-
-main().catch((err) => {
-  console.error("Daemon crashed:", err);
-  cleanup(1);
-});
