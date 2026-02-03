@@ -1,22 +1,19 @@
 import { writeFileSync, unlinkSync } from "node:fs";
-import { join } from "node:path";
-import { getDataDir, setDataDir, ensureDataDir, isDue, parseInterval, readConfig, writeConfig } from "./config.ts";
+import { setDataDir, ensureDataDir, isDue, parseInterval, readConfig, writeConfig, getPidPath } from "./config.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
 
-function getPidPath() {
-  return join(getDataDir(), "orchester.pid");
-}
-
-function cleanup() {
+function cleanup(exitCode = 0) {
   try {
     unlinkSync(getPidPath());
-  } catch {}
-  process.exit(0);
+  } catch {
+    // PID file may already be gone; nothing to do during shutdown
+  }
+  process.exit(exitCode);
 }
 
-process.on("SIGTERM", cleanup);
-process.on("SIGINT", cleanup);
+process.on("SIGTERM", () => cleanup(0));
+process.on("SIGINT", () => cleanup(0));
 
 function parseArgs() {
   const args = process.argv.slice(2);
@@ -62,5 +59,5 @@ async function main() {
 
 main().catch((err) => {
   console.error("Daemon crashed:", err);
-  cleanup();
+  cleanup(1);
 });
