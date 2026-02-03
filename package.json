@@ -1,10 +1,13 @@
 {
-  "name": "orchester",
+  "name": "murmur",
   "module": "src/cli.ts",
   "type": "module",
   "private": true,
   "bin": {
-    "orchester": "./src/cli.ts"
+    "murmur": "./src/cli.ts"
+  },
+  "scripts": {
+    "test:e2e": "bun test test/e2e.test.ts"
   },
   "devDependencies": {
     "@types/bun": "latest"

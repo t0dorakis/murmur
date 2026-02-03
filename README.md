@@ -1,6 +1,6 @@
-# Orchester
+# Murmur
 
-A CLI daemon that runs scheduled prompts ("heartbeats") via Claude. Write a prompt in markdown, tell Orchester how often to run it, and it handles the rest — only bothering you when something needs attention.
+A CLI daemon that runs scheduled prompts ("heartbeats") via Claude. Write a prompt in markdown, tell murmur how often to run it, and it handles the rest — only bothering you when something needs attention.
 
 ## Install
 
@@ -15,13 +15,13 @@ Requires [Claude CLI](https://docs.anthropic.com/en/docs/claude-cli) to be insta
 
 ```bash
 # 1. Create a heartbeat prompt in any directory
-orchester init ~/repos/my-project
+murmur init ~/repos/my-project
 
 # 2. Edit the prompt to describe what Claude should do
 vim ~/repos/my-project/HEARTBEAT.md
 
 # 3. Add the workspace to your config
-vim ~/.orchester/config.json
+vim ~/.murmur/config.json
 ```
 
 ```json
@@ -39,21 +39,21 @@ vim ~/.orchester/config.json
 
 ```bash
 # 4. Start the daemon
-orchester start
+murmur start
 
 # 5. Check on it
-orchester status
+murmur status
 ```
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `orchester start` | Start the daemon in the background |
-| `orchester stop` | Stop the daemon |
-| `orchester status` | Show daemon state and workspace info |
-| `orchester beat [path]` | Fire one heartbeat immediately (defaults to `.`) |
-| `orchester init [path]` | Create a `HEARTBEAT.md` template |
+| `murmur start` | Start the daemon in the background |
+| `murmur stop` | Stop the daemon |
+| `murmur status` | Show daemon state and workspace info |
+| `murmur beat [path]` | Fire one heartbeat immediately (defaults to `.`) |
+| `murmur init [path]` | Create a `HEARTBEAT.md` template |
 
 ## HEARTBEAT.md
 
@@ -87,7 +87,7 @@ If anything looks off, tell me. Otherwise HEARTBEAT_OK.
 
 ## Config
 
-`~/.orchester/config.json` — edit directly to add/remove workspaces.
+`~/.murmur/config.json` — edit directly to add/remove workspaces.
 
 | Field | Description |
 |-------|-------------|
@@ -98,7 +98,7 @@ If anything looks off, tell me. Otherwise HEARTBEAT_OK.
 
 ## Logs
 
-Heartbeat results are appended to `~/.orchester/heartbeats.jsonl`:
+Heartbeat results are appended to `~/.murmur/heartbeats.jsonl`:
 
 ```jsonl
 {"ts":"2026-02-03T10:00:00Z","workspace":"/Users/you/repos/my-project","outcome":"ok","durationMs":8200}
@@ -110,13 +110,13 @@ Outcomes: `ok` (silent), `attention` (needs action), `error` (something broke).
 Browse with standard tools:
 ```bash
 # Recent entries
-tail -5 ~/.orchester/heartbeats.jsonl
+tail -5 ~/.murmur/heartbeats.jsonl
 
 # Filter attention entries
-grep '"attention"' ~/.orchester/heartbeats.jsonl | jq .
+grep '"attention"' ~/.murmur/heartbeats.jsonl | jq .
 
 # Count today's runs
-grep "$(date -u +%Y-%m-%d)" ~/.orchester/heartbeats.jsonl | wc -l
+grep "$(date -u +%Y-%m-%d)" ~/.murmur/heartbeats.jsonl | wc -l
 ```
 
 ## How It Works

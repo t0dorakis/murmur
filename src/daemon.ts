@@ -5,7 +5,7 @@ import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
 
 function getPidPath() {
-  return join(getDataDir(), "orchester.pid");
+  return join(getDataDir(), "murmur.pid");
 }
 
 function cleanup() {

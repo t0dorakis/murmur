@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import type { Config, WorkspaceConfig } from "./types.ts";
 
-let dataDir = join(homedir(), ".orchester");
+let dataDir = join(homedir(), ".murmur");
 
 export function setDataDir(dir: string) {
   dataDir = dir;

@@ -6,7 +6,7 @@ import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
 
 function getPidPath() {
-  return join(getDataDir(), "orchester.pid");
+  return join(getDataDir(), "murmur.pid");
 }
 
 function readPid(): number | null {
@@ -92,7 +92,7 @@ function status() {
 
   const config = readConfig();
   if (config.workspaces.length === 0) {
-    console.log("No workspaces configured. Edit ~/.orchester/config.json to add workspaces.");
+    console.log("No workspaces configured. Edit ~/.murmur/config.json to add workspaces.");
     return;
   }
 
@@ -107,7 +107,7 @@ async function beat(path: string) {
   const resolved = resolve(path);
   const heartbeatFile = join(resolved, "HEARTBEAT.md");
   if (!existsSync(heartbeatFile)) {
-    console.error(`No HEARTBEAT.md found in ${resolved}. Run "orchester init ${path}" first.`);
+    console.error(`No HEARTBEAT.md found in ${resolved}. Run "murmur init ${path}" first.`);
     process.exit(1);
   }
 
@@ -165,6 +165,6 @@ switch (command) {
     await init(arg);
     break;
   default:
-    console.log(`Usage: orchester [--data-dir <path>] <start [--tick <interval>]|stop|status|beat|init> [path]`);
+    console.log(`Usage: murmur [--data-dir <path>] <start [--tick <interval>]|stop|status|beat|init> [path]`);
     process.exit(command ? 1 : 0);
 }

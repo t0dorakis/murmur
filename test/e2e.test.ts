@@ -10,7 +10,7 @@ const JOKES_FILE = join(EXAMPLE_DIR, "jokes.txt");
 
 let testDataDir: string;
 
-async function orchester(...args: string[]) {
+async function murmur(...args: string[]) {
   const proc = Bun.spawn(["bun", CLI_PATH, "--data-dir", testDataDir, ...args], {
     stdout: "pipe",
     stderr: "pipe",
@@ -27,12 +27,12 @@ function jokeCount(): number {
 }
 
 beforeAll(() => {
-  testDataDir = mkdtempSync(join(tmpdir(), "orchester-e2e-"));
+  testDataDir = mkdtempSync(join(tmpdir(), "murmur-e2e-"));
 });
 
 afterAll(() => {
   // Kill daemon if still running
-  const pidFile = join(testDataDir, "orchester.pid");
+  const pidFile = join(testDataDir, "murmur.pid");
   if (existsSync(pidFile)) {
     try {
       const pid = Number(readFileSync(pidFile, "utf-8").trim());
@@ -42,10 +42,10 @@ afterAll(() => {
 });
 
 describe("e2e", () => {
-  test("orchester beat fires a real heartbeat", async () => {
+  test("murmur beat fires a real heartbeat", async () => {
     const jokesBefore = jokeCount();
 
-    const result = await orchester("beat", EXAMPLE_DIR);
+    const result = await murmur("beat", EXAMPLE_DIR);
     expect(result.exitCode).toBe(0);
 
     // Log file created with a valid entry
@@ -74,18 +74,18 @@ describe("e2e", () => {
     }, null, 2));
 
     // Start daemon with fast tick
-    const startResult = await orchester("start", "--tick", "5s");
+    const startResult = await murmur("start", "--tick", "5s");
     expect(startResult.exitCode).toBe(0);
     expect(startResult.stdout).toContain("Started");
 
     // PID file exists and process is alive
-    const pidFile = join(testDataDir, "orchester.pid");
+    const pidFile = join(testDataDir, "murmur.pid");
     expect(existsSync(pidFile)).toBe(true);
     const daemonPid = Number(readFileSync(pidFile, "utf-8").trim());
     expect(() => process.kill(daemonPid, 0)).not.toThrow();
 
     // Status reports running
-    const statusResult = await orchester("status");
+    const statusResult = await murmur("status");
     expect(statusResult.stdout).toContain("running");
 
     // Wait for daemon to tick and Claude to finish
@@ -99,7 +99,7 @@ describe("e2e", () => {
     expect(jokeCount()).toBeGreaterThan(jokesBefore);
 
     // Stop daemon
-    const stopResult = await orchester("stop");
+    const stopResult = await murmur("stop");
     expect(stopResult.exitCode).toBe(0);
     expect(stopResult.stdout).toContain("Stopped");
 
@@ -110,7 +110,7 @@ describe("e2e", () => {
     expect(() => process.kill(daemonPid, 0)).toThrow();
 
     // Status reports stopped
-    const statusAfter = await orchester("status");
+    const statusAfter = await murmur("status");
     expect(statusAfter.stdout).toContain("stopped");
   }, 120_000);
 });

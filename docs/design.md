@@ -1,13 +1,13 @@
-# Orchester — Design
+# Murmur — Design
 
 ## System Overview
 
 ```
-~/.orchester/
+~/.murmur/
   config.json          <-- which prompts to run and how often (you edit this)
   heartbeats.jsonl     <-- append-only run log
-  orchester.pid        <-- daemon PID
-  orchester.log        <-- daemon debug log
+  murmur.pid           <-- daemon PID
+  murmur.log           <-- daemon debug log
 
 ~/automations/email/
   HEARTBEAT.md         <-- "Check my Gmail for anything urgent" (you write this)
@@ -16,13 +16,13 @@
   HEARTBEAT.md         <-- "Run tests, check git status" (you write this)
 ```
 
-Two state locations: one global (`~/.orchester/`) for daemon state, one per-directory (`HEARTBEAT.md`) for the prompt itself. A directory can be a code project, but it doesn't have to be — it's just where the prompt file lives and where Claude runs.
+Two state locations: one global (`~/.murmur/`) for daemon state, one per-directory (`HEARTBEAT.md`) for the prompt itself. A directory can be a code project, but it doesn't have to be — it's just where the prompt file lives and where Claude runs.
 
 ## Data Flow
 
 ```
 1. Daemon wakes up (every 10s)
-2. Reads ~/.orchester/config.json
+2. Reads ~/.murmur/config.json
 3. For each workspace: is it due? (lastRun + interval < now)
 4.   Yes --> read HEARTBEAT.md, build prompt
 5.        --> spawn `claude -p` with prompt on stdin, cwd set to workspace
@@ -39,7 +39,7 @@ src/
   cli.ts              # Entry point: parse argv, dispatch command
   daemon.ts           # The loop: wake, check, sleep
   heartbeat.ts        # Spawn claude, capture output, classify result
-  config.ts           # Read/write ~/.orchester/config.json
+  config.ts           # Read/write ~/.murmur/config.json
   log.ts              # Append to heartbeats.jsonl
   types.ts            # TypeScript type definitions
 ```
@@ -73,10 +73,10 @@ Sequential execution. If a heartbeat takes 2 minutes, the next one waits. That's
 
 ## Daemon Lifecycle
 
-**Start**: `orchester start`
+**Start**: `murmur start`
 1. Check if PID file exists and process is alive --> exit with "already running"
 2. Spawn detached: `Bun.spawn(["bun", "src/daemon.ts"], { detached: true, stdio: ["ignore", "ignore", "ignore"] })` then `proc.unref()`
-3. Daemon writes PID to `~/.orchester/orchester.pid`
+3. Daemon writes PID to `~/.murmur/murmur.pid`
 4. Print PID and exit
 
 **PID liveness check**: `process.kill(pid, 0)` succeeds if process exists. Guard against PID recycling by verifying the process is actually `bun` (check via `ps -p <pid> -o comm=`).
@@ -87,7 +87,7 @@ Sequential execution. If a heartbeat takes 2 minutes, the next one waits. That's
 3. Sleep 10 seconds
 4. Repeat
 
-**Stop**: `orchester stop`
+**Stop**: `murmur stop`
 1. Read PID from file
 2. `process.kill(pid, "SIGTERM")`
 3. Daemon catches SIGTERM, cleans up PID file, exits
@@ -100,7 +100,7 @@ Sequential execution. If a heartbeat takes 2 minutes, the next one waits. That's
 ## Edge Cases
 
 - **Claude CLI not installed**: Preflight check before spawning. Log error, skip workspace. Next tick retries.
-- **HEARTBEAT.md missing**: Log error, skip. Suggests running `orchester init`.
+- **HEARTBEAT.md missing**: Log error, skip. Suggests running `murmur init`.
 - **Previous heartbeat still running**: Sequential loop means this can't happen — each prompt completes before the next starts.
 - **Laptop sleep/wake**: Tick loop checks absolute timestamps (`lastRun + interval < now`), not relative timers. All overdue workspaces fire on the first tick after wake. Timers freeze during sleep but resume on wake — no issue since we re-check absolute time each tick.
 - **App Nap (macOS)**: macOS may throttle the background daemon. Mitigate with `defaults write com.apple.Terminal NSAppSleepDisabled -bool YES` if tick intervals become unreliable.

@@ -1,18 +1,18 @@
-# Orchester — Spec
+# Murmur — Spec
 
 ## CLI
 
 ```
-orchester start              # Start the daemon in background
-orchester stop               # Stop the daemon (SIGTERM)
-orchester status             # Show daemon PID, uptime, workspace states
-orchester beat [path]        # Fire one heartbeat now (path defaults to cwd)
-orchester init [path]        # Create HEARTBEAT.md template in workspace
+murmur start              # Start the daemon in background
+murmur stop               # Stop the daemon (SIGTERM)
+murmur status             # Show daemon PID, uptime, workspace states
+murmur beat [path]        # Fire one heartbeat now (path defaults to cwd)
+murmur init [path]        # Create HEARTBEAT.md template in workspace
 ```
 
-Entry point: `src/cli.ts` via `package.json` `"bin": { "orchester": "./src/cli.ts" }`
+Entry point: `src/cli.ts` via `package.json` `"bin": { "murmur": "./src/cli.ts" }`
 
-## Config Format (`~/.orchester/config.json`)
+## Config Format (`~/.murmur/config.json`)
 
 ```json
 {
@@ -40,7 +40,7 @@ Entry point: `src/cli.ts` via `package.json` `"bin": { "orchester": "./src/cli.t
 
 Users edit this file directly to add/remove workspaces. No `add`/`remove` commands needed.
 
-## Log Format (`~/.orchester/heartbeats.jsonl`)
+## Log Format (`~/.murmur/heartbeats.jsonl`)
 
 One JSON object per line, appended after each heartbeat:
 
@@ -57,7 +57,7 @@ One JSON object per line, appended after each heartbeat:
 
 ## HEARTBEAT.md
 
-The prompt file. Claude reads this on every heartbeat. It's just markdown — write whatever you want Claude to do. Template created by `orchester init`:
+The prompt file. Claude reads this on every heartbeat. It's just markdown — write whatever you want Claude to do. Template created by `murmur init`:
 
 ```markdown
 # Heartbeat
@@ -180,11 +180,11 @@ type LogEntry = {
 Shared type definitions exported for all modules.
 
 ### `src/config.ts`
-- `readConfig(): Config` — read and parse `~/.orchester/config.json`
+- `readConfig(): Config` — read and parse `~/.murmur/config.json`
 - `writeConfig(config: Config)` — atomic write (write temp file, rename)
 - `parseInterval(s: string): number` — `"30m"` --> `1800000`, `"1h"` --> `3600000`
 - `isDue(ws: WorkspaceConfig): boolean` — `lastRun + interval < now`
-- `ensureDataDir()` — create `~/.orchester/` if missing
+- `ensureDataDir()` — create `~/.murmur/` if missing
 
 ### `src/heartbeat.ts`
 - `runHeartbeat(ws: WorkspaceConfig): Promise<LogEntry>` — full cycle: build prompt, spawn, classify, return
@@ -192,7 +192,7 @@ Shared type definitions exported for all modules.
 - `classify(stdout: string, exitCode: number): Outcome` — determine ok/attention/error
 
 ### `src/log.ts`
-- `appendLog(entry: LogEntry)` — append JSON line to `~/.orchester/heartbeats.jsonl` (uses `appendFileSync` from `node:fs`)
+- `appendLog(entry: LogEntry)` — append JSON line to `~/.murmur/heartbeats.jsonl` (uses `appendFileSync` from `node:fs`)
 
 ### `src/daemon.ts`
 - Main loop: read config, check due workspaces, run heartbeats, update lastRun, sleep 10s
@@ -209,7 +209,7 @@ Shared type definitions exported for all modules.
 ## Implementation Order
 
 1. `src/types.ts` + `src/config.ts` — foundation
-2. `src/heartbeat.ts` — core logic (testable via `orchester beat`)
+2. `src/heartbeat.ts` — core logic (testable via `murmur beat`)
 3. `src/log.ts` — output
 4. `src/daemon.ts` — the loop
 5. `src/cli.ts` — tie it together
@@ -219,9 +219,9 @@ Shared type definitions exported for all modules.
 ## Verification Plan
 
 1. `bun test` — unit tests pass
-2. `orchester init .` — creates HEARTBEAT.md
-3. `orchester beat .` — fires one heartbeat, prints result, appends to JSONL
-4. `orchester start` --> wait --> check `~/.orchester/heartbeats.jsonl` for entries
+2. `murmur init .` — creates HEARTBEAT.md
+3. `murmur beat .` — fires one heartbeat, prints result, appends to JSONL
+4. `murmur start` --> wait --> check `~/.murmur/heartbeats.jsonl` for entries
 5. Edit HEARTBEAT.md to include a failing check --> verify attention outcome logged
-6. `orchester status` — shows daemon running, workspace states
-7. `orchester stop` — clean shutdown
+6. `murmur status` — shows daemon running, workspace states
+7. `murmur stop` — clean shutdown

@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "orchester",
+      "name": "murmur",
       "devDependencies": {
         "@types/bun": "latest",
       },
