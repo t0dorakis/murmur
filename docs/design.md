@@ -7,7 +7,6 @@
   config.json          <-- which prompts to run and how often (you edit this)
   heartbeats.jsonl     <-- append-only run log
   murmur.pid           <-- daemon PID
-  murmur.log           <-- daemon debug log
 
 ~/automations/email/
   HEARTBEAT.md         <-- "Check my Gmail for anything urgent" (you write this)

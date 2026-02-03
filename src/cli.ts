@@ -1,19 +1,22 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { getDataDir, setDataDir, ensureDataDir, readConfig } from "./config.ts";
+import { getDataDir, setDataDir, ensureDataDir, readConfig, getConfigPath, getPidPath } from "./config.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
 
-function getPidPath() {
-  return join(getDataDir(), "murmur.pid");
-}
-
 function readPid(): number | null {
   try {
-    return Number(readFileSync(getPidPath(), "utf-8").trim());
-  } catch {
-    return null;
+    const raw = readFileSync(getPidPath(), "utf-8").trim();
+    const pid = Number(raw);
+    if (Number.isNaN(pid)) {
+      console.error(`Corrupt PID file (content: "${raw}"). Ignoring.`);
+      return null;
+    }
+    return pid;
+  } catch (err: any) {
+    if (err?.code === "ENOENT") return null;
+    throw err;
   }
 }
 
@@ -21,7 +24,8 @@ function isProcessAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);
     return true;
-  } catch {
+  } catch (err: any) {
+    if (err?.code === "EPERM") return true;
     return false;
   }
 }
@@ -67,7 +71,12 @@ async function start() {
   // Give daemon a moment to write PID
   await Bun.sleep(500);
   const newPid = readPid();
-  console.log(`Started (PID ${newPid ?? proc.pid}).`);
+  if (newPid && isProcessAlive(newPid)) {
+    console.log(`Started (PID ${newPid}).`);
+  } else {
+    console.error("Daemon failed to start.");
+    process.exit(1);
+  }
 }
 
 function stop() {
@@ -92,7 +101,7 @@ function status() {
 
   const config = readConfig();
   if (config.workspaces.length === 0) {
-    console.log("No workspaces configured. Edit ~/.murmur/config.json to add workspaces.");
+    console.log(`No workspaces configured. Edit ${getConfigPath()} to add workspaces.`);
     return;
   }
 

@@ -17,6 +17,12 @@ export function getConfigPath() {
   return join(dataDir, "config.json");
 }
 
+export const PID_FILENAME = "murmur.pid";
+
+export function getPidPath() {
+  return join(dataDir, PID_FILENAME);
+}
+
 export function ensureDataDir(): void {
   mkdirSync(dataDir, { recursive: true });
 }
@@ -25,8 +31,15 @@ export function readConfig(): Config {
   const configPath = getConfigPath();
   try {
     const text = nodeReadFileSync(configPath, "utf-8");
-    return JSON.parse(text) as Config;
-  } catch {
+    const parsed = JSON.parse(text);
+    if (!Array.isArray(parsed?.workspaces)) {
+      console.error(`Invalid config: "workspaces" must be an array in ${configPath}`);
+      return { workspaces: [] };
+    }
+    return parsed as Config;
+  } catch (err: any) {
+    if (err?.code === "ENOENT") return { workspaces: [] };
+    console.error(`Failed to read config (${configPath}):`, err?.message ?? err);
     return { workspaces: [] };
   }
 }
@@ -57,6 +70,11 @@ export function parseInterval(s: string): number {
 
 export function isDue(ws: WorkspaceConfig): boolean {
   if (!ws.lastRun) return true;
-  const elapsed = Date.now() - new Date(ws.lastRun).getTime();
+  const lastRunTime = new Date(ws.lastRun).getTime();
+  if (Number.isNaN(lastRunTime)) {
+    console.error(`Invalid lastRun timestamp for ${ws.path}: "${ws.lastRun}". Treating as due.`);
+    return true;
+  }
+  const elapsed = Date.now() - lastRunTime;
   return elapsed >= parseInterval(ws.interval);
 }

@@ -2,6 +2,7 @@ import { describe, test, expect, beforeAll, afterAll } from "bun:test";
 import { mkdtempSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
+import { PID_FILENAME } from "../src/config.ts";
 
 const REPO_DIR = join(import.meta.dir, "..");
 const CLI_PATH = join(REPO_DIR, "src/cli.ts");
@@ -32,7 +33,7 @@ beforeAll(() => {
 
 afterAll(() => {
   // Kill daemon if still running
-  const pidFile = join(testDataDir, "murmur.pid");
+  const pidFile = join(testDataDir, PID_FILENAME);
   if (existsSync(pidFile)) {
     try {
       const pid = Number(readFileSync(pidFile, "utf-8").trim());
@@ -79,7 +80,7 @@ describe("e2e", () => {
     expect(startResult.stdout).toContain("Started");
 
     // PID file exists and process is alive
-    const pidFile = join(testDataDir, "murmur.pid");
+    const pidFile = join(testDataDir, PID_FILENAME);
     expect(existsSync(pidFile)).toBe(true);
     const daemonPid = Number(readFileSync(pidFile, "utf-8").trim());
     expect(() => process.kill(daemonPid, 0)).not.toThrow();
