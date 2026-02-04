@@ -1,4 +1,4 @@
-import { mkdirSync, readFileSync as nodeReadFileSync, renameSync } from "node:fs";
+import { mkdirSync, readFileSync as nodeReadFileSync, renameSync, unlinkSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import type { Config, WorkspaceConfig } from "./types.ts";
@@ -58,6 +58,15 @@ export async function writeConfig(config: Config): Promise<void> {
   renameSync(tmp, configPath);
 }
 
+export async function updateLastRun(workspacePath: string, lastRun: string): Promise<void> {
+  const config = readConfig();
+  const ws = config.workspaces.find((w) => w.path === workspacePath);
+  if (ws) {
+    ws.lastRun = lastRun;
+    await writeConfig(config);
+  }
+}
+
 const INTERVAL_RE = /^(\d+)(s|m|h|d)$/;
 
 export function parseInterval(s: string): number {
@@ -72,6 +81,11 @@ export function parseInterval(s: string): number {
     d: 86_400_000,
   };
   return value * multipliers[unit]!;
+}
+
+export function cleanupRuntimeFiles(): void {
+  try { unlinkSync(getPidPath()); } catch {}
+  try { unlinkSync(getSocketPath()); } catch {}
 }
 
 export function isDue(ws: WorkspaceConfig): boolean {

@@ -1,7 +1,9 @@
 import { createEventBus, type EventSource } from "./events.ts";
 import type { DaemonEvent } from "./types.ts";
 
-export async function connectToSocket(socketPath: string): Promise<EventSource & { close(): void }> {
+export type SocketConnection = EventSource & { close(): void };
+
+export async function connectToSocket(socketPath: string): Promise<SocketConnection> {
   const bus = createEventBus();
   let buffer = "";
   let connected = false;
@@ -23,7 +25,7 @@ export async function connectToSocket(socketPath: string): Promise<EventSource &
         data(_socket, raw) {
           buffer += typeof raw === "string" ? raw : new TextDecoder().decode(raw);
           const lines = buffer.split("\n");
-          buffer = lines.pop()!;
+          buffer = lines.pop() ?? "";
 
           for (const line of lines) {
             if (!line.trim()) continue;

@@ -1,10 +1,10 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { setDataDir, ensureDataDir, readConfig, writeConfig, getConfigPath, getPidPath, getSocketPath, parseInterval } from "./config.ts";
+import { setDataDir, ensureDataDir, readConfig, writeConfig, getConfigPath, getPidPath, getSocketPath, parseInterval, cleanupRuntimeFiles } from "./config.ts";
 import { startDaemon } from "./daemon.ts";
 import { startSocketServer, type SocketServer } from "./socket.ts";
-import { connectToSocket } from "./socket-client.ts";
+import { connectToSocket, type SocketConnection } from "./socket-client.ts";
 import { createTui } from "./tui.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
@@ -47,10 +47,6 @@ function cleanStaleSocket() {
   }
 }
 
-function cleanupFiles() {
-  try { unlinkSync(getPidPath()); } catch {}
-  try { unlinkSync(getSocketPath()); } catch {}
-}
 
 function parseGlobalArgs() {
   const raw = process.argv.slice(2);
@@ -75,47 +71,7 @@ function parseGlobalArgs() {
 const { dataDir, tick, detach, command, targetPath } = parseGlobalArgs();
 if (dataDir) setDataDir(dataDir);
 
-// --- Keyboard input handling ---
-
-import { mapKeyToAction } from "./keys.ts";
-
-type KeyHandler = {
-  start(callbacks: { onQuit(): void; onDetach(): void }): void;
-  stop(): void;
-};
-
-function createKeyHandler(): KeyHandler {
-  let active = false;
-  let callbacks: { onQuit(): void; onDetach(): void } | null = null;
-
-  function onData(data: Buffer) {
-    if (!callbacks) return;
-    const action = mapKeyToAction(data);
-    if (action === "quit") callbacks.onQuit();
-    else if (action === "detach") callbacks.onDetach();
-  }
-
-  return {
-    start(newCallbacks) {
-      callbacks = newCallbacks;
-      if (process.stdin.isTTY) {
-        process.stdin.setRawMode(true);
-        process.stdin.resume();
-        process.stdin.on("data", onData);
-        active = true;
-      }
-    },
-    stop() {
-      if (active) {
-        process.stdin.removeListener("data", onData);
-        process.stdin.setRawMode(false);
-        process.stdin.pause();
-        active = false;
-      }
-      callbacks = null;
-    },
-  };
-}
+import { createKeyHandler } from "./keys.ts";
 
 // --- Commands ---
 
@@ -141,7 +97,7 @@ async function startForeground() {
     socketServer = startSocketServer(handle.bus, getSocketPath(), config.workspaces.length);
   } catch (err: any) {
     handle.stop();
-    cleanupFiles();
+    cleanupRuntimeFiles();
     console.error(`Failed to start socket server: ${err?.message}`);
     process.exit(1);
   }
@@ -151,12 +107,12 @@ async function startForeground() {
 
   const keys = createKeyHandler();
 
-  function shutdown() {
+  async function shutdown() {
     keys.stop();
     tui.stop();
     socketServer.stop();
-    handle.stop();
-    cleanupFiles();
+    await handle.stop();
+    cleanupRuntimeFiles();
     process.exit(0);
   }
 
@@ -244,7 +200,7 @@ async function watch() {
     process.exit(1);
   }
 
-  let conn: Awaited<ReturnType<typeof connectToSocket>>;
+  let conn: SocketConnection;
   try {
     conn = await connectToSocket(sockPath);
   } catch (err: any) {

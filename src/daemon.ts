@@ -1,9 +1,10 @@
-import { writeFileSync, unlinkSync, readFileSync } from "node:fs";
+import { writeFileSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { setDataDir, ensureDataDir, isDue, parseInterval, readConfig, writeConfig, getPidPath, getSocketPath } from "./config.ts";
+import { setDataDir, ensureDataDir, isDue, parseInterval, readConfig, updateLastRun, getPidPath, getSocketPath, cleanupRuntimeFiles } from "./config.ts";
 import { createEventBus, type EventBus } from "./events.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
+import { startSocketServer } from "./socket.ts";
 import type { WorkspaceConfig, WorkspaceStatus } from "./types.ts";
 
 function workspaceName(ws: WorkspaceConfig): string {
@@ -37,17 +38,19 @@ export function buildWorkspaceStatuses(workspaces: WorkspaceConfig[]): Workspace
 
 export type DaemonHandle = {
   bus: EventBus;
-  stop(): void;
+  stop(): Promise<void>;
 };
 
 export function startDaemon(tickMs: number): DaemonHandle {
   const bus = createEventBus();
   let running = true;
 
-  const config = readConfig();
-  bus.emit({ type: "daemon:ready", pid: process.pid, workspaceCount: config.workspaces.length });
+  const initialConfig = readConfig();
 
-  (async () => {
+  const loopDone = (async () => {
+    await Promise.resolve(); // yield so callers can subscribe before first events
+    bus.emit({ type: "daemon:ready", pid: process.pid, workspaceCount: initialConfig.workspaces.length });
+
     while (running) {
       try {
         const config = readConfig();
@@ -60,8 +63,7 @@ export function startDaemon(tickMs: number): DaemonHandle {
           const entry = await runHeartbeat(ws, bus.emit.bind(bus));
           appendLog(entry);
 
-          ws.lastRun = entry.ts;
-          await writeConfig(config);
+          await updateLastRun(ws.path, entry.ts);
         }
       } catch (err) {
         console.error("Daemon loop error:", err);
@@ -73,9 +75,10 @@ export function startDaemon(tickMs: number): DaemonHandle {
 
   return {
     bus,
-    stop() {
+    async stop() {
       running = false;
       bus.emit({ type: "daemon:shutdown" });
+      await loopDone;
     },
   };
 }
@@ -83,8 +86,7 @@ export function startDaemon(tickMs: number): DaemonHandle {
 // --- Entry point when run as detached daemon process ---
 
 function cleanup(exitCode = 0) {
-  try { unlinkSync(getPidPath()); } catch {}
-  try { unlinkSync(getSocketPath()); } catch {}
+  cleanupRuntimeFiles();
   process.exit(exitCode);
 }
 
@@ -94,7 +96,7 @@ function parseArgs() {
   let tick = "10s";
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--data-dir") dataDir = args[++i];
-    else if (args[i] === "--tick") tick = args[++i]!;
+    else if (args[i] === "--tick") tick = args[++i] ?? tick;
   }
   return { dataDir, tick };
 }
@@ -107,8 +109,16 @@ if (import.meta.main) {
   ensureDataDir();
   writeFileSync(getPidPath(), String(process.pid));
 
+  const initialConfig = readConfig();
   const handle = startDaemon(tickMs);
+  const socketServer = startSocketServer(handle.bus, getSocketPath(), initialConfig.workspaces.length);
 
-  process.on("SIGTERM", () => { handle.stop(); cleanup(0); });
-  process.on("SIGINT", () => { handle.stop(); cleanup(0); });
+  function shutdown() {
+    handle.stop();
+    socketServer.stop();
+    cleanup(0);
+  }
+
+  process.on("SIGTERM", shutdown);
+  process.on("SIGINT", shutdown);
 }

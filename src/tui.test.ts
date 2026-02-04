@@ -1,13 +1,21 @@
-import { describe, test, expect } from "bun:test";
+import { describe, test, expect, afterEach } from "bun:test";
 import { createTestScreen } from "./screen.ts";
-import { createTui } from "./tui.ts";
+import { createTui, type Tui } from "./tui.ts";
 import { createEventBus } from "./events.ts";
 import type { WorkspaceStatus } from "./types.ts";
+
+let activeTui: Tui | null = null;
+
+afterEach(() => {
+  activeTui?.stop();
+  activeTui = null;
+});
 
 function setup(cols = 80, rows = 24) {
   const screen = createTestScreen(cols, rows);
   const bus = createEventBus();
   const tui = createTui(bus, screen);
+  activeTui = tui;
   return { screen, bus, tui };
 }
 
@@ -37,8 +45,6 @@ describe("tui rendering", () => {
     expect(screen.text()).toContain("murmur");
     expect(screen.text()).toContain("2 workspaces");
     expect(screen.text()).toContain("pid 42");
-
-    tui.stop();
   });
 
   test("shows workspace name and interval", () => {
@@ -52,8 +58,6 @@ describe("tui rendering", () => {
 
     expect(screen.text()).toContain("my-project");
     expect(screen.text()).toContain("30m");
-
-    tui.stop();
   });
 
   test("shows singular 'workspace' for one workspace", () => {
@@ -65,8 +69,6 @@ describe("tui rendering", () => {
 
     expect(screen.text()).toContain("1 workspace ");
     expect(screen.text()).not.toContain("1 workspaces");
-
-    tui.stop();
   });
 
   test("shows waiting message when no feed entries", () => {
@@ -76,8 +78,6 @@ describe("tui rendering", () => {
     bus.emit({ type: "tick", workspaces: [makeWorkspace()] });
 
     expect(screen.text()).toContain("Waiting for first heartbeat");
-
-    tui.stop();
   });
 
   test("shows empty state when no workspaces", () => {
@@ -87,8 +87,6 @@ describe("tui rendering", () => {
     bus.emit({ type: "tick", workspaces: [] });
 
     expect(screen.text()).toContain("No workspaces configured");
-
-    tui.stop();
   });
 
   test("shows active beat output during heartbeat", () => {
@@ -101,8 +99,6 @@ describe("tui rendering", () => {
 
     expect(screen.text()).toContain("test-ws");
     expect(screen.text()).toContain("Checking 3 repos");
-
-    tui.stop();
   });
 
   test("shows completed entry with ok outcome", () => {
@@ -119,8 +115,6 @@ describe("tui rendering", () => {
 
     expect(screen.text()).toContain("ok");
     expect(screen.text()).toContain("1.5s");
-
-    tui.stop();
   });
 
   test("shows completed entry with attention outcome", () => {
@@ -143,8 +137,6 @@ describe("tui rendering", () => {
 
     expect(screen.text()).toContain("attention");
     expect(screen.text()).toContain("3.2s");
-
-    tui.stop();
   });
 
   test("alt screen and cursor codes sent on start/stop", () => {
@@ -155,6 +147,7 @@ describe("tui rendering", () => {
     expect(screen.buffer).toContain("\x1b[?25l"); // cursor hide
 
     tui.stop();
+    activeTui = null; // already stopped, prevent double-stop
     expect(screen.buffer).toContain("\x1b[?25h"); // cursor show
     expect(screen.buffer).toContain("\x1b[?1049l"); // alt screen off
   });
@@ -167,7 +160,6 @@ describe("tui rendering", () => {
     bus.emit({ type: "heartbeat:start", workspace: "/tmp/ws", promptPreview: "Check" });
     bus.emit({ type: "heartbeat:stdout", workspace: "/tmp/ws", chunk: "working..." });
 
-    // Active beat should be visible
     expect(screen.text()).toContain("working...");
 
     screen.clear();
@@ -177,10 +169,6 @@ describe("tui rendering", () => {
       entry: { ts: new Date().toISOString(), workspace: "/tmp/ws", outcome: "ok", durationMs: 500 },
     });
 
-    // After done, the streaming output should not appear as active beat
-    // The "running" indicator should be gone
     expect(screen.text()).not.toContain("running");
-
-    tui.stop();
   });
 });

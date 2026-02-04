@@ -1,5 +1,10 @@
 import { join } from "node:path";
-import type { DaemonEvent, LogEntry, Outcome, WorkspaceConfig } from "./types.ts";
+import type {
+  DaemonEvent,
+  LogEntry,
+  Outcome,
+  WorkspaceConfig,
+} from "./types.ts";
 
 export async function buildPrompt(ws: WorkspaceConfig): Promise<string> {
   const heartbeatPath = join(ws.path, "HEARTBEAT.md");
@@ -57,10 +62,20 @@ export async function runHeartbeat(
     return entry;
   }
 
-  emit?.({ type: "heartbeat:start", workspace: ws.path, promptPreview: promptPreview(prompt) });
+  emit?.({
+    type: "heartbeat:start",
+    workspace: ws.path,
+    promptPreview: promptPreview(prompt),
+  });
 
   const proc = Bun.spawn(
-    ["claude", "--print", "--dangerously-skip-permissions", "--max-turns", String(ws.maxTurns ?? 3)],
+    [
+      "claude",
+      "--print",
+      "--dangerously-skip-permissions",
+      "--max-turns",
+      String(ws.maxTurns ?? 99),
+    ],
     {
       cwd: ws.path,
       stdin: new Blob([prompt]),

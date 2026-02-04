@@ -228,6 +228,11 @@ function reduceEvent(state: TuiState, event: DaemonEvent): boolean {
 
     case "daemon:shutdown":
       return false;
+
+    default: {
+      const _exhaustive: never = event;
+      return false;
+    }
   }
 }
 

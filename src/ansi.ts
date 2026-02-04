@@ -26,10 +26,6 @@ export function styled(text: string, ...codes: string[]): string {
   return codes.join("") + text + reset;
 }
 
-export function terminalWidth(): number {
-  return process.stdout.columns ?? 80;
-}
-
 export function truncate(text: string, maxWidth: number, suffix = "…"): string {
   if (text.length <= maxWidth) return text;
   return text.slice(0, maxWidth - suffix.length) + suffix;
@@ -38,12 +34,4 @@ export function truncate(text: string, maxWidth: number, suffix = "…"): string
 export function padRight(text: string, width: number): string {
   if (text.length >= width) return text;
   return text + " ".repeat(width - text.length);
-}
-
-export function write(content: string): void {
-  try {
-    process.stdout.write(content);
-  } catch {
-    // stdout gone (pipe closed, terminal detached)
-  }
 }
