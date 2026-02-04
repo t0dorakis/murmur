@@ -180,13 +180,17 @@ If zero activity across all repos, respond HEARTBEAT_OK.
 Interval: `1d`
 ---
 
-## Choosing the Right Interval
+## Choosing the Right Schedule
 
-| Use case | Suggested interval |
-|----------|-------------------|
-| Critical uptime (endpoints, services) | `15m` |
-| Active development (CI, tests, triage) | `30m` – `1h` |
-| Reviews & collaboration | `6h` – `12h` |
-| Research & intelligence | `6h` – `1d` |
-| Housekeeping (deps, cleanup, digests) | `1d` |
+Use **interval** for fixed-frequency checks. Use **cron** when you need specific times or weekday-only runs.
+
+| Use case | Interval | Cron alternative |
+|----------|----------|-----------------|
+| Critical uptime (endpoints, services) | `15m` | `*/15 * * * *` |
+| Active development (CI, tests, triage) | `30m` – `1h` | `*/30 9-18 * * 1-5` (work hours) |
+| Reviews & collaboration | `6h` – `12h` | `0 9,17 * * 1-5` (9am + 5pm weekdays) |
+| Research & intelligence | `6h` – `1d` | `0 8 * * *` (daily at 8am) |
+| Housekeeping (deps, cleanup, digests) | `1d` | `0 3 * * 0` (Sunday 3am) |
+
+Cron workspaces support an optional `tz` field (e.g., `"America/New_York"`) — defaults to local system timezone.
 

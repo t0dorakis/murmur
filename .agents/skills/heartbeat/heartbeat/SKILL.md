@@ -22,6 +22,26 @@ Murmur is a minimal scheduler. It reads a HEARTBEAT.md file, sends its contents 
 
 ## Workflow
 
+### 0. Preflight
+
+Before starting, verify murmur is installed:
+
+```bash
+which murmur
+```
+
+- **Found** → continue to interview.
+- **Not found** → install via Homebrew:
+  ```bash
+  brew install t0dorakis/murmur/murmur
+  ```
+  If Homebrew isn't available, install from source:
+  ```bash
+  git clone https://github.com/t0dorakis/murmur.git
+  cd murmur && bun install && bun run build
+  # Then add ./murmur to PATH
+  ```
+
 ### 1. Interview
 
 Conduct a focused interview using AskUserQuestion. Go one or two questions at a time, building on previous answers.
@@ -35,7 +55,10 @@ Ask what they want automated. If they're unsure or exploring, read [references/e
 Based on their goal, dig into specifics:
 - What tools/APIs/commands are needed? (gh, curl, specific URLs, API keys)
 - What's the workspace directory?
-- How often should it run?
+- How often should it run? Two options:
+  - **Interval** — fixed frequency: `15m`, `1h`, `6h`, `1d`
+  - **Cron** — precise schedule: `0 9 * * 1-5` (weekdays at 9am), `*/30 * * * *` (every 30 min)
+  - If they pick cron, ask about timezone (defaults to local system tz)
 
 **Round 3 — Delivery:**
 
@@ -90,7 +113,9 @@ Ask the user: "Did that do what you expected?"
 Ensure the workspace is in murmur's config (`~/.murmur/config.json`):
 
 1. Check for an existing entry with this workspace path
-2. If missing, add it with the agreed interval:
+2. If missing, add it with the agreed schedule. Use **either** `interval` or `cron`, never both:
+
+   **Interval-based:**
    ```json
    {
      "path": "{absolute_workspace_path}",
@@ -98,7 +123,20 @@ Ensure the workspace is in murmur's config (`~/.murmur/config.json`):
      "lastRun": null
    }
    ```
-3. Tell the user to start murmur if not running: `murmur start`
+
+   **Cron-based:**
+   ```json
+   {
+     "path": "{absolute_workspace_path}",
+     "cron": "{cron_expression}",
+     "tz": "{timezone}",
+     "lastRun": null
+   }
+   ```
+   Omit `tz` if the user is fine with their local system timezone.
+
+3. Optional: set `"maxTurns": N` to cap Claude's agent iterations per heartbeat
+4. Tell the user to start murmur if not running: `murmur start`
 
 ## Rules
 
@@ -107,4 +145,4 @@ Ensure the workspace is in murmur's config (`~/.murmur/config.json`):
 - Always ask the user to evaluate the test result
 - If a heartbeat needs tools the user doesn't have installed, tell them what to install
 - One heartbeat = one purpose. Multiple automations = multiple workspaces.
-- Interval suggestions: `15m` for uptime, `1h` for active dev work, `6h`–`1d` for digests/research
+- Schedule suggestions: `15m` for uptime, `1h` for active dev work, `6h`–`1d` for digests/research. Use cron when the user wants specific times (e.g., `0 9 * * 1-5` for weekday mornings).
