@@ -1,6 +1,6 @@
 import { writeFileSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { setDataDir, ensureDataDir, isDue, parseInterval, readConfig, updateLastRun, getPidPath, getSocketPath, cleanupRuntimeFiles } from "./config.ts";
+import { setDataDir, ensureDataDir, isDue, nextRunAt, parseInterval, readConfig, updateLastRun, getPidPath, getSocketPath, cleanupRuntimeFiles } from "./config.ts";
 import { createEventBus, type EventBus } from "./events.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
@@ -21,19 +21,14 @@ function workspaceName(ws: WorkspaceConfig): string {
 }
 
 export function buildWorkspaceStatuses(workspaces: WorkspaceConfig[]): WorkspaceStatus[] {
-  return workspaces.map((ws) => {
-    const intervalMs = parseInterval(ws.interval);
-    const lastRunAt = ws.lastRun ? new Date(ws.lastRun).getTime() : null;
-    const nextRunAt = lastRunAt ? lastRunAt + intervalMs : Date.now();
-    return {
-      path: ws.path,
-      name: workspaceName(ws),
-      interval: ws.interval,
-      nextRunAt,
-      lastOutcome: null,
-      lastRunAt,
-    };
-  });
+  return workspaces.map((ws) => ({
+    path: ws.path,
+    name: workspaceName(ws),
+    interval: ws.interval ?? ws.cron!,
+    nextRunAt: nextRunAt(ws),
+    lastOutcome: null,
+    lastRunAt: ws.lastRun ? new Date(ws.lastRun).getTime() : null,
+  }));
 }
 
 export type DaemonHandle = {

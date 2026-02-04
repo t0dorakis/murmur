@@ -152,6 +152,38 @@ describe("tui rendering", () => {
     expect(screen.buffer).toContain("\x1b[?1049l"); // alt screen off
   });
 
+  test("shows cron expression for cron workspace", () => {
+    const { screen, bus, tui } = setup();
+    tui.start();
+
+    bus.emit({
+      type: "tick",
+      workspaces: [makeWorkspace({ name: "briefing", interval: "0 9 * * *" })],
+    });
+
+    expect(screen.text()).toContain("briefing");
+    expect(screen.text()).toContain("0 9 * * *");
+  });
+
+  test("shows absolute time for distant next run", () => {
+    const { screen, bus, tui } = setup();
+    tui.start();
+
+    // Next run in 5 hours — should show absolute time like "next at HH:MM"
+    const nextRunAt = Date.now() + 5 * 3_600_000;
+    const expectedTime = new Date(nextRunAt);
+    const hh = String(expectedTime.getHours()).padStart(2, "0");
+    const mm = String(expectedTime.getMinutes()).padStart(2, "0");
+
+    bus.emit({
+      type: "tick",
+      workspaces: [makeWorkspace({ name: "daily", interval: "0 9 * * *", nextRunAt })],
+    });
+
+    expect(screen.text()).toContain(`next at`);
+    expect(screen.text()).toContain(`${hh}:${mm}`);
+  });
+
   test("clears active beat after heartbeat:done", () => {
     const { screen, bus, tui } = setup();
     tui.start();

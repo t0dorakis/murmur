@@ -33,7 +33,6 @@ Add a persistent terminal UI to the murmur daemon so users can observe heartbeat
 
 1. **Live streaming** — Claude output must appear character-by-character during execution, not buffered until completion. This fundamentally changes how `runHeartbeat` captures stdout.
 2. **Foreground/background duality** — The same daemon loop must run with or without a TUI attached, and support attaching/detaching at runtime.
-3. **Zero dependencies** — Murmur uses no external packages. The TUI must be built with Bun built-ins and raw ANSI escape codes.
 
 ---
 
@@ -357,7 +356,7 @@ NDJSON (newline-delimited JSON) over Unix domain socket.
 | NFR-3 | Compatibility | Works on macOS and Linux terminals | ANSI escape codes (universally supported), no terminfo dependency |
 | NFR-4 | Resilience | Daemon crash doesn't leave orphaned socket file | Cleanup on SIGTERM/SIGINT, stale socket detection on startup |
 | NFR-5 | Backwards compat | `--detach` preserves current headless behavior | Detach flag bypasses all TUI/socket code |
-| NFR-6 | Zero dependencies | No new packages | Raw ANSI, Bun built-in unix socket, plain TypeScript |
+| NFR-6  | No new packages | Raw ANSI, Bun built-in unix socket, plain TypeScript |
 
 ---
 
@@ -370,7 +369,6 @@ NDJSON (newline-delimited JSON) over Unix domain socket.
 **Raw ANSI escape sequences** — No framework.
 
 Rationale:
-- Zero dependencies (project constraint)
 - The TUI is simple: two regions, no interactive widgets, no forms
 - ANSI codes for: cursor positioning, color (SGR), alternate screen, clear line
 - Total rendering code estimated at ~200 lines
@@ -418,7 +416,6 @@ Rationale:
 **Selection Rationale:**
 - The UI has two static regions with no interactive elements
 - A framework's reconciliation/diffing overhead is wasted here
-- Zero-dependency constraint rules out Ink regardless
 - Raw ANSI is ~200 lines of code for this layout
 
 **Trade-offs Accepted:**

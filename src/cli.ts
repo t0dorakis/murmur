@@ -189,7 +189,8 @@ function status() {
   console.log(`\nWorkspaces (${config.workspaces.length}):`);
   for (const ws of config.workspaces) {
     const lastRun = ws.lastRun ?? "never";
-    console.log(`  ${ws.path}  every ${ws.interval}  last: ${lastRun}`);
+    const schedule = ws.interval ? `every ${ws.interval}` : `cron ${ws.cron}`;
+    console.log(`  ${ws.path}  ${schedule}  last: ${lastRun}`);
   }
 }
 

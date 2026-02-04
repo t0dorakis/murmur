@@ -1,6 +1,8 @@
 export type WorkspaceConfig = {
   path: string;
-  interval: string;
+  interval?: string;
+  cron?: string;
+  tz?: string;
   maxTurns?: number;
   lastRun: string | null;
 };

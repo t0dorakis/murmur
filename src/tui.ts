@@ -91,10 +91,22 @@ function renderHeader(state: TuiState): string {
   return ` ${styled("murmur", bold, white)} ${styled("∙", dim)} ${wsCount} workspace${wsCount !== 1 ? "s" : ""} ${styled("∙", dim)} pid ${state.pid}`;
 }
 
+function formatAbsoluteTime(epochMs: number): string {
+  const d = new Date(epochMs);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
 function workspaceStatusText(ws: WorkspaceStatus, active: boolean): string {
   if (active) {
     const elapsed = formatDuration(Date.now() - (ws.lastRunAt ?? Date.now()));
     return styled(`▶ running (${elapsed})`, bold, white);
+  }
+  const diff = ws.nextRunAt - Date.now();
+  if (diff > 3_600_000) {
+    const time = formatAbsoluteTime(ws.nextRunAt);
+    return `next at ${styled(time, white)}`;
   }
   const countdown = formatCountdown(ws.nextRunAt);
   return countdown === "due"
@@ -105,7 +117,9 @@ function workspaceStatusText(ws: WorkspaceStatus, active: boolean): string {
 function renderWorkspaceRow(ws: WorkspaceStatus, active: boolean, termWidth: number): string {
   const nameWidth = Math.min(24, Math.floor(termWidth * 0.3));
   const name = truncate(ws.name, nameWidth);
-  const interval = padRight(ws.interval, 5);
+  const isCron = ws.interval.includes(" ");
+  const scheduleWidth = isCron ? 11 : 5;
+  const interval = padRight(ws.interval, scheduleWidth);
   const status = workspaceStatusText(ws, active);
 
   let lastCol: string;

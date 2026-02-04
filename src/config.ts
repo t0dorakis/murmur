@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync as nodeReadFileSync, renameSync, unlinkSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { Cron, Either } from "effect";
 import type { Config, WorkspaceConfig } from "./types.ts";
 
 let dataDir = join(homedir(), ".murmur");
@@ -33,6 +34,31 @@ export function ensureDataDir(): void {
   mkdirSync(dataDir, { recursive: true });
 }
 
+export function validateWorkspace(ws: WorkspaceConfig): string | null {
+  const hasInterval = typeof ws.interval === "string" && ws.interval.length > 0;
+  const hasCron = typeof ws.cron === "string" && ws.cron.length > 0;
+
+  if (hasInterval && hasCron) return `has both "interval" and "cron" — pick one`;
+  if (!hasInterval && !hasCron) return `missing "interval" or "cron"`;
+
+  if (hasInterval) {
+    try {
+      parseInterval(ws.interval!);
+    } catch {
+      return `invalid interval: "${ws.interval}"`;
+    }
+  }
+
+  if (hasCron) {
+    const result = Cron.parse(ws.cron!);
+    if (Either.isLeft(result)) return `invalid cron: "${ws.cron}"`;
+  }
+
+  if (ws.tz && !hasCron) return `"tz" is only valid with "cron"`;
+
+  return null;
+}
+
 export function readConfig(): Config {
   const configPath = getConfigPath();
   try {
@@ -42,7 +68,16 @@ export function readConfig(): Config {
       console.error(`Invalid config: "workspaces" must be an array in ${configPath}`);
       return { workspaces: [] };
     }
-    return parsed as Config;
+    const valid: WorkspaceConfig[] = [];
+    for (const ws of parsed.workspaces) {
+      const error = validateWorkspace(ws);
+      if (error) {
+        console.error(`Skipping workspace ${ws.path ?? "(no path)"}: ${error}`);
+      } else {
+        valid.push(ws);
+      }
+    }
+    return { workspaces: valid };
   } catch (err: any) {
     if (err?.code === "ENOENT") return { workspaces: [] };
     console.error(`Failed to read config (${configPath}):`, err?.message ?? err);
@@ -88,7 +123,16 @@ export function cleanupRuntimeFiles(): void {
   try { unlinkSync(getSocketPath()); } catch {}
 }
 
+function isCronDue(ws: WorkspaceConfig): boolean {
+  const parsed = Cron.unsafeParse(ws.cron!, ws.tz);
+  if (!ws.lastRun) return true;
+  const nextAfterLastRun = Cron.next(parsed, new Date(ws.lastRun));
+  return Date.now() >= nextAfterLastRun.getTime();
+}
+
 export function isDue(ws: WorkspaceConfig): boolean {
+  if (ws.cron) return isCronDue(ws);
+  if (!ws.interval) return false;
   if (!ws.lastRun) return true;
   const lastRunTime = new Date(ws.lastRun).getTime();
   if (Number.isNaN(lastRunTime)) {
@@ -97,4 +141,16 @@ export function isDue(ws: WorkspaceConfig): boolean {
   }
   const elapsed = Date.now() - lastRunTime;
   return elapsed >= parseInterval(ws.interval);
+}
+
+export function nextRunAt(ws: WorkspaceConfig): number {
+  if (ws.cron) {
+    const parsed = Cron.unsafeParse(ws.cron, ws.tz);
+    const from = ws.lastRun ? new Date(ws.lastRun) : new Date();
+    return Cron.next(parsed, from).getTime();
+  }
+  if (!ws.interval) return Date.now();
+  const intervalMs = parseInterval(ws.interval);
+  const lastRunAt = ws.lastRun ? new Date(ws.lastRun).getTime() : null;
+  return lastRunAt ? lastRunAt + intervalMs : Date.now();
 }
