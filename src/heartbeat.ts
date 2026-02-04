@@ -192,7 +192,11 @@ export async function runHeartbeat(
   if (verbose && turns && turns.length > 0) {
     entry.turns = turns;
     // Also save the full conversation to a dedicated file
-    await saveConversationLog(ws.path, turns);
+    try {
+      await saveConversationLog(ws.path, turns);
+    } catch (err) {
+      debug(`Warning: failed to save conversation log: ${err instanceof Error ? err.message : String(err)}`);
+    }
   }
 
   emit?.({ type: "heartbeat:done", workspace: ws.path, entry });

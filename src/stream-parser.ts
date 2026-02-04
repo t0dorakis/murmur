@@ -5,7 +5,7 @@
  *   { type: "system", subtype: "init", session_id, tools, ... }
  *   { type: "assistant", message: { content: [{ type: "text", text }, { type: "tool_use", name, input, id }] } }
  *   { type: "user", message: { content: [{ type: "tool_result", tool_use_id, content }] } }
- *   { type: "result", subtype: "success"|"error", result, cost_usd, duration_ms, num_turns, ... }
+ *   { type: "result", subtype: "success"|"error", result, total_cost_usd, duration_ms, num_turns, ... }
  */
 
 import type { ConversationTurn, ToolCall } from "./types.ts";
@@ -14,14 +14,14 @@ import type { ConversationTurn, ToolCall } from "./types.ts";
 type ContentBlock =
   | { type: "text"; text: string }
   | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
-  | { type: "tool_result"; tool_use_id: string; content?: string };
+  | { type: "tool_result"; tool_use_id: string; content?: string | Array<{ type: string; text?: string }> };
 
 /** Raw message envelope from stream-json. */
 type StreamMessage =
   | { type: "system"; subtype: "init"; session_id: string; tools?: unknown[] }
   | { type: "assistant"; message: { content: ContentBlock[] } }
   | { type: "user"; message: { content: ContentBlock[] } }
-  | { type: "result"; subtype: string; result?: string; cost_usd?: number; duration_ms?: number; num_turns?: number };
+  | { type: "result"; subtype: string; result?: string; total_cost_usd?: number; duration_ms?: number; num_turns?: number };
 
 export type StreamParseResult = {
   /** The final text result from the agent. */
@@ -100,10 +100,15 @@ export function parseStreamJson(
           if (block.type === "tool_result" && block.tool_use_id) {
             const pending = pendingTools.get(block.tool_use_id);
             if (pending) {
+              const output = typeof block.content === "string"
+                ? block.content
+                : Array.isArray(block.content)
+                  ? block.content.filter((b) => b.type === "text").map((b) => b.text).join("\n")
+                  : undefined;
               const toolCall: ToolCall = {
                 name: pending.name,
                 input: pending.input,
-                output: typeof block.content === "string" ? block.content : undefined,
+                output,
                 durationMs: Date.now() - pending.startMs,
               };
               callbacks?.onToolCall?.(toolCall);
@@ -131,7 +136,7 @@ export function parseStreamJson(
 
       case "result": {
         resultText = msg.result ?? "";
-        costUsd = msg.cost_usd;
+        costUsd = msg.total_cost_usd;
         numTurns = msg.num_turns;
         turns.push({
           role: "result",
@@ -204,10 +209,15 @@ export function createStreamProcessor(callbacks?: {
           if (block.type === "tool_result" && block.tool_use_id) {
             const pending = pendingTools.get(block.tool_use_id);
             if (pending) {
+              const output = typeof block.content === "string"
+                ? block.content
+                : Array.isArray(block.content)
+                  ? block.content.filter((b) => b.type === "text").map((b) => b.text).join("\n")
+                  : undefined;
               const toolCall: ToolCall = {
                 name: pending.name,
                 input: pending.input,
-                output: typeof block.content === "string" ? block.content : undefined,
+                output,
                 durationMs: Date.now() - pending.startMs,
               };
               callbacks?.onToolCall?.(toolCall);
@@ -234,7 +244,7 @@ export function createStreamProcessor(callbacks?: {
 
       case "result": {
         resultText = msg.result ?? "";
-        costUsd = msg.cost_usd;
+        costUsd = msg.total_cost_usd;
         numTurns = msg.num_turns;
         turns.push({
           role: "result",
