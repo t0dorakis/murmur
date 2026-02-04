@@ -38,7 +38,7 @@ const assistantMixedEvent = (
     },
   });
 
-const userToolResultEvent = (toolUseId: string, content: string) =>
+const userToolResultEvent = (toolUseId: string, content: string | Array<{ type: string; text?: string }>) =>
   JSON.stringify({
     type: "user",
     message: { content: [{ type: "tool_result", tool_use_id: toolUseId, content }] },
@@ -49,7 +49,7 @@ const resultEvent = (result: string, costUsd?: number, numTurns?: number) =>
     type: "result",
     subtype: "success",
     result,
-    cost_usd: costUsd,
+    total_cost_usd: costUsd,
     duration_ms: 1234,
     num_turns: numTurns,
   });
@@ -148,6 +148,32 @@ describe("parseStreamJson", () => {
     expect(toolCalls).toHaveLength(1);
     expect(toolCalls[0]!.name).toBe("Read");
     expect(toolCalls[0]!.output).toBe("file contents here");
+  });
+
+  test("handles array-format tool_result content", () => {
+    const toolCalls: ToolCall[] = [];
+    const ndjson = [
+      initEvent,
+      assistantToolCallEvent("Bash", { command: "echo hello" }, "tool_04"),
+      userToolResultEvent("tool_04", [
+        { type: "text", text: "hello" },
+        { type: "text", text: "world" },
+      ]),
+      resultEvent("ok"),
+    ].join("\n");
+
+    const parsed = parseStreamJson(ndjson, {
+      onToolCall: (tc) => toolCalls.push(tc),
+    });
+
+    expect(toolCalls).toHaveLength(1);
+    expect(toolCalls[0]!.output).toBe("hello\nworld");
+
+    // Also check it was propagated to the turn
+    const toolTurn = parsed.turns[0]!;
+    if (toolTurn.role === "assistant" && toolTurn.toolCalls) {
+      expect(toolTurn.toolCalls[0]!.output).toBe("hello\nworld");
+    }
   });
 
   test("fires onAssistantText callback", () => {
