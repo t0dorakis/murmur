@@ -8,6 +8,7 @@ export const DEBUG_LOG_FILENAME = "debug.log";
 
 export function enableDebug(): void {
   enabled = true;
+  ensureDataDir();
 }
 
 export function isDebugEnabled(): boolean {
@@ -16,9 +17,12 @@ export function isDebugEnabled(): boolean {
 
 export function debug(message: string): void {
   if (!enabled) return;
-  ensureDataDir();
-  const line = `[${new Date().toISOString()}] ${message}\n`;
-  appendFileSync(join(getDataDir(), DEBUG_LOG_FILENAME), line);
+  try {
+    const line = `[${new Date().toISOString()}] ${message}\n`;
+    appendFileSync(join(getDataDir(), DEBUG_LOG_FILENAME), line);
+  } catch (err) {
+    console.error(`[debug] failed to write log: ${err}`);
+  }
 }
 
 export function getDebugLogPath(): string {
