@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { setDataDir, ensureDataDir, readConfig, getConfigPath, getPidPath, getSocketPath, parseInterval } from "./config.ts";
+import { setDataDir, ensureDataDir, readConfig, writeConfig, getConfigPath, getPidPath, getSocketPath, parseInterval } from "./config.ts";
 import { startDaemon } from "./daemon.ts";
 import { startSocketServer, type SocketServer } from "./socket.ts";
 import { connectToSocket } from "./socket-client.ts";
@@ -77,6 +77,8 @@ if (dataDir) setDataDir(dataDir);
 
 // --- Keyboard input handling ---
 
+import { mapKeyToAction } from "./keys.ts";
+
 type KeyHandler = {
   start(callbacks: { onQuit(): void; onDetach(): void }): void;
   stop(): void;
@@ -88,12 +90,9 @@ function createKeyHandler(): KeyHandler {
 
   function onData(data: Buffer) {
     if (!callbacks) return;
-    const key = data.toString();
-    if (key === "q" || key === "\x03") {
-      callbacks.onQuit();
-    } else if (key === "\x04") {
-      callbacks.onDetach();
-    }
+    const action = mapKeyToAction(data);
+    if (action === "quit") callbacks.onQuit();
+    else if (action === "detach") callbacks.onDetach();
   }
 
   return {
@@ -317,12 +316,21 @@ exactly \`HEARTBEAT_OK\`. Otherwise, start with \`ATTENTION:\` and a brief summa
 async function init(path: string) {
   const resolved = resolve(path);
   const heartbeatFile = join(resolved, "HEARTBEAT.md");
-  if (existsSync(heartbeatFile)) {
+  if (!existsSync(heartbeatFile)) {
+    await Bun.write(heartbeatFile, HEARTBEAT_TEMPLATE);
+    console.log(`Created ${heartbeatFile}`);
+  } else {
     console.log(`HEARTBEAT.md already exists in ${resolved}.`);
-    return;
   }
-  await Bun.write(heartbeatFile, HEARTBEAT_TEMPLATE);
-  console.log(`Created ${heartbeatFile}`);
+
+  ensureDataDir();
+  const config = readConfig();
+  const alreadyRegistered = config.workspaces.some((ws) => ws.path === resolved);
+  if (!alreadyRegistered) {
+    config.workspaces.push({ path: resolved, interval: "1h", lastRun: null });
+    await writeConfig(config);
+    console.log(`Added workspace to config.`);
+  }
 }
 
 switch (command) {

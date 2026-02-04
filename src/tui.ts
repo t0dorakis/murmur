@@ -1,10 +1,11 @@
 import { basename } from "node:path";
 import {
   altScreenOn, altScreenOff, cursorHide, cursorShow, cursorHome,
-  clearLine, clearToEnd, write,
+  clearLine, clearToEnd,
   bold, dim, green, yellow, red, white,
-  styled, terminalWidth, truncate, padRight,
+  styled, truncate, padRight,
 } from "./ansi.ts";
+import { createScreen, type Screen } from "./screen.ts";
 import type { EventSource } from "./events.ts";
 import type { DaemonEvent, Outcome, WorkspaceStatus } from "./types.ts";
 
@@ -232,7 +233,8 @@ function reduceEvent(state: TuiState, event: DaemonEvent): boolean {
 
 // --- Main TUI ---
 
-export function createTui(eventSource: EventSource): Tui {
+export function createTui(eventSource: EventSource, screen?: Screen): Tui {
+  const s = screen ?? createScreen();
   const state: TuiState = {
     pid: 0,
     workspaces: [],
@@ -243,29 +245,29 @@ export function createTui(eventSource: EventSource): Tui {
   let countdownTimer: ReturnType<typeof setInterval> | null = null;
 
   function render() {
-    const termWidth = terminalWidth();
-    const rows = process.stdout.rows ?? 24;
+    const termWidth = s.columns();
+    const rows = s.rows();
 
-    write(cursorHome);
+    s.write(cursorHome);
 
     // Header
-    write(clearLine + renderHeader(state) + "\n");
-    write(clearLine + "\n");
+    s.write(clearLine + renderHeader(state) + "\n");
+    s.write(clearLine + "\n");
 
     // Workspace rows
     for (const ws of state.workspaces) {
       const active = state.activeBeat?.workspace === ws.path;
-      write(clearLine + renderWorkspaceRow(ws, active, termWidth) + "\n");
+      s.write(clearLine + renderWorkspaceRow(ws, active, termWidth) + "\n");
     }
 
     if (state.workspaces.length === 0) {
-      write(clearLine + styled(" No workspaces configured.", dim) + "\n");
-      write(clearLine + styled(` Add one to config.json or run: murmur init <path>`, dim) + "\n");
+      s.write(clearLine + styled(" No workspaces configured.", dim) + "\n");
+      s.write(clearLine + styled(` Add one to config.json or run: murmur init <path>`, dim) + "\n");
     }
 
-    write(clearLine + "\n");
-    write(clearLine + renderSeparator(termWidth) + "\n");
-    write(clearLine + "\n");
+    s.write(clearLine + "\n");
+    s.write(clearLine + renderSeparator(termWidth) + "\n");
+    s.write(clearLine + "\n");
 
     // Fixed region height: header(1) + blank(1) + workspaces(N) + blank(1) + sep(1) + blank(1)
     const fixedLines = 5 + Math.max(state.workspaces.length, 2);
@@ -274,15 +276,15 @@ export function createTui(eventSource: EventSource): Tui {
     // Render active beat
     const beatLines = renderActiveBeat(state, termWidth, Math.floor(feedArea * 0.6));
     for (const line of beatLines) {
-      write(clearLine + line + "\n");
+      s.write(clearLine + line + "\n");
     }
-    if (beatLines.length > 0) write(clearLine + "\n");
+    if (beatLines.length > 0) s.write(clearLine + "\n");
 
     // Render completed feed entries (most recent first, fill remaining space)
     const feedSpace = feedArea - beatLines.length - (beatLines.length > 0 ? 1 : 0);
 
     if (state.feed.length === 0 && !state.activeBeat) {
-      write(clearLine + styled(" Waiting for first heartbeat...", dim) + "\n");
+      s.write(clearLine + styled(" Waiting for first heartbeat...", dim) + "\n");
     } else {
       let linesUsed = 0;
       for (let i = state.feed.length - 1; i >= 0 && linesUsed < feedSpace; i--) {
@@ -290,13 +292,13 @@ export function createTui(eventSource: EventSource): Tui {
         const entryLines = renderFeedEntry(entry, termWidth);
         if (linesUsed + entryLines.length > feedSpace) break;
         for (const line of entryLines) {
-          write(clearLine + line + "\n");
+          s.write(clearLine + line + "\n");
           linesUsed++;
         }
       }
     }
 
-    write(clearToEnd);
+    s.write(clearToEnd);
   }
 
   function handleEvent(event: DaemonEvent) {
@@ -306,7 +308,7 @@ export function createTui(eventSource: EventSource): Tui {
 
   return {
     start() {
-      write(altScreenOn + cursorHide);
+      s.write(altScreenOn + cursorHide);
       eventSource.subscribe(handleEvent);
 
       countdownTimer = setInterval(() => {
@@ -322,7 +324,7 @@ export function createTui(eventSource: EventSource): Tui {
         countdownTimer = null;
       }
       eventSource.unsubscribe(handleEvent);
-      write(cursorShow + altScreenOff);
+      s.write(cursorShow + altScreenOff);
     },
   };
 }
