@@ -2,6 +2,7 @@ import { mkdirSync, readFileSync as nodeReadFileSync, renameSync, unlinkSync } f
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { Cron, Either } from "effect";
+import { debug } from "./debug.ts";
 import type { Config, WorkspaceConfig } from "./types.ts";
 
 let dataDir = join(homedir(), ".murmur");
@@ -86,6 +87,11 @@ export function readConfig(): Config {
         valid.push(ws);
       }
     }
+    debug(`Config loaded: ${valid.length} workspace(s) from ${configPath}`);
+    for (const ws of valid) {
+      const schedule = ws.interval ? `interval=${ws.interval}` : `cron="${ws.cron}"${ws.tz ? ` tz=${ws.tz}` : ""}`;
+      debug(`  Workspace: ${ws.path} (${schedule}, lastRun=${ws.lastRun ?? "never"})`);
+    }
     return { workspaces: valid };
   } catch (err: any) {
     if (err?.code === "ENOENT") return { workspaces: [] };
@@ -126,7 +132,9 @@ export function parseInterval(s: string): number {
     h: 3_600_000,
     d: 86_400_000,
   };
-  return value * multipliers[unit]!;
+  const ms = value * multipliers[unit]!;
+  debug(`Parsed interval "${s}" → ${ms}ms`);
+  return ms;
 }
 
 function tryUnlink(path: string): void {

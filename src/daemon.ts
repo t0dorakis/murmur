@@ -1,6 +1,7 @@
 import { writeFileSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { setDataDir, ensureDataDir, isDue, nextRunAt, parseInterval, readConfig, updateLastRun, getPidPath, getSocketPath, cleanupRuntimeFiles } from "./config.ts";
+import { debug, enableDebug } from "./debug.ts";
 import { createEventBus, type EventBus } from "./events.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
@@ -45,16 +46,20 @@ export function startDaemon(tickMs: number): DaemonHandle {
 
   const loopDone = (async () => {
     await Promise.resolve(); // yield so callers can subscribe before first events
+    debug(`Daemon ready (PID ${process.pid}, ${initialConfig.workspaces.length} workspace(s), tick=${tickMs}ms)`);
     bus.emit({ type: "daemon:ready", pid: process.pid, workspaceCount: initialConfig.workspaces.length });
 
     while (running) {
       try {
         const config = readConfig();
+        debug(`Tick: checking ${config.workspaces.length} workspace(s)`);
         bus.emit({ type: "tick", workspaces: buildWorkspaceStatuses(config.workspaces) });
 
         for (const ws of config.workspaces) {
           if (!running) break;
-          if (!isDue(ws)) continue;
+          const due = isDue(ws);
+          debug(`  ${ws.path}: isDue=${due}`);
+          if (!due) continue;
 
           const entry = await runHeartbeat(ws, bus.emit.bind(bus));
           appendLog(entry);
@@ -63,6 +68,7 @@ export function startDaemon(tickMs: number): DaemonHandle {
         }
       } catch (err) {
         console.error("Daemon loop error:", err);
+        debug(`Daemon loop error: ${err}`);
       }
 
       if (running) await Bun.sleep(tickMs);
@@ -86,8 +92,9 @@ function cleanup(exitCode = 0) {
   process.exit(exitCode);
 }
 
-export function runDaemonMain(opts: { dataDir?: string; tick?: string }) {
+export function runDaemonMain(opts: { dataDir?: string; tick?: string; debug?: boolean }) {
   if (opts.dataDir) setDataDir(opts.dataDir);
+  if (opts.debug) enableDebug();
   const tickMs = parseInterval(opts.tick ?? "10s");
 
   ensureDataDir();
@@ -111,14 +118,16 @@ function parseArgs() {
   const args = process.argv.slice(2);
   let dataDir: string | undefined;
   let tick = "10s";
+  let debugFlag = false;
   for (let i = 0; i < args.length; i++) {
     if (args[i] === "--data-dir") dataDir = args[++i];
     else if (args[i] === "--tick") tick = args[++i] ?? tick;
+    else if (args[i] === "--debug") debugFlag = true;
   }
-  return { dataDir, tick };
+  return { dataDir, tick, debug: debugFlag };
 }
 
 if (import.meta.main) {
-  const { dataDir, tick } = parseArgs();
-  runDaemonMain({ dataDir, tick });
+  const { dataDir, tick, debug: debugFlag } = parseArgs();
+  runDaemonMain({ dataDir, tick, debug: debugFlag });
 }

@@ -2,6 +2,7 @@
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { setDataDir, ensureDataDir, readConfig, writeConfig, getConfigPath, getPidPath, getSocketPath, parseInterval, cleanupRuntimeFiles } from "./config.ts";
+import { enableDebug } from "./debug.ts";
 import { startDaemon, runDaemonMain } from "./daemon.ts";
 import { startSocketServer, type SocketServer } from "./socket.ts";
 import { connectToSocket, type SocketConnection } from "./socket-client.ts";
@@ -56,6 +57,7 @@ function parseGlobalArgs() {
   let tick: string | undefined;
   let detach = false;
   let daemon = false;
+  let debugFlag = false;
   const rest: string[] = [];
   for (let i = 0; i < raw.length; i++) {
     if (raw[i] === "--data-dir") {
@@ -66,15 +68,18 @@ function parseGlobalArgs() {
       detach = true;
     } else if (raw[i] === "--daemon") {
       daemon = true;
+    } else if (raw[i] === "--debug") {
+      debugFlag = true;
     } else {
       rest.push(raw[i]!);
     }
   }
-  return { dataDir, tick, detach, daemon, command: rest[0], targetPath: rest[1] ?? "." };
+  return { dataDir, tick, detach, daemon, debug: debugFlag, command: rest[0], targetPath: rest[1] ?? "." };
 }
 
-const { dataDir, tick, detach, daemon, command, targetPath } = parseGlobalArgs();
+const { dataDir, tick, detach, daemon, debug: debugFlag, command, targetPath } = parseGlobalArgs();
 if (dataDir) setDataDir(dataDir);
+if (debugFlag) enableDebug();
 
 import { createKeyHandler } from "./keys.ts";
 
@@ -151,6 +156,7 @@ async function startDetached() {
     : [process.execPath, import.meta.filename, "--daemon"];
   if (dataDir) daemonArgs.push("--data-dir", dataDir);
   if (tick) daemonArgs.push("--tick", tick);
+  if (debugFlag) daemonArgs.push("--debug");
 
   const proc = Bun.spawn(daemonArgs, {
     stdio: ["ignore", "ignore", "ignore"],
@@ -303,7 +309,7 @@ if (command === "--version" || command === "-v") {
 }
 
 if (daemon) {
-  runDaemonMain({ dataDir, tick });
+  runDaemonMain({ dataDir, tick, debug: debugFlag });
   // runDaemonMain installs signal handlers and keeps the process alive
 } else switch (command) {
   case "start":

@@ -1,4 +1,5 @@
 import { join } from "node:path";
+import { debug } from "./debug.ts";
 import type {
   DaemonEvent,
   LogEntry,
@@ -47,9 +48,12 @@ export async function runHeartbeat(
   const ts = new Date().toISOString();
   const start = Date.now();
 
+  debug(`Heartbeat: ${ws.path}`);
+
   let prompt: string;
   try {
     prompt = await buildPrompt(ws);
+    debug(`HEARTBEAT.md: ${prompt.split("\n").length} lines`);
   } catch (err) {
     const entry: LogEntry = {
       ts,
@@ -68,22 +72,22 @@ export async function runHeartbeat(
     promptPreview: promptPreview(prompt),
   });
 
-  const proc = Bun.spawn(
-    [
-      "claude",
-      "--print",
-      "--dangerously-skip-permissions",
-      "--max-turns",
-      String(ws.maxTurns ?? 99),
-    ],
-    {
-      cwd: ws.path,
-      stdin: new Blob([prompt]),
-      stdout: "pipe",
-      stderr: "pipe",
-      timeout: 300_000,
-    },
-  );
+  const claudeArgs = [
+    "claude",
+    "--print",
+    "--dangerously-skip-permissions",
+    "--max-turns",
+    String(ws.maxTurns ?? 99),
+  ];
+  debug(`Spawning: ${claudeArgs.join(" ")} (cwd: ${ws.path})`);
+
+  const proc = Bun.spawn(claudeArgs, {
+    cwd: ws.path,
+    stdin: new Blob([prompt]),
+    stdout: "pipe",
+    stderr: "pipe",
+    timeout: 300_000,
+  });
 
   let stdout = "";
   if (!proc.stdout) throw new Error("Spawned process stdout is not piped");
@@ -102,7 +106,12 @@ export async function runHeartbeat(
   const stderr = await new Response(proc.stderr).text();
   const durationMs = Date.now() - start;
 
+  debug(`Claude stdout: ${stdout.trim() || "(empty)"}`);
+  debug(`Claude stderr: ${stderr.trim() || "(empty)"}`);
+
   const outcome = classify(stdout, exitCode);
+  debug(`Outcome: ${outcome} (exit=${exitCode}, contains HEARTBEAT_OK=${stdout.includes("HEARTBEAT_OK")})`);
+  debug(`Duration: ${durationMs}ms`);
 
   const entry: LogEntry = { ts, workspace: ws.path, outcome, durationMs };
 
