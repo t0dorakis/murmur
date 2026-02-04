@@ -62,7 +62,9 @@ afterAll(() => {
     try {
       const pid = Number(readFileSync(pidFile, "utf-8").trim());
       process.kill(pid, "SIGTERM");
-    } catch {}
+    } catch (err: any) {
+      if (err?.code !== "ESRCH") console.error(`afterAll: failed to kill daemon: ${err}`);
+    }
   }
   // Reset jokes file
   writeFileSync(JOKES_FILE, SEED_JOKE);

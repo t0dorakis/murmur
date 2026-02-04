@@ -102,7 +102,16 @@ export function runDaemonMain(opts: { dataDir?: string; tick?: string; debug?: b
 
   const initialConfig = readConfig();
   const handle = startDaemon(tickMs);
-  const socketServer = startSocketServer(handle.bus, getSocketPath(), initialConfig.workspaces.length);
+
+  let socketServer;
+  try {
+    socketServer = startSocketServer(handle.bus, getSocketPath(), initialConfig.workspaces.length);
+  } catch (err: any) {
+    handle.stop();
+    cleanupRuntimeFiles();
+    console.error(`Failed to start socket server: ${err?.message}`);
+    process.exit(1);
+  }
 
   function shutdown() {
     handle.stop();

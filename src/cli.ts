@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { setDataDir, ensureDataDir, readConfig, writeConfig, getConfigPath, getPidPath, getSocketPath, parseInterval, cleanupRuntimeFiles } from "./config.ts";
+import { setDataDir, getDataDir, ensureDataDir, readConfig, writeConfig, getConfigPath, getPidPath, getSocketPath, parseInterval, cleanupRuntimeFiles } from "./config.ts";
 import { enableDebug, getDebugLogPath } from "./debug.ts";
 import { startDaemon, runDaemonMain } from "./daemon.ts";
 import { startSocketServer, type SocketServer } from "./socket.ts";
@@ -153,7 +153,7 @@ async function startDetached() {
     process.exit(1);
   }
 
-  const isCompiled = !process.execPath.endsWith("/bun");
+  const isCompiled = process.execPath === process.argv[0];
   const daemonArgs = isCompiled
     ? [process.execPath, "--daemon"]
     : [process.execPath, import.meta.filename, "--daemon"];
@@ -161,8 +161,11 @@ async function startDetached() {
   if (tick) daemonArgs.push("--tick", tick);
   if (debugFlag) daemonArgs.push("--debug");
 
+  const stderrLog = join(getDataDir(), "daemon-stderr.log");
   const proc = Bun.spawn(daemonArgs, {
-    stdio: ["ignore", "ignore", "ignore"],
+    stdin: "ignore",
+    stdout: "ignore",
+    stderr: Bun.file(stderrLog),
   });
   proc.unref();
 
@@ -171,7 +174,8 @@ async function startDetached() {
   if (newPid && isProcessAlive(newPid)) {
     console.log(`Started (PID ${newPid}).`);
   } else {
-    console.error("Daemon failed to start.");
+    const stderr = existsSync(stderrLog) ? readFileSync(stderrLog, "utf-8").trim() : "";
+    console.error(`Daemon failed to start.${stderr ? `\n${stderr}` : ""}`);
     process.exit(1);
   }
 }
@@ -338,7 +342,7 @@ if (daemon) {
     await init(targetPath);
     break;
   default:
-    console.log(`Usage: murmur [--data-dir <path>] <command> [options]
+    console.log(`Usage: murmur [options] <command> [args]
 
 Commands:
   start [--tick <interval>]    Start daemon with TUI (foreground)
@@ -347,6 +351,11 @@ Commands:
   stop                         Stop the daemon
   status                       Show daemon and workspace status
   beat [path]                  Run one heartbeat immediately
-  init [path]                  Create HEARTBEAT.md template`);
+  init [path]                  Create HEARTBEAT.md template
+
+Options:
+  --data-dir <path>            Override data directory (default: ~/.murmur)
+  --debug                      Enable debug logging to <data-dir>/debug.log
+  --version, -v                Show version`);
     process.exit(command ? 1 : 0);
 }
