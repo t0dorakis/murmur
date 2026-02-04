@@ -176,7 +176,17 @@ describe("validateWorkspace", () => {
     const err = validateWorkspace({
       path: "/tmp/test",
       interval: "30m",
-      permissions: { deny: ["Bash(curl )"] },
+      permissions: { deny: ["Bash(curl *)"] },
+      lastRun: null,
+    });
+    expect(err).toBeNull();
+  });
+
+  test("accepts workspace with permissions set to 'skip'", () => {
+    const err = validateWorkspace({
+      path: "/tmp/test",
+      interval: "30m",
+      permissions: "skip",
       lastRun: null,
     });
     expect(err).toBeNull();

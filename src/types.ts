@@ -2,13 +2,16 @@ export type PermissionsConfig = {
   deny?: string[];
 };
 
+/** "skip" restores naked --dangerously-skip-permissions behavior (no deny list). */
+export type PermissionsOption = PermissionsConfig | "skip";
+
 export type WorkspaceConfig = {
   path: string;
   interval?: string;
   cron?: string;
   tz?: string;
   maxTurns?: number;
-  permissions?: PermissionsConfig;
+  permissions?: PermissionsOption;
   lastRun: string | null;
 };
 

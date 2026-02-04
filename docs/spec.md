@@ -28,7 +28,7 @@ Entry point: `src/cli.ts` via `package.json` `"bin": { "murmur": "./src/cli.ts" 
       "interval": "1h",
       "maxTurns": 5,
       "permissions": {
-        "deny": ["Bash(curl )", "Bash(wget )"]
+        "deny": ["Bash(curl *)", "Bash(wget *)"]
       },
       "lastRun": null
     }
@@ -39,7 +39,7 @@ Entry point: `src/cli.ts` via `package.json` `"bin": { "murmur": "./src/cli.ts" 
 - `path` — absolute path to workspace (must contain HEARTBEAT.md)
 - `interval` — human-readable duration: `"30m"`, `"1h"`, `"15m"` (parsed to ms)
 - `maxTurns` — max agent loop iterations per heartbeat (default: `3`). Prevents runaway. Tune up for complex prompts that need more tool calls.
-- `permissions` — optional permission overrides (see [Permissions](#permissions) below)
+- `permissions` — optional permission overrides (see [Permissions](#permissions) below). Set to `"skip"` to opt out of the deny list entirely.
 - `lastRun` — ISO timestamp of last heartbeat, or `null` if never run
 
 Users edit this file directly to add/remove workspaces. No `add`/`remove` commands needed.
@@ -162,11 +162,13 @@ type PermissionsConfig = {
   deny?: string[];       // additional tool patterns to block
 };
 
+type PermissionsOption = PermissionsConfig | "skip";
+
 type WorkspaceConfig = {
   path: string;
   interval: string;
   maxTurns?: number;          // default: 3
-  permissions?: PermissionsConfig;
+  permissions?: PermissionsOption;  // "skip" to opt out of deny list
   lastRun: string | null;
 };
 
@@ -200,14 +202,14 @@ The following tool patterns are always blocked:
 | `Bash(rm -rf /*)` | Filesystem destruction (root contents) |
 | `Bash(rm -rf ~)` | Home directory destruction |
 | `Bash(rm -rf ~/*)` | Home directory contents destruction |
-| `Bash(mkfs)` | Disk formatting |
-| `Bash(dd if=)` | Raw disk writes |
-| `Bash(shred )` | Secure file deletion |
-| `Bash(sudo )` | Privilege escalation |
-| `Bash(shutdown )` | System shutdown |
-| `Bash(reboot)` | System reboot |
-| `Bash(halt)` | System halt |
-| `Bash(poweroff)` | System power off |
+| `Bash(mkfs*)` | Disk formatting |
+| `Bash(dd if=* of=/dev/*)` | Raw disk writes |
+| `Bash(shred *)` | Secure file deletion |
+| `Bash(sudo *)` | Privilege escalation |
+| `Bash(shutdown *)` | System shutdown |
+| `Bash(reboot*)` | System reboot |
+| `Bash(halt*)` | System halt |
+| `Bash(poweroff*)` | System power off |
 
 ### Per-Workspace Overrides
 
@@ -218,7 +220,7 @@ Workspaces can add extra deny rules via the `permissions.deny` field. These are 
   "path": "/Users/theo/repos/my-project",
   "interval": "30m",
   "permissions": {
-    "deny": ["Bash(curl )", "Bash(wget )", "Bash(npm publish)"]
+    "deny": ["Bash(curl *)", "Bash(wget *)", "Bash(npm publish*)"]
   },
   "lastRun": null
 }
@@ -226,10 +228,25 @@ Workspaces can add extra deny rules via the `permissions.deny` field. These are 
 
 Workspace deny rules are appended to the default list. Duplicates are ignored. There is no way to remove a default deny rule -- the defaults are always enforced.
 
+### Opting Out
+
+To opt out of the deny list entirely, set `"permissions": "skip"`. This restores the naked `--dangerously-skip-permissions` behavior with no `--disallowedTools` restrictions:
+
+```json
+{
+  "path": "/Users/theo/repos/trusted-project",
+  "interval": "30m",
+  "permissions": "skip",
+  "lastRun": null
+}
+```
+
+Use this only for fully trusted workspaces where the heartbeat prompt requires unrestricted tool access.
+
 ### Pattern Format
 
-Patterns follow Claude Code's `--disallowedTools` syntax:
-- `Bash(command)` -- matches any Bash tool call whose command starts with the given prefix
+Patterns follow Claude Code's `--disallowedTools` glob syntax:
+- `Bash(command*)` -- matches any Bash tool call whose command starts with the given prefix (`*` is a glob wildcard)
 - `Edit` -- blocks the Edit tool entirely
 - `mcp__servername` -- blocks all tools from an MCP server
 

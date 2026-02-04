@@ -15,20 +15,20 @@ describe("DEFAULT_DENY_LIST", () => {
   });
 
   test("contains privilege escalation pattern", () => {
-    expect(DEFAULT_DENY_LIST).toContain("Bash(sudo )");
+    expect(DEFAULT_DENY_LIST).toContain("Bash(sudo *)");
   });
 
   test("contains system control patterns", () => {
-    expect(DEFAULT_DENY_LIST).toContain("Bash(shutdown )");
-    expect(DEFAULT_DENY_LIST).toContain("Bash(reboot)");
-    expect(DEFAULT_DENY_LIST).toContain("Bash(halt)");
-    expect(DEFAULT_DENY_LIST).toContain("Bash(poweroff)");
+    expect(DEFAULT_DENY_LIST).toContain("Bash(shutdown *)");
+    expect(DEFAULT_DENY_LIST).toContain("Bash(reboot*)");
+    expect(DEFAULT_DENY_LIST).toContain("Bash(halt*)");
+    expect(DEFAULT_DENY_LIST).toContain("Bash(poweroff*)");
   });
 
   test("contains disk formatting and raw write patterns", () => {
-    expect(DEFAULT_DENY_LIST).toContain("Bash(mkfs)");
-    expect(DEFAULT_DENY_LIST).toContain("Bash(dd if=)");
-    expect(DEFAULT_DENY_LIST).toContain("Bash(shred )");
+    expect(DEFAULT_DENY_LIST).toContain("Bash(mkfs*)");
+    expect(DEFAULT_DENY_LIST).toContain("Bash(dd if=* of=/dev/*)");
+    expect(DEFAULT_DENY_LIST).toContain("Bash(shred *)");
   });
 });
 
@@ -49,24 +49,24 @@ describe("buildDenyList", () => {
   });
 
   test("merges workspace deny rules with defaults", () => {
-    const result = buildDenyList({ deny: ["Bash(curl )", "Bash(wget )"] });
-    expect(result).toContain("Bash(curl )");
-    expect(result).toContain("Bash(wget )");
+    const result = buildDenyList({ deny: ["Bash(curl *)", "Bash(wget *)"] });
+    expect(result).toContain("Bash(curl *)");
+    expect(result).toContain("Bash(wget *)");
     // Defaults still present
-    expect(result).toContain("Bash(sudo )");
+    expect(result).toContain("Bash(sudo *)");
     expect(result).toContain("Bash(rm -rf /)");
   });
 
   test("deduplicates rules already in defaults", () => {
-    const result = buildDenyList({ deny: ["Bash(sudo )"] });
-    const sudoCount = result.filter((r) => r === "Bash(sudo )").length;
+    const result = buildDenyList({ deny: ["Bash(sudo *)"] });
+    const sudoCount = result.filter((r) => r === "Bash(sudo *)").length;
     expect(sudoCount).toBe(1);
   });
 
   test("preserves order: defaults first, then workspace rules", () => {
-    const result = buildDenyList({ deny: ["Bash(curl )"] });
-    const sudoIdx = result.indexOf("Bash(sudo )");
-    const curlIdx = result.indexOf("Bash(curl )");
+    const result = buildDenyList({ deny: ["Bash(curl *)"] });
+    const sudoIdx = result.indexOf("Bash(sudo *)");
+    const curlIdx = result.indexOf("Bash(curl *)");
     expect(sudoIdx).toBeLessThan(curlIdx);
   });
 });
@@ -83,10 +83,15 @@ describe("buildDisallowedToolsArgs", () => {
   });
 
   test("includes workspace-specific deny rules", () => {
-    const result = buildDisallowedToolsArgs({ deny: ["Bash(curl )"] });
+    const result = buildDisallowedToolsArgs({ deny: ["Bash(curl *)"] });
     expect(result).toContain("--disallowedTools");
-    expect(result).toContain("Bash(curl )");
-    expect(result).toContain("Bash(sudo )");
+    expect(result).toContain("Bash(curl *)");
+    expect(result).toContain("Bash(sudo *)");
+  });
+
+  test("returns empty array when permissions is 'skip'", () => {
+    const result = buildDisallowedToolsArgs("skip");
+    expect(result).toEqual([]);
   });
 });
 
@@ -109,6 +114,10 @@ describe("validatePermissions", () => {
 
   test("accepts empty deny array", () => {
     expect(validatePermissions({ deny: [] })).toBeNull();
+  });
+
+  test("accepts 'skip' string literal", () => {
+    expect(validatePermissions("skip")).toBeNull();
   });
 
   test("rejects non-object permissions", () => {
