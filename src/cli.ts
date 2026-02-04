@@ -245,7 +245,7 @@ async function beat(path: string) {
   }
 
   console.log(`Running heartbeat for ${resolved}...`);
-  const entry = await runHeartbeat({ path: resolved, interval: "1h", lastRun: null });
+  const entry = await runHeartbeat({ path: resolved, lastRun: null });
   appendLog(entry);
 
   if (entry.outcome === "ok") {

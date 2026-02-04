@@ -117,9 +117,8 @@ function workspaceStatusText(ws: WorkspaceStatus, active: boolean): string {
 function renderWorkspaceRow(ws: WorkspaceStatus, active: boolean, termWidth: number): string {
   const nameWidth = Math.min(24, Math.floor(termWidth * 0.3));
   const name = truncate(ws.name, nameWidth);
-  const isCron = ws.interval.includes(" ");
-  const scheduleWidth = isCron ? 11 : 5;
-  const interval = padRight(ws.interval, scheduleWidth);
+  const scheduleWidth = ws.scheduleType === "cron" ? 11 : 5;
+  const schedule = padRight(ws.schedule, scheduleWidth);
   const status = workspaceStatusText(ws, active);
 
   let lastCol: string;
@@ -130,7 +129,7 @@ function renderWorkspaceRow(ws: WorkspaceStatus, active: boolean, termWidth: num
   }
 
   const nameStr = active ? styled(padRight(name, nameWidth), bold, white) : styled(padRight(name, nameWidth), white);
-  return ` ${nameStr}  ${styled(interval, dim)}  ${status}  ${lastCol}`;
+  return ` ${nameStr}  ${styled(schedule, dim)}  ${status}  ${lastCol}`;
 }
 
 function renderSeparator(termWidth: number): string {

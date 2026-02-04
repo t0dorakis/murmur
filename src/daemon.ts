@@ -24,7 +24,8 @@ export function buildWorkspaceStatuses(workspaces: WorkspaceConfig[]): Workspace
   return workspaces.map((ws) => ({
     path: ws.path,
     name: workspaceName(ws),
-    interval: ws.interval ?? ws.cron!,
+    schedule: ws.interval ?? ws.cron ?? "(none)",
+    scheduleType: ws.cron ? "cron" as const : "interval" as const,
     nextRunAt: nextRunAt(ws),
     lastOutcome: null,
     lastRunAt: ws.lastRun ? new Date(ws.lastRun).getTime() : null,

@@ -25,7 +25,8 @@ export type LogEntry = {
 export type WorkspaceStatus = {
   path: string;
   name: string;
-  interval: string;
+  schedule: string;
+  scheduleType: "interval" | "cron";
   nextRunAt: number;
   lastOutcome: Outcome | null;
   lastRunAt: number | null;

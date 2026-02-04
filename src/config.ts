@@ -56,6 +56,15 @@ export function validateWorkspace(ws: WorkspaceConfig): string | null {
 
   if (ws.tz && !hasCron) return `"tz" is only valid with "cron"`;
 
+  if (ws.tz) {
+    try {
+      const supported = Intl.supportedValuesOf("timeZone");
+      if (!supported.includes(ws.tz)) return `invalid timezone: "${ws.tz}"`;
+    } catch {
+      // Intl.supportedValuesOf not available — skip validation
+    }
+  }
+
   return null;
 }
 
@@ -96,10 +105,12 @@ export async function writeConfig(config: Config): Promise<void> {
 export async function updateLastRun(workspacePath: string, lastRun: string): Promise<void> {
   const config = readConfig();
   const ws = config.workspaces.find((w) => w.path === workspacePath);
-  if (ws) {
-    ws.lastRun = lastRun;
-    await writeConfig(config);
+  if (!ws) {
+    console.error(`Warning: workspace ${workspacePath} not found in config during lastRun update`);
+    return;
   }
+  ws.lastRun = lastRun;
+  await writeConfig(config);
 }
 
 const INTERVAL_RE = /^(\d+)(s|m|h|d)$/;
@@ -118,39 +129,53 @@ export function parseInterval(s: string): number {
   return value * multipliers[unit]!;
 }
 
-export function cleanupRuntimeFiles(): void {
-  try { unlinkSync(getPidPath()); } catch {}
-  try { unlinkSync(getSocketPath()); } catch {}
+function tryUnlink(path: string): void {
+  try {
+    unlinkSync(path);
+  } catch (err: any) {
+    if (err?.code !== "ENOENT") {
+      console.error(`Warning: could not remove ${path}: ${err?.message}`);
+    }
+  }
 }
 
-function isCronDue(ws: WorkspaceConfig): boolean {
+export function cleanupRuntimeFiles(): void {
+  tryUnlink(getPidPath());
+  tryUnlink(getSocketPath());
+}
+
+function parseLastRun(ws: WorkspaceConfig): number | null {
+  if (!ws.lastRun) return null;
+  const t = new Date(ws.lastRun).getTime();
+  if (Number.isNaN(t)) {
+    console.error(`Invalid lastRun timestamp for ${ws.path}: "${ws.lastRun}". Treating as never run.`);
+    return null;
+  }
+  return t;
+}
+
+function nextCronRunAt(ws: WorkspaceConfig): number {
   const parsed = Cron.unsafeParse(ws.cron!, ws.tz);
-  if (!ws.lastRun) return true;
-  const nextAfterLastRun = Cron.next(parsed, new Date(ws.lastRun));
-  return Date.now() >= nextAfterLastRun.getTime();
+  const lastRunAt = parseLastRun(ws);
+  const from = lastRunAt != null ? new Date(lastRunAt) : new Date();
+  return Cron.next(parsed, from).getTime();
 }
 
 export function isDue(ws: WorkspaceConfig): boolean {
-  if (ws.cron) return isCronDue(ws);
-  if (!ws.interval) return false;
-  if (!ws.lastRun) return true;
-  const lastRunTime = new Date(ws.lastRun).getTime();
-  if (Number.isNaN(lastRunTime)) {
-    console.error(`Invalid lastRun timestamp for ${ws.path}: "${ws.lastRun}". Treating as due.`);
-    return true;
+  if (ws.cron) {
+    if (!parseLastRun(ws)) return true;
+    return Date.now() >= nextCronRunAt(ws);
   }
-  const elapsed = Date.now() - lastRunTime;
-  return elapsed >= parseInterval(ws.interval);
+  if (!ws.interval) return false;
+  const lastRunAt = parseLastRun(ws);
+  if (lastRunAt == null) return true;
+  return Date.now() - lastRunAt >= parseInterval(ws.interval);
 }
 
 export function nextRunAt(ws: WorkspaceConfig): number {
-  if (ws.cron) {
-    const parsed = Cron.unsafeParse(ws.cron, ws.tz);
-    const from = ws.lastRun ? new Date(ws.lastRun) : new Date();
-    return Cron.next(parsed, from).getTime();
-  }
+  if (ws.cron) return nextCronRunAt(ws);
   if (!ws.interval) return Date.now();
   const intervalMs = parseInterval(ws.interval);
-  const lastRunAt = ws.lastRun ? new Date(ws.lastRun).getTime() : null;
-  return lastRunAt ? lastRunAt + intervalMs : Date.now();
+  const lastRunAt = parseLastRun(ws);
+  return lastRunAt != null ? lastRunAt + intervalMs : Date.now();
 }

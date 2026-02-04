@@ -166,4 +166,9 @@ describe("validateWorkspace", () => {
     const err = validateWorkspace({ path: "/tmp/test", interval: "30m", tz: "UTC", lastRun: null });
     expect(err).toContain("tz");
   });
+
+  test("rejects invalid timezone", () => {
+    const err = validateWorkspace({ path: "/tmp/test", cron: "0 9 * * *", tz: "Mars/Olympus", lastRun: null });
+    expect(err).toContain("invalid timezone");
+  });
 });

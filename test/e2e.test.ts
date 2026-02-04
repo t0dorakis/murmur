@@ -42,6 +42,55 @@ afterAll(() => {
   }
 });
 
+async function testDaemonLifecycle(
+  workspaceConfig: Record<string, unknown>,
+  statusAssertions?: (stdout: string) => void,
+) {
+  const jokesBefore = jokeCount();
+
+  const configFile = join(testDataDir, "config.json");
+  writeFileSync(configFile, JSON.stringify({
+    workspaces: [{ path: EXAMPLE_DIR, lastRun: null, ...workspaceConfig }],
+  }, null, 2));
+
+  // Start daemon with fast tick
+  const startResult = await murmur("start", "--tick", "5s");
+  expect(startResult.exitCode).toBe(0);
+  expect(startResult.stdout).toContain("Started");
+
+  // PID file exists and process is alive
+  const pidFile = join(testDataDir, PID_FILENAME);
+  expect(existsSync(pidFile)).toBe(true);
+  const daemonPid = Number(readFileSync(pidFile, "utf-8").trim());
+  expect(() => process.kill(daemonPid, 0)).not.toThrow();
+
+  // Status reports running
+  const statusResult = await murmur("status");
+  expect(statusResult.stdout).toContain("running");
+  statusAssertions?.(statusResult.stdout);
+
+  // Wait for daemon to tick and Claude to finish
+  await Bun.sleep(50_000);
+
+  // Daemon fired a heartbeat — lastRun updated
+  const config = JSON.parse(readFileSync(configFile, "utf-8"));
+  expect(config.workspaces[0].lastRun).not.toBeNull();
+
+  // Claude did the work
+  expect(jokeCount()).toBeGreaterThan(jokesBefore);
+
+  // Stop daemon
+  const stopResult = await murmur("stop");
+  expect(stopResult.exitCode).toBe(0);
+  expect(stopResult.stdout).toContain("Stopped");
+
+  await Bun.sleep(1_000);
+
+  // PID file cleaned up and process gone
+  expect(existsSync(pidFile)).toBe(false);
+  expect(() => process.kill(daemonPid, 0)).toThrow();
+}
+
 describe("e2e", () => {
   test("murmur beat fires a real heartbeat", async () => {
     const jokesBefore = jokeCount();
@@ -62,107 +111,17 @@ describe("e2e", () => {
   }, 120_000);
 
   test("daemon lifecycle: start, scheduled beat, stop", async () => {
-    const jokesBefore = jokeCount();
+    await testDaemonLifecycle({ interval: "1s" });
 
-    // Write config with a 1s interval so it fires immediately
-    const configFile = join(testDataDir, "config.json");
-    writeFileSync(configFile, JSON.stringify({
-      workspaces: [{
-        path: EXAMPLE_DIR,
-        interval: "1s",
-        lastRun: null,
-      }],
-    }, null, 2));
-
-    // Start daemon with fast tick
-    const startResult = await murmur("start", "--tick", "5s");
-    expect(startResult.exitCode).toBe(0);
-    expect(startResult.stdout).toContain("Started");
-
-    // PID file exists and process is alive
-    const pidFile = join(testDataDir, PID_FILENAME);
-    expect(existsSync(pidFile)).toBe(true);
-    const daemonPid = Number(readFileSync(pidFile, "utf-8").trim());
-    expect(() => process.kill(daemonPid, 0)).not.toThrow();
-
-    // Status reports running
-    const statusResult = await murmur("status");
-    expect(statusResult.stdout).toContain("running");
-
-    // Wait for daemon to tick and Claude to finish
-    await Bun.sleep(50_000);
-
-    // Daemon fired a heartbeat — lastRun updated
-    const config = JSON.parse(readFileSync(configFile, "utf-8"));
-    expect(config.workspaces[0].lastRun).not.toBeNull();
-
-    // Claude did the work
-    expect(jokeCount()).toBeGreaterThan(jokesBefore);
-
-    // Stop daemon
-    const stopResult = await murmur("stop");
-    expect(stopResult.exitCode).toBe(0);
-    expect(stopResult.stdout).toContain("Stopped");
-
-    await Bun.sleep(1_000);
-
-    // PID file cleaned up and process gone
-    expect(existsSync(pidFile)).toBe(false);
-    expect(() => process.kill(daemonPid, 0)).toThrow();
-
-    // Status reports stopped
+    // Status reports stopped after lifecycle completes
     const statusAfter = await murmur("status");
     expect(statusAfter.stdout).toContain("stopped");
   }, 120_000);
 
   test("daemon lifecycle with cron: start, scheduled beat, stop", async () => {
-    const jokesBefore = jokeCount();
-
-    // Write config with every-minute cron — fires immediately (lastRun: null)
-    const configFile = join(testDataDir, "config.json");
-    writeFileSync(configFile, JSON.stringify({
-      workspaces: [{
-        path: EXAMPLE_DIR,
-        cron: "* * * * *",
-        lastRun: null,
-      }],
-    }, null, 2));
-
-    // Start daemon with fast tick
-    const startResult = await murmur("start", "--tick", "5s");
-    expect(startResult.exitCode).toBe(0);
-    expect(startResult.stdout).toContain("Started");
-
-    // PID file exists and process is alive
-    const pidFile = join(testDataDir, PID_FILENAME);
-    expect(existsSync(pidFile)).toBe(true);
-    const daemonPid = Number(readFileSync(pidFile, "utf-8").trim());
-    expect(() => process.kill(daemonPid, 0)).not.toThrow();
-
-    // Status reports running with cron
-    const statusResult = await murmur("status");
-    expect(statusResult.stdout).toContain("running");
-    expect(statusResult.stdout).toContain("cron");
-
-    // Wait for daemon to tick and Claude to finish
-    await Bun.sleep(50_000);
-
-    // Daemon fired a heartbeat — lastRun updated
-    const config = JSON.parse(readFileSync(configFile, "utf-8"));
-    expect(config.workspaces[0].lastRun).not.toBeNull();
-
-    // Claude did the work
-    expect(jokeCount()).toBeGreaterThan(jokesBefore);
-
-    // Stop daemon
-    const stopResult = await murmur("stop");
-    expect(stopResult.exitCode).toBe(0);
-    expect(stopResult.stdout).toContain("Stopped");
-
-    await Bun.sleep(1_000);
-
-    // PID file cleaned up and process gone
-    expect(existsSync(pidFile)).toBe(false);
-    expect(() => process.kill(daemonPid, 0)).toThrow();
+    await testDaemonLifecycle(
+      { cron: "* * * * *" },
+      (stdout) => expect(stdout).toContain("cron"),
+    );
   }, 120_000);
 });

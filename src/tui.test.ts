@@ -23,7 +23,8 @@ function makeWorkspace(overrides: Partial<WorkspaceStatus> = {}): WorkspaceStatu
   return {
     path: "/tmp/test-ws",
     name: "test-ws",
-    interval: "1h",
+    schedule: "1h",
+    scheduleType: "interval",
     nextRunAt: Date.now() + 3600_000,
     lastOutcome: null,
     lastRunAt: null,
@@ -53,7 +54,7 @@ describe("tui rendering", () => {
 
     bus.emit({
       type: "tick",
-      workspaces: [makeWorkspace({ name: "my-project", interval: "30m" })],
+      workspaces: [makeWorkspace({ name: "my-project", schedule: "30m" })],
     });
 
     expect(screen.text()).toContain("my-project");
@@ -158,7 +159,7 @@ describe("tui rendering", () => {
 
     bus.emit({
       type: "tick",
-      workspaces: [makeWorkspace({ name: "briefing", interval: "0 9 * * *" })],
+      workspaces: [makeWorkspace({ name: "briefing", schedule: "0 9 * * *", scheduleType: "cron" })],
     });
 
     expect(screen.text()).toContain("briefing");
@@ -177,7 +178,7 @@ describe("tui rendering", () => {
 
     bus.emit({
       type: "tick",
-      workspaces: [makeWorkspace({ name: "daily", interval: "0 9 * * *", nextRunAt })],
+      workspaces: [makeWorkspace({ name: "daily", schedule: "0 9 * * *", scheduleType: "cron", nextRunAt })],
     });
 
     expect(screen.text()).toContain(`next at`);
