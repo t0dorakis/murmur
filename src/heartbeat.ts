@@ -1,5 +1,6 @@
 import { join } from "node:path";
 import { debug } from "./debug.ts";
+import { buildDisallowedToolsArgs } from "./permissions.ts";
 import type {
   DaemonEvent,
   LogEntry,
@@ -72,10 +73,12 @@ export async function runHeartbeat(
     promptPreview: promptPreview(prompt),
   });
 
+  const disallowedTools = buildDisallowedToolsArgs(ws.permissions);
   const claudeArgs = [
     "claude",
     "--print",
     "--dangerously-skip-permissions",
+    ...disallowedTools,
     "--max-turns",
     String(ws.maxTurns ?? 99),
   ];

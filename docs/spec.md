@@ -27,6 +27,9 @@ Entry point: `src/cli.ts` via `package.json` `"bin": { "murmur": "./src/cli.ts" 
       "path": "/Users/theo/repos/another-project",
       "interval": "1h",
       "maxTurns": 5,
+      "permissions": {
+        "deny": ["Bash(curl )", "Bash(wget )"]
+      },
       "lastRun": null
     }
   ]
@@ -36,6 +39,7 @@ Entry point: `src/cli.ts` via `package.json` `"bin": { "murmur": "./src/cli.ts" 
 - `path` — absolute path to workspace (must contain HEARTBEAT.md)
 - `interval` — human-readable duration: `"30m"`, `"1h"`, `"15m"` (parsed to ms)
 - `maxTurns` — max agent loop iterations per heartbeat (default: `3`). Prevents runaway. Tune up for complex prompts that need more tool calls.
+- `permissions` — optional permission overrides (see [Permissions](#permissions) below)
 - `lastRun` — ISO timestamp of last heartbeat, or `null` if never run
 
 Users edit this file directly to add/remove workspaces. No `add`/`remove` commands needed.
@@ -127,10 +131,12 @@ otherwise                                --> attention
 ## Claude CLI Invocation
 
 ```typescript
+const disallowedTools = buildDisallowedToolsArgs(ws.permissions);
 const proc = Bun.spawn([
   "claude",
   "--print",
   "--dangerously-skip-permissions",
+  ...disallowedTools,
   "--max-turns", String(ws.maxTurns ?? 3),
 ], {
   cwd: ws.path,
@@ -142,7 +148,8 @@ const proc = Bun.spawn([
 ```
 
 - `--print` — non-interactive, output only
-- `--dangerously-skip-permissions` — no interactive permission prompts (consider `--allowedTools` for tighter scoping)
+- `--dangerously-skip-permissions` — no interactive permission prompts (required for non-interactive daemon use)
+- `--disallowedTools` — blocks catastrophic operations via the default deny list, merged with per-workspace overrides (see [Permissions](#permissions))
 - `--max-turns` — read from workspace config, defaults to `3`. Caps agent loop iterations to prevent runaway.
 - `stdin: new Blob([prompt])` — prompt piped in (avoids shell escaping and arg length limits)
 - `cwd` — workspace directory so Claude has file access
@@ -151,10 +158,15 @@ const proc = Bun.spawn([
 ## Types
 
 ```typescript
+type PermissionsConfig = {
+  deny?: string[];       // additional tool patterns to block
+};
+
 type WorkspaceConfig = {
   path: string;
   interval: string;
-  maxTurns?: number; // default: 3
+  maxTurns?: number;          // default: 3
+  permissions?: PermissionsConfig;
   lastRun: string | null;
 };
 
@@ -174,10 +186,63 @@ type LogEntry = {
 };
 ```
 
+## Permissions
+
+Heartbeat agents run with `--dangerously-skip-permissions` because daemon execution is non-interactive. To mitigate risk, every heartbeat applies a default deny list via `--disallowedTools` that blocks catastrophic operations.
+
+### Default Deny List
+
+The following tool patterns are always blocked:
+
+| Pattern | Purpose |
+|---------|---------|
+| `Bash(rm -rf /)` | Filesystem destruction (root) |
+| `Bash(rm -rf /*)` | Filesystem destruction (root contents) |
+| `Bash(rm -rf ~)` | Home directory destruction |
+| `Bash(rm -rf ~/*)` | Home directory contents destruction |
+| `Bash(mkfs)` | Disk formatting |
+| `Bash(dd if=)` | Raw disk writes |
+| `Bash(shred )` | Secure file deletion |
+| `Bash(sudo )` | Privilege escalation |
+| `Bash(shutdown )` | System shutdown |
+| `Bash(reboot)` | System reboot |
+| `Bash(halt)` | System halt |
+| `Bash(poweroff)` | System power off |
+
+### Per-Workspace Overrides
+
+Workspaces can add extra deny rules via the `permissions.deny` field. These are merged (union) with the defaults:
+
+```json
+{
+  "path": "/Users/theo/repos/my-project",
+  "interval": "30m",
+  "permissions": {
+    "deny": ["Bash(curl )", "Bash(wget )", "Bash(npm publish)"]
+  },
+  "lastRun": null
+}
+```
+
+Workspace deny rules are appended to the default list. Duplicates are ignored. There is no way to remove a default deny rule -- the defaults are always enforced.
+
+### Pattern Format
+
+Patterns follow Claude Code's `--disallowedTools` syntax:
+- `Bash(command)` -- matches any Bash tool call whose command starts with the given prefix
+- `Edit` -- blocks the Edit tool entirely
+- `mcp__servername` -- blocks all tools from an MCP server
+
 ## Module Responsibilities
 
 ### `src/types.ts`
 Shared type definitions exported for all modules.
+
+### `src/permissions.ts`
+- `DEFAULT_DENY_LIST` — built-in deny list of catastrophic tool patterns
+- `buildDenyList(permissions?)` — merge defaults with workspace-specific deny rules
+- `buildDisallowedToolsArgs(permissions?)` — construct `--disallowedTools` CLI arguments
+- `validatePermissions(permissions)` — validate permissions config structure
 
 ### `src/config.ts`
 - `readConfig(): Config` — read and parse `~/.murmur/config.json`
@@ -185,11 +250,13 @@ Shared type definitions exported for all modules.
 - `parseInterval(s: string): number` — `"30m"` --> `1800000`, `"1h"` --> `3600000`
 - `isDue(ws: WorkspaceConfig): boolean` — `lastRun + interval < now`
 - `ensureDataDir()` — create `~/.murmur/` if missing
+- Validates `permissions` field on workspace configs via `validatePermissions()`
 
 ### `src/heartbeat.ts`
 - `runHeartbeat(ws: WorkspaceConfig): Promise<LogEntry>` — full cycle: build prompt, spawn, classify, return
 - `buildPrompt(ws: WorkspaceConfig): Promise<string>` — read HEARTBEAT.md, wrap in template
 - `classify(stdout: string, exitCode: number): Outcome` — determine ok/attention/error
+- Applies `buildDisallowedToolsArgs()` when spawning Claude to enforce the deny list
 
 ### `src/log.ts`
 - `appendLog(entry: LogEntry)` — append JSON line to `~/.murmur/heartbeats.jsonl` (uses `appendFileSync` from `node:fs`)

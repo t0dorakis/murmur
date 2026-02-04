@@ -171,4 +171,34 @@ describe("validateWorkspace", () => {
     const err = validateWorkspace({ path: "/tmp/test", cron: "0 9 * * *", tz: "Mars/Olympus", lastRun: null });
     expect(err).toContain("invalid timezone");
   });
+
+  test("accepts workspace with valid permissions", () => {
+    const err = validateWorkspace({
+      path: "/tmp/test",
+      interval: "30m",
+      permissions: { deny: ["Bash(curl )"] },
+      lastRun: null,
+    });
+    expect(err).toBeNull();
+  });
+
+  test("accepts workspace with empty permissions", () => {
+    const err = validateWorkspace({
+      path: "/tmp/test",
+      interval: "30m",
+      permissions: {},
+      lastRun: null,
+    });
+    expect(err).toBeNull();
+  });
+
+  test("rejects workspace with invalid permissions.deny", () => {
+    const err = validateWorkspace({
+      path: "/tmp/test",
+      interval: "30m",
+      permissions: { deny: "not-an-array" } as any,
+      lastRun: null,
+    });
+    expect(err).toContain("must be an array");
+  });
 });

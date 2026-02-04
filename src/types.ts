@@ -1,9 +1,14 @@
+export type PermissionsConfig = {
+  deny?: string[];
+};
+
 export type WorkspaceConfig = {
   path: string;
   interval?: string;
   cron?: string;
   tz?: string;
   maxTurns?: number;
+  permissions?: PermissionsConfig;
   lastRun: string | null;
 };
 
