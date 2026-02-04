@@ -9,6 +9,7 @@ import { connectToSocket, type SocketConnection } from "./socket-client.ts";
 import { createTui } from "./tui.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
+import type { DaemonEvent } from "./types.ts";
 
 // Injected by `bun build --define` at compile time; falls back to package.json in dev
 declare const __VERSION__: string;
@@ -346,8 +347,6 @@ function formatToolInput(input: Record<string, unknown>): string {
     })
     .join(", ");
 }
-
-import type { DaemonEvent } from "./types.ts";
 
 function verboseEmitter(event: DaemonEvent) {
   switch (event.type) {

@@ -253,7 +253,7 @@ The NDJSON stream from Claude Code CLI contains these event types:
 - `{ type: "system", subtype: "init" }` — session initialization (ignored)
 - `{ type: "assistant", message: { content: [...] } }` — assistant messages with text and/or tool_use blocks
 - `{ type: "user", message: { content: [...] } }` — tool_result blocks
-- `{ type: "result", subtype: "success", result, cost_usd, num_turns }` — final result
+- `{ type: "result", subtype: "success", result, total_cost_usd, num_turns }` — final result
 
 ## Verification Plan
 

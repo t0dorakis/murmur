@@ -84,9 +84,9 @@ describe("parseStreamJson", () => {
     expect(parsed.numTurns).toBe(2);
     expect(parsed.turns).toHaveLength(3); // tool-call assistant + text assistant + result
 
-    const toolTurn = parsed.turns[0];
+    const toolTurn = parsed.turns[0]!;
     expect(toolTurn).toMatchObject({ role: "assistant" });
-    if (toolTurn!.role === "assistant") {
+    if (toolTurn.role === "assistant") {
       expect(toolTurn.toolCalls).toHaveLength(1);
       expect(toolTurn.toolCalls![0]!.name).toBe("Bash");
       expect(toolTurn.toolCalls![0]!.input).toEqual({ command: "git status" });
