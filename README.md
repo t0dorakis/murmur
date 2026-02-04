@@ -4,12 +4,17 @@ A CLI daemon that runs scheduled prompts ("heartbeats") via Claude. Write a prom
 
 ## Install
 
+**Homebrew** (coming soon):
 ```bash
-bun install
-bun link
+brew install murmur
 ```
 
-Requires [Claude CLI](https://docs.anthropic.com/en/docs/claude-cli) to be installed and authenticated.
+**From source:**
+```bash
+bun install && bun run build
+```
+
+This compiles a standalone `./murmur` binary. Requires [Claude CLI](https://docs.anthropic.com/en/docs/claude-cli) to be installed and authenticated.
 
 ## Quick Start
 
@@ -118,6 +123,25 @@ grep '"attention"' ~/.murmur/heartbeats.jsonl | jq .
 # Count today's runs
 grep "$(date -u +%Y-%m-%d)" ~/.murmur/heartbeats.jsonl | wc -l
 ```
+
+## Development
+
+```bash
+bun install          # install dependencies
+bun run build        # compile to ./murmur
+bun src/cli.ts       # run from source (skip compile step)
+```
+
+## Testing
+
+E2e tests run every command against the compiled binary, so build first:
+
+```bash
+bun run build        # required before e2e tests
+bun run test:e2e
+```
+
+Requires [Claude CLI](https://docs.anthropic.com/en/docs/claude-cli) installed and authenticated — tests invoke real Claude calls.
 
 ## How It Works
 
