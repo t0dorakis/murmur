@@ -23,6 +23,18 @@ type StreamMessage =
   | { type: "user"; message: { content: ContentBlock[] } }
   | { type: "result"; subtype: string; result?: string; total_cost_usd?: number; duration_ms?: number; num_turns?: number };
 
+/** Extract text output from a tool_result content field (string or content block array). */
+function extractToolOutput(content: string | Array<{ type: string; text?: string }> | undefined): string | undefined {
+  if (typeof content === "string") return content;
+  if (Array.isArray(content)) {
+    const texts = content
+      .filter((b): b is { type: string; text: string } => b.type === "text" && typeof b.text === "string")
+      .map((b) => b.text);
+    return texts.length > 0 ? texts.join("\n") : undefined;
+  }
+  return undefined;
+}
+
 export type StreamParseResult = {
   /** The final text result from the agent. */
   resultText: string;
@@ -100,11 +112,7 @@ export function parseStreamJson(
           if (block.type === "tool_result" && block.tool_use_id) {
             const pending = pendingTools.get(block.tool_use_id);
             if (pending) {
-              const output = typeof block.content === "string"
-                ? block.content
-                : Array.isArray(block.content)
-                  ? block.content.filter((b) => b.type === "text").map((b) => b.text).join("\n")
-                  : undefined;
+              const output = extractToolOutput(block.content);
               const toolCall: ToolCall = {
                 name: pending.name,
                 input: pending.input,
@@ -209,11 +217,7 @@ export function createStreamProcessor(callbacks?: {
           if (block.type === "tool_result" && block.tool_use_id) {
             const pending = pendingTools.get(block.tool_use_id);
             if (pending) {
-              const output = typeof block.content === "string"
-                ? block.content
-                : Array.isArray(block.content)
-                  ? block.content.filter((b) => b.type === "text").map((b) => b.text).join("\n")
-                  : undefined;
+              const output = extractToolOutput(block.content);
               const toolCall: ToolCall = {
                 name: pending.name,
                 input: pending.input,
