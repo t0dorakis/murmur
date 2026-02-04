@@ -21,6 +21,19 @@ export type Config = {
 
 export type Outcome = "ok" | "attention" | "error";
 
+/** A tool call extracted from Claude's stream-json output. */
+export type ToolCall = {
+  name: string;
+  input: Record<string, unknown>;
+  output?: string;
+  durationMs?: number;
+};
+
+/** A single turn in the agent conversation. */
+export type ConversationTurn =
+  | { role: "assistant"; text?: string; toolCalls?: ToolCall[] }
+  | { role: "result"; text: string; costUsd?: number; durationMs?: number; numTurns?: number };
+
 export type LogEntry = {
   ts: string;
   workspace: string;
@@ -28,6 +41,8 @@ export type LogEntry = {
   durationMs: number;
   summary?: string;
   error?: string;
+  /** Conversation turns captured when running in verbose mode. */
+  turns?: ConversationTurn[];
 };
 
 export type WorkspaceStatus = {
@@ -44,6 +59,7 @@ export type DaemonEvent =
   | { type: "tick"; workspaces: WorkspaceStatus[] }
   | { type: "heartbeat:start"; workspace: string; promptPreview: string }
   | { type: "heartbeat:stdout"; workspace: string; chunk: string }
+  | { type: "heartbeat:tool-call"; workspace: string; toolCall: ToolCall }
   | { type: "heartbeat:done"; workspace: string; entry: LogEntry }
   | { type: "daemon:ready"; pid: number; workspaceCount: number }
   | { type: "daemon:shutdown" };
