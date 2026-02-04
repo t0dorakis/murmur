@@ -66,6 +66,7 @@ function parseGlobalArgs() {
   let detach = false;
   let daemon = false;
   let debugFlag = false;
+  let verbose = false;
   const rest: string[] = [];
   for (let i = 0; i < raw.length; i++) {
     if (raw[i] === "--data-dir") {
@@ -78,14 +79,16 @@ function parseGlobalArgs() {
       daemon = true;
     } else if (raw[i] === "--debug") {
       debugFlag = true;
+    } else if (raw[i] === "--verbose" || raw[i] === "-V") {
+      verbose = true;
     } else {
       rest.push(raw[i]!);
     }
   }
-  return { dataDir, tick, detach, daemon, debug: debugFlag, command: rest[0], targetPath: rest[1] ?? "." };
+  return { dataDir, tick, detach, daemon, debug: debugFlag, verbose, command: rest[0], targetPath: rest[1] ?? "." };
 }
 
-const { dataDir, tick, detach, daemon, debug: debugFlag, command, targetPath } = parseGlobalArgs();
+const { dataDir, tick, detach, daemon, debug: debugFlag, verbose, command, targetPath } = parseGlobalArgs();
 if (dataDir) setDataDir(dataDir);
 if (debugFlag) {
   enableDebug();
@@ -264,7 +267,7 @@ async function watch() {
   });
 }
 
-async function beat(path: string) {
+async function beat(path: string, verboseMode: boolean) {
   const resolved = resolve(path);
   const heartbeatFile = join(resolved, "HEARTBEAT.md");
   if (!existsSync(heartbeatFile)) {
@@ -273,8 +276,48 @@ async function beat(path: string) {
   }
 
   console.log(`Running heartbeat for ${resolved}...`);
-  const entry = await runHeartbeat({ path: resolved, lastRun: null });
+  if (verboseMode) {
+    console.log(`(verbose mode: capturing tool calls and reasoning)\n`);
+  }
+
+  const entry = await runHeartbeat(
+    { path: resolved, lastRun: null },
+    verboseMode ? verboseEmitter : undefined,
+    { verbose: verboseMode },
+  );
   appendLog(entry);
+
+  if (verboseMode && entry.turns && entry.turns.length > 0) {
+    console.log("\n--- Conversation Turns ---\n");
+    for (const turn of entry.turns) {
+      if (turn.role === "assistant") {
+        if (turn.text) {
+          console.log(`  Assistant: ${turn.text}`);
+        }
+        if (turn.toolCalls) {
+          for (const tc of turn.toolCalls) {
+            const inputStr = formatToolInput(tc.input);
+            console.log(`  Tool call: ${tc.name}(${inputStr})`);
+            if (tc.output) {
+              const outputPreview = tc.output.length > 200
+                ? tc.output.slice(0, 200) + "..."
+                : tc.output;
+              console.log(`    Output: ${outputPreview}`);
+            }
+          }
+        }
+      } else if (turn.role === "result") {
+        console.log(`  Result: ${turn.text.slice(0, 200)}`);
+        if (turn.costUsd != null) {
+          console.log(`  Cost: $${turn.costUsd.toFixed(6)}`);
+        }
+        if (turn.numTurns != null) {
+          console.log(`  Agent turns: ${turn.numTurns}`);
+        }
+      }
+    }
+    console.log("");
+  }
 
   if (entry.outcome === "ok") {
     console.log("OK — nothing to report.");
@@ -284,6 +327,38 @@ async function beat(path: string) {
     console.error(`ERROR: ${entry.error}`);
   }
   console.log(`(${entry.durationMs}ms)`);
+}
+
+function formatToolInput(input: Record<string, unknown>): string {
+  const entries = Object.entries(input);
+  if (entries.length === 0) return "";
+  if (entries.length === 1) {
+    const [key, val] = entries[0]!;
+    const valStr = typeof val === "string" ? val : JSON.stringify(val);
+    const truncated = valStr.length > 80 ? valStr.slice(0, 77) + "..." : valStr;
+    return `${key}: ${truncated}`;
+  }
+  return entries
+    .map(([key, val]) => {
+      const valStr = typeof val === "string" ? val : JSON.stringify(val);
+      const truncated = valStr.length > 40 ? valStr.slice(0, 37) + "..." : valStr;
+      return `${key}: ${truncated}`;
+    })
+    .join(", ");
+}
+
+import type { DaemonEvent } from "./types.ts";
+
+function verboseEmitter(event: DaemonEvent) {
+  switch (event.type) {
+    case "heartbeat:tool-call":
+      console.log(`  [tool] ${event.toolCall.name}(${formatToolInput(event.toolCall.input)})`);
+      break;
+    case "heartbeat:stdout":
+      // In verbose mode, assistant text is streamed as it arrives
+      process.stdout.write(event.chunk);
+      break;
+  }
 }
 
 const HEARTBEAT_TEMPLATE = `# Heartbeat
@@ -344,7 +419,7 @@ if (daemon) {
     await watch();
     break;
   case "beat":
-    await beat(targetPath);
+    await beat(targetPath, verbose);
     break;
   case "init":
     await init(targetPath);
@@ -364,6 +439,7 @@ Commands:
 Options:
   --data-dir <path>            Override data directory (default: ~/.murmur)
   --debug                      Enable debug logging to <data-dir>/debug.log
+  --verbose, -V                Show tool calls and reasoning during beat
   --version, -v                Show version`);
     process.exit(command ? 1 : 0);
 }

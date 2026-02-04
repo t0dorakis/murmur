@@ -222,6 +222,10 @@ function reduceEvent(state: TuiState, event: DaemonEvent): boolean {
       }
       return true;
 
+    case "heartbeat:tool-call":
+      // Tool call events are handled by verbose CLI output; TUI just ignores them
+      return false;
+
     case "heartbeat:done": {
       const idx = state.feed.findLastIndex((f) => f.workspace === event.workspace && f.outcome === null);
       if (idx !== -1) {
