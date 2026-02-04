@@ -1,0 +1,26 @@
+import { appendFileSync } from "node:fs";
+import { join } from "node:path";
+import { getDataDir, ensureDataDir } from "./config.ts";
+
+let enabled = false;
+
+export const DEBUG_LOG_FILENAME = "debug.log";
+
+export function enableDebug(): void {
+  enabled = true;
+}
+
+export function isDebugEnabled(): boolean {
+  return enabled;
+}
+
+export function debug(message: string): void {
+  if (!enabled) return;
+  ensureDataDir();
+  const line = `[${new Date().toISOString()}] ${message}\n`;
+  appendFileSync(join(getDataDir(), DEBUG_LOG_FILENAME), line);
+}
+
+export function getDebugLogPath(): string {
+  return join(getDataDir(), DEBUG_LOG_FILENAME);
+}

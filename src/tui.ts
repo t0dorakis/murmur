@@ -1,0 +1,348 @@
+import { basename } from "node:path";
+import {
+  altScreenOn, altScreenOff, cursorHide, cursorShow, cursorHome,
+  clearLine, clearToEnd,
+  bold, dim, green, yellow, red, white,
+  styled, truncate, padRight,
+} from "./ansi.ts";
+import { createScreen, type Screen } from "./screen.ts";
+import type { EventSource } from "./events.ts";
+import type { DaemonEvent, Outcome, WorkspaceStatus } from "./types.ts";
+
+type FeedEntry = {
+  workspace: string;
+  name: string;
+  promptPreview: string;
+  outcome: Outcome | null;
+  durationMs: number | null;
+  output: string;
+};
+
+type TuiState = {
+  pid: number;
+  workspaces: WorkspaceStatus[];
+  feed: FeedEntry[];
+  activeBeat: { workspace: string; output: string; startedAt: number } | null;
+};
+
+export type Tui = {
+  start(): void;
+  stop(): void;
+};
+
+// --- Formatting helpers ---
+
+function formatDuration(ms: number): string {
+  if (ms < 1000) return `${ms}ms`;
+  const s = ms / 1000;
+  if (s < 60) return `${s.toFixed(1)}s`;
+  const m = Math.floor(s / 60);
+  const rem = Math.floor(s % 60);
+  return `${m}m ${rem}s`;
+}
+
+function formatCountdown(targetMs: number): string {
+  const diff = targetMs - Date.now();
+  if (diff <= 0) return "due";
+  const totalSec = Math.ceil(diff / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
+  return `${m}m ${String(s).padStart(2, "0")}s`;
+}
+
+function formatAgo(epochMs: number): string {
+  const diff = Date.now() - epochMs;
+  if (diff < 60_000) return "just now";
+  const m = Math.floor(diff / 60_000);
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  return `${d}d ago`;
+}
+
+function workspaceDisplayName(path: string, workspaces: WorkspaceStatus[]): string {
+  return workspaces.find((w) => w.path === path)?.name ?? basename(path);
+}
+
+function outcomeIcon(outcome: Outcome | null): string {
+  switch (outcome) {
+    case "ok": return styled("✓", green, dim);
+    case "attention": return styled("●", yellow);
+    case "error": return styled("✗", red);
+    default: return styled("—", dim);
+  }
+}
+
+function outcomeLabel(outcome: Outcome): string {
+  switch (outcome) {
+    case "ok": return styled("ok", green, dim);
+    case "attention": return styled("attention", yellow);
+    case "error": return styled("error", red);
+  }
+}
+
+// --- Rendering ---
+
+function renderHeader(state: TuiState): string {
+  const wsCount = state.workspaces.length;
+  return ` ${styled("murmur", bold, white)} ${styled("∙", dim)} ${wsCount} workspace${wsCount !== 1 ? "s" : ""} ${styled("∙", dim)} pid ${state.pid}`;
+}
+
+function formatAbsoluteTime(epochMs: number): string {
+  const d = new Date(epochMs);
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mm = String(d.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
+}
+
+function workspaceStatusText(ws: WorkspaceStatus, active: boolean): string {
+  if (active) {
+    const elapsed = formatDuration(Date.now() - (ws.lastRunAt ?? Date.now()));
+    return styled(`▶ running (${elapsed})`, bold, white);
+  }
+  const diff = ws.nextRunAt - Date.now();
+  if (diff > 3_600_000) {
+    const time = formatAbsoluteTime(ws.nextRunAt);
+    return `next at ${styled(time, white)}`;
+  }
+  const countdown = formatCountdown(ws.nextRunAt);
+  return countdown === "due"
+    ? styled("due", dim)
+    : `next in ${styled(padRight(countdown, 12), white)}`;
+}
+
+function renderWorkspaceRow(ws: WorkspaceStatus, active: boolean, termWidth: number): string {
+  const nameWidth = Math.min(24, Math.floor(termWidth * 0.3));
+  const name = truncate(ws.name, nameWidth);
+  const scheduleWidth = ws.scheduleType === "cron" ? 11 : 5;
+  const schedule = padRight(ws.schedule, scheduleWidth);
+  const status = workspaceStatusText(ws, active);
+
+  let lastCol: string;
+  if (ws.lastRunAt) {
+    lastCol = `${outcomeIcon(ws.lastOutcome)} ${ws.lastOutcome ? styled(ws.lastOutcome, dim) : ""} ${styled(formatAgo(ws.lastRunAt), dim)}`;
+  } else {
+    lastCol = styled("—", dim);
+  }
+
+  const nameStr = active ? styled(padRight(name, nameWidth), bold, white) : styled(padRight(name, nameWidth), white);
+  return ` ${nameStr}  ${styled(schedule, dim)}  ${status}  ${lastCol}`;
+}
+
+function renderSeparator(termWidth: number): string {
+  return styled("─".repeat(termWidth), dim);
+}
+
+function renderActiveBeat(state: TuiState, termWidth: number, maxLines: number): string[] {
+  if (!state.activeBeat) return [];
+  const { workspace, output, startedAt } = state.activeBeat;
+  const name = workspaceDisplayName(workspace, state.workspaces);
+  const elapsed = formatDuration(Date.now() - startedAt);
+
+  const lines: string[] = [];
+  lines.push(` ${styled("▶", bold, white)} ${styled(name, bold, white)}${" ".repeat(Math.max(1, termWidth - name.length - elapsed.length - 6))}${styled(elapsed, dim)}`);
+
+  const feedEntry = state.feed.findLast((f) => f.workspace === workspace);
+  if (feedEntry?.promptPreview) {
+    lines.push(`   ${styled(truncate(feedEntry.promptPreview, termWidth - 4), dim)}`);
+    lines.push(`   ${styled("┄┄┄", dim)}`);
+  }
+
+  if (output) {
+    const outputLines = output.split("\n");
+    const available = maxLines - lines.length;
+    const start = Math.max(0, outputLines.length - available);
+    for (let i = start; i < outputLines.length; i++) {
+      lines.push(`   ${truncate(outputLines[i]!, termWidth - 4)}`);
+    }
+  }
+
+  return lines;
+}
+
+function renderFeedEntry(entry: FeedEntry, termWidth: number): string[] {
+  const name = entry.name;
+  const dur = entry.durationMs != null ? formatDuration(entry.durationMs) : "";
+
+  if (entry.outcome === "ok") {
+    return [` ${outcomeIcon("ok")} ${styled(name, dim)}${" ".repeat(Math.max(1, termWidth - name.length - dur.length - 14))}${outcomeLabel("ok")}  ${styled(dur, dim)}`];
+  }
+
+  const icon = outcomeIcon(entry.outcome);
+  const label = entry.outcome ? outcomeLabel(entry.outcome) : "";
+  const lines: string[] = [];
+  lines.push(` ${icon} ${styled(name, bold, white)}${" ".repeat(Math.max(1, termWidth - name.length - dur.length - (entry.outcome?.length ?? 0) - 10))}${label}  ${styled(dur, dim)}`);
+
+  if (entry.promptPreview) {
+    lines.push(`   ${styled(truncate(entry.promptPreview, termWidth - 4), dim)}`);
+    lines.push(`   ${styled("┄┄┄", dim)}`);
+  }
+
+  if (entry.output) {
+    for (const line of entry.output.split("\n")) {
+      lines.push(`   ${truncate(line, termWidth - 4)}`);
+    }
+  }
+
+  return lines;
+}
+
+// --- State reducer ---
+
+function reduceEvent(state: TuiState, event: DaemonEvent): boolean {
+  switch (event.type) {
+    case "daemon:ready":
+      state.pid = event.pid;
+      return false;
+
+    case "tick":
+      state.workspaces = event.workspaces;
+      return true;
+
+    case "heartbeat:start": {
+      state.activeBeat = { workspace: event.workspace, output: "", startedAt: Date.now() };
+      const name = workspaceDisplayName(event.workspace, state.workspaces);
+      state.feed.push({
+        workspace: event.workspace,
+        name,
+        promptPreview: event.promptPreview,
+        outcome: null,
+        durationMs: null,
+        output: "",
+      });
+      return true;
+    }
+
+    case "heartbeat:stdout":
+      if (state.activeBeat?.workspace === event.workspace) {
+        state.activeBeat.output += event.chunk;
+      }
+      return true;
+
+    case "heartbeat:done": {
+      const idx = state.feed.findLastIndex((f) => f.workspace === event.workspace && f.outcome === null);
+      if (idx !== -1) {
+        const feedEntry = state.feed[idx]!;
+        feedEntry.outcome = event.entry.outcome;
+        feedEntry.durationMs = event.entry.durationMs;
+        feedEntry.output = state.activeBeat?.workspace === event.workspace
+          ? state.activeBeat.output
+          : "";
+      }
+      if (state.activeBeat?.workspace === event.workspace) {
+        state.activeBeat = null;
+      }
+      if (state.feed.length > 50) state.feed.splice(0, state.feed.length - 50);
+      return true;
+    }
+
+    case "daemon:shutdown":
+      return false;
+
+    default: {
+      const _exhaustive: never = event;
+      return false;
+    }
+  }
+}
+
+// --- Main TUI ---
+
+export function createTui(eventSource: EventSource, screen?: Screen): Tui {
+  const s = screen ?? createScreen();
+  const state: TuiState = {
+    pid: 0,
+    workspaces: [],
+    feed: [],
+    activeBeat: null,
+  };
+
+  let countdownTimer: ReturnType<typeof setInterval> | null = null;
+
+  function render() {
+    const termWidth = s.columns();
+    const rows = s.rows();
+
+    s.write(cursorHome);
+
+    // Header
+    s.write(clearLine + renderHeader(state) + "\n");
+    s.write(clearLine + "\n");
+
+    // Workspace rows
+    for (const ws of state.workspaces) {
+      const active = state.activeBeat?.workspace === ws.path;
+      s.write(clearLine + renderWorkspaceRow(ws, active, termWidth) + "\n");
+    }
+
+    if (state.workspaces.length === 0) {
+      s.write(clearLine + styled(" No workspaces configured.", dim) + "\n");
+      s.write(clearLine + styled(` Add one to config.json or run: murmur init <path>`, dim) + "\n");
+    }
+
+    s.write(clearLine + "\n");
+    s.write(clearLine + renderSeparator(termWidth) + "\n");
+    s.write(clearLine + "\n");
+
+    // Fixed region height: header(1) + blank(1) + workspaces(N) + blank(1) + sep(1) + blank(1)
+    const fixedLines = 5 + Math.max(state.workspaces.length, 2);
+    const feedArea = rows - fixedLines;
+
+    // Render active beat
+    const beatLines = renderActiveBeat(state, termWidth, Math.floor(feedArea * 0.6));
+    for (const line of beatLines) {
+      s.write(clearLine + line + "\n");
+    }
+    if (beatLines.length > 0) s.write(clearLine + "\n");
+
+    // Render completed feed entries (most recent first, fill remaining space)
+    const feedSpace = feedArea - beatLines.length - (beatLines.length > 0 ? 1 : 0);
+
+    if (state.feed.length === 0 && !state.activeBeat) {
+      s.write(clearLine + styled(" Waiting for first heartbeat...", dim) + "\n");
+    } else {
+      let linesUsed = 0;
+      for (let i = state.feed.length - 1; i >= 0 && linesUsed < feedSpace; i--) {
+        const entry = state.feed[i]!;
+        const entryLines = renderFeedEntry(entry, termWidth);
+        if (linesUsed + entryLines.length > feedSpace) break;
+        for (const line of entryLines) {
+          s.write(clearLine + line + "\n");
+          linesUsed++;
+        }
+      }
+    }
+
+    s.write(clearToEnd);
+  }
+
+  function handleEvent(event: DaemonEvent) {
+    const shouldRender = reduceEvent(state, event);
+    if (shouldRender) render();
+  }
+
+  return {
+    start() {
+      s.write(altScreenOn + cursorHide);
+      eventSource.subscribe(handleEvent);
+
+      countdownTimer = setInterval(() => {
+        if (state.workspaces.length > 0) render();
+      }, 1000);
+
+      render();
+    },
+
+    stop() {
+      if (countdownTimer) {
+        clearInterval(countdownTimer);
+        countdownTimer = null;
+      }
+      eventSource.unsubscribe(handleEvent);
+      s.write(cursorShow + altScreenOff);
+    },
+  };
+}

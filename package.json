@@ -1,12 +1,13 @@
 {
   "name": "murmur",
+  "version": "0.1.0",
   "module": "src/cli.ts",
   "type": "module",
-  "private": true,
   "bin": {
     "murmur": "./src/cli.ts"
   },
   "scripts": {
+    "build": "bun build --compile src/cli.ts --outfile murmur",
     "test:e2e": "bun test test/e2e.test.ts"
   },
   "devDependencies": {
@@ -14,5 +15,8 @@
   },
   "peerDependencies": {
     "typescript": "^5"
+  },
+  "dependencies": {
+    "effect": "^3.19.15"
   }
 }
