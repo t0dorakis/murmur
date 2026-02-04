@@ -7,7 +7,8 @@
     "murmur": "./src/cli.ts"
   },
   "scripts": {
-    "build": "bun build --compile src/cli.ts --outfile murmur",
+    "build": "VERSION=$(bun -e 'console.log(JSON.stringify(require(\"./package.json\").version))') && bun build --compile --define \"__VERSION__=$VERSION\" src/cli.ts --outfile murmur",
+    "release": "bash scripts/release.sh",
     "test:e2e": "bun test test/e2e.test.ts"
   },
   "devDependencies": {

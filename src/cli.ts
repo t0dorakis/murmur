@@ -10,7 +10,15 @@ import { createTui } from "./tui.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
 
-const VERSION = "0.1.0";
+// Injected by `bun build --define` at compile time; falls back to package.json in dev
+declare const __VERSION__: string;
+const VERSION =
+  typeof __VERSION__ !== "undefined"
+    ? __VERSION__
+    : (() => {
+        try { return require("../package.json").version; }
+        catch { return "0.0.0-unknown"; }
+      })();
 
 function readPid(): number | null {
   try {
