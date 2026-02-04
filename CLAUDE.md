@@ -41,6 +41,28 @@ HTML files can import .tsx, .jsx or .js files directly and Bun's bundler will tr
 For more information, read the Bun API docs in `node_modules/bun-types/docs/**.mdx`.
 
 
+## Commits
+
+Use [Conventional Commits](https://www.conventionalcommits.org/). Format:
+
+```
+type(scope): description
+```
+
+Allowed types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `perf`, `ci`
+
+Scope is optional. Examples:
+- `feat: add cron scheduling support`
+- `fix(daemon): handle socket timeout`
+- `refactor(tui): extract screen buffer`
+- `chore(release): v0.2.0`
+
+Breaking changes: add `BREAKING CHANGE:` in the commit body or `!` after type (e.g. `feat!: redesign config format`).
+
+## Releasing
+
+Run `bun run release <version>` (e.g. `bun run release 0.2.0`). This bumps package.json, generates CHANGELOG.md via git-cliff, commits, tags, and pushes. The existing CI workflow handles the GitHub release + Homebrew update.
+
 **Code Quality**
 - Avoid duplication but prioritize readability
 - Semantic naming (purpose, not implementation)
