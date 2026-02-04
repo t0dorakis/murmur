@@ -2,7 +2,7 @@
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { setDataDir, ensureDataDir, readConfig, writeConfig, getConfigPath, getPidPath, getSocketPath, parseInterval, cleanupRuntimeFiles } from "./config.ts";
-import { enableDebug } from "./debug.ts";
+import { enableDebug, getDebugLogPath } from "./debug.ts";
 import { startDaemon, runDaemonMain } from "./daemon.ts";
 import { startSocketServer, type SocketServer } from "./socket.ts";
 import { connectToSocket, type SocketConnection } from "./socket-client.ts";
@@ -79,7 +79,10 @@ function parseGlobalArgs() {
 
 const { dataDir, tick, detach, daemon, debug: debugFlag, command, targetPath } = parseGlobalArgs();
 if (dataDir) setDataDir(dataDir);
-if (debugFlag) enableDebug();
+if (debugFlag) {
+  enableDebug();
+  console.error(`Debug logging to ${getDebugLogPath()}`);
+}
 
 import { createKeyHandler } from "./keys.ts";
 
