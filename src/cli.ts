@@ -2,12 +2,14 @@
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { setDataDir, ensureDataDir, readConfig, writeConfig, getConfigPath, getPidPath, getSocketPath, parseInterval, cleanupRuntimeFiles } from "./config.ts";
-import { startDaemon } from "./daemon.ts";
+import { startDaemon, runDaemonMain } from "./daemon.ts";
 import { startSocketServer, type SocketServer } from "./socket.ts";
 import { connectToSocket, type SocketConnection } from "./socket-client.ts";
 import { createTui } from "./tui.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
+
+const VERSION = "0.1.0";
 
 function readPid(): number | null {
   try {
@@ -53,6 +55,7 @@ function parseGlobalArgs() {
   let dataDir: string | undefined;
   let tick: string | undefined;
   let detach = false;
+  let daemon = false;
   const rest: string[] = [];
   for (let i = 0; i < raw.length; i++) {
     if (raw[i] === "--data-dir") {
@@ -61,14 +64,16 @@ function parseGlobalArgs() {
       tick = raw[++i];
     } else if (raw[i] === "--detach") {
       detach = true;
+    } else if (raw[i] === "--daemon") {
+      daemon = true;
     } else {
       rest.push(raw[i]!);
     }
   }
-  return { dataDir, tick, detach, command: rest[0], targetPath: rest[1] ?? "." };
+  return { dataDir, tick, detach, daemon, command: rest[0], targetPath: rest[1] ?? "." };
 }
 
-const { dataDir, tick, detach, command, targetPath } = parseGlobalArgs();
+const { dataDir, tick, detach, daemon, command, targetPath } = parseGlobalArgs();
 if (dataDir) setDataDir(dataDir);
 
 import { createKeyHandler } from "./keys.ts";
@@ -140,8 +145,10 @@ async function startDetached() {
     process.exit(1);
   }
 
-  const daemonPath = join(import.meta.dir, "daemon.ts");
-  const daemonArgs = ["bun", daemonPath];
+  const isCompiled = !process.execPath.endsWith("/bun");
+  const daemonArgs = isCompiled
+    ? [process.execPath, "--daemon"]
+    : [process.execPath, import.meta.filename, "--daemon"];
   if (dataDir) daemonArgs.push("--data-dir", dataDir);
   if (tick) daemonArgs.push("--tick", tick);
 
@@ -290,7 +297,15 @@ async function init(path: string) {
   }
 }
 
-switch (command) {
+if (command === "--version" || command === "-v") {
+  console.log(VERSION);
+  process.exit(0);
+}
+
+if (daemon) {
+  runDaemonMain({ dataDir, tick });
+  // runDaemonMain installs signal handlers and keeps the process alive
+} else switch (command) {
   case "start":
     if (detach) {
       await startDetached();

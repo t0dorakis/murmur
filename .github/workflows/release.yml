@@ -1,0 +1,44 @@
+name: Release
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install
+      - run: bun test
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
+
+      - name: Get tarball hash
+        id: hash
+        run: |
+          VERSION=${GITHUB_REF#refs/tags/}
+          curl -sL "https://github.com/${{ github.repository }}/archive/refs/tags/$VERSION.tar.gz" -o release.tar.gz
+          SHA=$(sha256sum release.tar.gz | cut -d' ' -f1)
+          echo "sha256=$SHA" >> "$GITHUB_OUTPUT"
+          echo "version=${VERSION#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Update Homebrew formula
+        env:
+          TAP_GITHUB_TOKEN: ${{ secrets.TAP_GITHUB_TOKEN }}
+        run: |
+          git clone https://x-access-token:${TAP_GITHUB_TOKEN}@github.com/t0dorakis/homebrew-murmur.git tap
+          cd tap
+          sed -i "s|url \".*\"|url \"https://github.com/${{ github.repository }}/archive/refs/tags/v${{ steps.hash.outputs.version }}.tar.gz\"|" Formula/murmur.rb
+          sed -i "s|sha256 \".*\"|sha256 \"${{ steps.hash.outputs.sha256 }}\"|" Formula/murmur.rb
+          sed -i "s|version \".*\"|version \"${{ steps.hash.outputs.version }}\"|" Formula/murmur.rb
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add Formula/murmur.rb
+          git commit -m "Update murmur to v${{ steps.hash.outputs.version }}"
+          git push

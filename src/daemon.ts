@@ -86,21 +86,9 @@ function cleanup(exitCode = 0) {
   process.exit(exitCode);
 }
 
-function parseArgs() {
-  const args = process.argv.slice(2);
-  let dataDir: string | undefined;
-  let tick = "10s";
-  for (let i = 0; i < args.length; i++) {
-    if (args[i] === "--data-dir") dataDir = args[++i];
-    else if (args[i] === "--tick") tick = args[++i] ?? tick;
-  }
-  return { dataDir, tick };
-}
-
-if (import.meta.main) {
-  const { dataDir, tick } = parseArgs();
-  if (dataDir) setDataDir(dataDir);
-  const tickMs = parseInterval(tick);
+export function runDaemonMain(opts: { dataDir?: string; tick?: string }) {
+  if (opts.dataDir) setDataDir(opts.dataDir);
+  const tickMs = parseInterval(opts.tick ?? "10s");
 
   ensureDataDir();
   writeFileSync(getPidPath(), String(process.pid));
@@ -117,4 +105,20 @@ if (import.meta.main) {
 
   process.on("SIGTERM", shutdown);
   process.on("SIGINT", shutdown);
+}
+
+function parseArgs() {
+  const args = process.argv.slice(2);
+  let dataDir: string | undefined;
+  let tick = "10s";
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--data-dir") dataDir = args[++i];
+    else if (args[i] === "--tick") tick = args[++i] ?? tick;
+  }
+  return { dataDir, tick };
+}
+
+if (import.meta.main) {
+  const { dataDir, tick } = parseArgs();
+  runDaemonMain({ dataDir, tick });
 }
