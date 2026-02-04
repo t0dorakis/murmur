@@ -106,9 +106,10 @@ export async function runHeartbeat(
     String(ws.maxTurns ?? 99),
   ];
 
-  // In verbose mode, use stream-json to capture tool calls and reasoning
+  // In verbose mode, use stream-json to capture tool calls and reasoning.
+  // The Claude CLI requires --verbose alongside --print --output-format=stream-json.
   if (verbose) {
-    claudeArgs.push("--output-format", "stream-json");
+    claudeArgs.push("--verbose", "--output-format", "stream-json");
   }
 
   debug(`Spawning: ${claudeArgs.join(" ")} (cwd: ${ws.path})`);
