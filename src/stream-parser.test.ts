@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
-import { parseStreamJson, runParseStream } from "./stream-parser.ts";
+import { Effect } from "effect";
+import { parseStreamJson, runParseStream, runParseStreamEffect } from "./stream-parser.ts";
 import type { ToolCall } from "./types.ts";
 
 // Helpers to build stream-json NDJSON lines
@@ -290,5 +291,53 @@ describe("runParseStream", () => {
 
     expect(toolCalls).toHaveLength(1);
     expect(result.resultText).toBe("ok");
+  });
+});
+
+describe("runParseStreamEffect", () => {
+  function toReadableStream(text: string): ReadableStream<Uint8Array> {
+    const encoder = new TextEncoder();
+    return new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(text));
+        controller.close();
+      },
+    });
+  }
+
+  test("returns Effect with result", async () => {
+    const ndjson = [
+      initEvent,
+      assistantTextEvent("HEARTBEAT_OK"),
+      resultEvent("HEARTBEAT_OK", 0.05, 1),
+    ].join("\n");
+
+    const result = await Effect.runPromise(
+      runParseStreamEffect(toReadableStream(ndjson))
+    );
+    expect(result.resultText).toBe("HEARTBEAT_OK");
+    expect(result.costUsd).toBe(0.05);
+    expect(result.numTurns).toBe(1);
+    expect(result.turns).toHaveLength(2);
+  });
+
+  test("calls handlers via Effect", async () => {
+    const toolCalls: ToolCall[] = [];
+    const ndjson = [
+      initEvent,
+      assistantToolCallEvent("Bash", { command: "ls" }, "tool_30"),
+      userToolResultEvent("tool_30", "file1\nfile2"),
+      resultEvent("done"),
+    ].join("\n");
+
+    const result = await Effect.runPromise(
+      runParseStreamEffect(toReadableStream(ndjson), {
+        onToolCall: (tc) => toolCalls.push(tc),
+      })
+    );
+
+    expect(toolCalls).toHaveLength(1);
+    expect(toolCalls[0]!.name).toBe("Bash");
+    expect(result.resultText).toBe("done");
   });
 });
