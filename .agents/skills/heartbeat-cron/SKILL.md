@@ -9,6 +9,9 @@ description: >
   heartbeat prompt, tests it, and registers it with murmur's scheduler.
   Triggers: heartbeat, murmur, recurring task, scheduled action, cron, monitor,
   watch, automate, periodic check, scheduled prompt.
+metadata:
+  author: t0dorakis
+  version: "0.1.1"
 ---
 
 # Heartbeat Creator
