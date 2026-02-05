@@ -11,6 +11,7 @@ import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
 import { formatToolTarget, formatToolDuration } from "./tool-format.ts";
 import type { DaemonEvent } from "./types.ts";
+import { listWorkspaces, removeWorkspace, clearWorkspaces } from "./workspaces.ts";
 
 // Injected by `bun build --define` at compile time; falls back to package.json in dev
 declare const __VERSION__: string;
@@ -87,10 +88,10 @@ function parseGlobalArgs() {
       rest.push(raw[i]!);
     }
   }
-  return { dataDir, tick, detach, daemon, debug: debugFlag, quiet, command: rest[0], targetPath: rest[1] ?? "." };
+  return { dataDir, tick, detach, daemon, debug: debugFlag, quiet, command: rest[0], targetPath: rest[1] ?? ".", args: rest };
 }
 
-const { dataDir, tick, detach, daemon, debug: debugFlag, quiet, command, targetPath } = parseGlobalArgs();
+const { dataDir, tick, detach, daemon, debug: debugFlag, quiet, command, targetPath, args } = parseGlobalArgs();
 if (dataDir) setDataDir(dataDir);
 if (debugFlag) {
   enableDebug();
@@ -361,8 +362,36 @@ async function init(path: string) {
   }
 }
 
+function printHelp() {
+  console.log(`Usage: murmur [options] <command> [args]
+
+Commands:
+  start [--tick <interval>]    Start daemon with TUI (foreground)
+  start --detach               Start daemon in background
+  watch                        Attach TUI to running daemon
+  stop                         Stop the daemon
+  status                       Show daemon and workspace status
+  beat [path]                  Run one heartbeat immediately
+  init [path]                  Create HEARTBEAT.md template
+  workspaces list              List all configured workspaces
+  workspaces remove <path>     Remove a workspace from config
+  workspaces clear             Remove all workspaces from config
+
+Options:
+  --data-dir <path>            Override data directory (default: ~/.murmur)
+  --debug                      Enable debug logging to <data-dir>/debug.log
+  --quiet, -q                  Hide tool calls during beat (show summary only)
+  --help, -h                   Show this help message
+  --version, -v                Show version`);
+}
+
 if (command === "--version" || command === "-v") {
   console.log(VERSION);
+  process.exit(0);
+}
+
+if (command === "--help" || command === "-h") {
+  printHelp();
   process.exit(0);
 }
 
@@ -392,22 +421,33 @@ if (daemon) {
   case "init":
     await init(targetPath);
     break;
+  case "workspaces": {
+    const subcommand = args[1];
+    const wsPath = args[2];
+
+    switch (subcommand) {
+      case "list":
+        listWorkspaces();
+        break;
+      case "remove":
+        if (!wsPath) {
+          console.error("Usage: murmur workspaces remove <path>");
+          process.exit(1);
+        }
+        const removed = await removeWorkspace(wsPath);
+        process.exit(removed ? 0 : 1);
+        break;
+      case "clear":
+        await clearWorkspaces();
+        break;
+      default:
+        console.error(subcommand ? `Unknown subcommand: ${subcommand}` : "Missing subcommand");
+        console.error("Usage: murmur workspaces <list|remove|clear>");
+        process.exit(1);
+    }
+    break;
+  }
   default:
-    console.log(`Usage: murmur [options] <command> [args]
-
-Commands:
-  start [--tick <interval>]    Start daemon with TUI (foreground)
-  start --detach               Start daemon in background
-  watch                        Attach TUI to running daemon
-  stop                         Stop the daemon
-  status                       Show daemon and workspace status
-  beat [path]                  Run one heartbeat immediately
-  init [path]                  Create HEARTBEAT.md template
-
-Options:
-  --data-dir <path>            Override data directory (default: ~/.murmur)
-  --debug                      Enable debug logging to <data-dir>/debug.log
-  --quiet, -q                  Hide tool calls during beat (show summary only)
-  --version, -v                Show version`);
-    process.exit(command ? 1 : 0);
+    printHelp();
+    process.exit(1);
 }
