@@ -1,7 +1,7 @@
 import { basename, join } from "node:path";
 import { debug } from "./debug.ts";
 import { getDataDir, ensureDataDir } from "./config.ts";
-import { createStreamProcessor } from "./stream-parser.ts";
+import { runParseStream, type StreamParseResult } from "./stream-parser.ts";
 import type {
   ConversationTurn,
   DaemonEvent,
@@ -12,7 +12,7 @@ import type {
 } from "./types.ts";
 
 export type HeartbeatOptions = {
-  verbose?: boolean;
+  quiet?: boolean;
 };
 
 export async function buildPrompt(ws: WorkspaceConfig): Promise<string> {
@@ -69,9 +69,9 @@ export async function runHeartbeat(
 ): Promise<LogEntry> {
   const ts = new Date().toISOString();
   const start = Date.now();
-  const verbose = options?.verbose ?? false;
+  const quiet = options?.quiet ?? false;
 
-  debug(`Heartbeat: ${ws.path} (verbose=${verbose})`);
+  debug(`Heartbeat: ${ws.path} (quiet=${quiet})`);
 
   let prompt: string;
   try {
@@ -95,19 +95,17 @@ export async function runHeartbeat(
     promptPreview: promptPreview(prompt),
   });
 
+  // Always use stream-json to capture tool calls and reasoning
   const claudeArgs = [
     "claude",
     "--print",
     "--dangerously-skip-permissions",
     "--max-turns",
     String(ws.maxTurns ?? 99),
+    "--verbose",
+    "--output-format",
+    "stream-json",
   ];
-
-  // In verbose mode, use stream-json to capture tool calls and reasoning.
-  // The Claude CLI requires --verbose alongside --print --output-format=stream-json.
-  if (verbose) {
-    claudeArgs.push("--verbose", "--output-format", "stream-json");
-  }
 
   debug(`Spawning: ${claudeArgs.join(" ")} (cwd: ${ws.path})`);
 
@@ -119,38 +117,34 @@ export async function runHeartbeat(
     timeout: 300_000,
   });
 
-  let stdout = "";
   if (!proc.stdout) throw new Error("Spawned process stdout is not piped");
-  const reader = (proc.stdout as ReadableStream<Uint8Array>).getReader();
-  const decoder = new TextDecoder();
+  const stream = proc.stdout as ReadableStream<Uint8Array>;
 
-  // Set up stream processor for verbose mode
-  const streamProcessor = verbose
-    ? createStreamProcessor({
-        onToolCall: (toolCall: ToolCall) => {
-          emit?.({ type: "heartbeat:tool-call", workspace: ws.path, toolCall });
-        },
-        onAssistantText: (text: string) => {
-          emit?.({ type: "heartbeat:stdout", workspace: ws.path, chunk: text });
-        },
-      })
-    : null;
+  // Tee stream: one for parsing, one for raw collection (debug logging)
+  const [parseStream, rawStream] = stream.tee();
 
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    const chunk = decoder.decode(value);
-    stdout += chunk;
+  let stdout = "";
+  const rawPromise = new Response(rawStream).text().then((text) => {
+    stdout = text;
+  });
 
-    if (streamProcessor) {
-      streamProcessor.write(chunk);
-    } else {
-      emit?.({ type: "heartbeat:stdout", workspace: ws.path, chunk });
-    }
-  }
+  // Parse stream; emit events unless in quiet mode
+  const parsed = await runParseStream(parseStream, quiet ? undefined : {
+    onToolCall: (toolCall: ToolCall) => {
+      emit?.({ type: "heartbeat:tool-call", workspace: ws.path, toolCall });
+    },
+    onText: (text: string) => {
+      emit?.({ type: "heartbeat:stdout", workspace: ws.path, chunk: text });
+    },
+  });
 
-  // Flush any remaining buffered data
-  streamProcessor?.flush();
+  await rawPromise;
+  const resultText = parsed.resultText;
+  const turns = parsed.turns;
+  debug(`Parsed ${turns.length} conversation turns`);
+  if (parsed.costUsd != null) debug(`Cost: $${parsed.costUsd.toFixed(6)}`);
+  if (parsed.numTurns != null) debug(`Agent turns: ${parsed.numTurns}`);
+  debug(`Stream JSON (first 500 chars): ${stdout.slice(0, 500)}`);
 
   const exitCode = await proc.exited;
   const stderr = await new Response(proc.stderr).text();
@@ -159,23 +153,6 @@ export async function runHeartbeat(
   debug(`Claude exit code: ${exitCode}`);
   debug(`Claude stderr: ${stderr.trim() || "(empty)"}`);
 
-  let resultText: string;
-  let turns: ConversationTurn[] | undefined;
-
-  if (verbose && streamProcessor) {
-    const parsed = streamProcessor.result();
-    resultText = parsed.resultText;
-    turns = parsed.turns;
-    debug(`Parsed ${turns.length} conversation turns`);
-    if (parsed.costUsd != null) debug(`Cost: $${parsed.costUsd.toFixed(6)}`);
-    if (parsed.numTurns != null) debug(`Agent turns: ${parsed.numTurns}`);
-
-    // Log raw stream output at debug level (truncated)
-    debug(`Stream JSON (first 500 chars): ${stdout.slice(0, 500)}`);
-  } else {
-    resultText = stdout;
-    debug(`Claude stdout: ${resultText.trim() || "(empty)"}`);
-  }
 
   const outcome = classify(resultText, exitCode);
   debug(`Outcome: ${outcome} (exit=${exitCode}, contains HEARTBEAT_OK=${resultText.includes("HEARTBEAT_OK")})`);
@@ -189,8 +166,8 @@ export async function runHeartbeat(
     entry.error = (stderr || resultText).slice(0, 200);
   }
 
-  // Attach conversation turns when in verbose mode
-  if (verbose && turns && turns.length > 0) {
+  // Attach conversation turns when available
+  if (turns && turns.length > 0) {
     entry.turns = turns;
     // Also save the full conversation to a dedicated file
     try {

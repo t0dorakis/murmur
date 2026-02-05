@@ -19,6 +19,15 @@ export const green = `${ESC}32m`;
 export const yellow = `${ESC}33m`;
 export const red = `${ESC}31m`;
 export const white = `${ESC}37m`;
+export const cyan = `${ESC}36m`;
+
+// Tool icons for verbose display
+export const toolIcons = {
+  pending: "◇",    // Tool started, waiting for result
+  complete: "◆",   // Tool completed successfully
+  running: "⟳",    // Tool currently running
+  error: "✗",      // Tool failed
+} as const;
 
 // Composites
 export function styled(text: string, ...codes: string[]): string {
