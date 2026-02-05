@@ -2,22 +2,66 @@
  * Parses Claude Code CLI `--output-format stream-json` NDJSON output using Effect Stream.
  */
 
-import { Chunk, Effect, Stream } from "effect";
+import { Effect, Ref, Schema, Stream } from "effect";
 import { debug } from "./debug.ts";
 import type { ConversationTurn, ToolCall } from "./types.ts";
 
 /** Raw content block from Claude's stream-json messages. */
-type ContentBlock =
-  | { type: "text"; text: string }
-  | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
-  | { type: "tool_result"; tool_use_id: string; content?: string | Array<{ type: string; text?: string }> };
+const TextBlock = Schema.Struct({
+  type: Schema.Literal("text"),
+  text: Schema.String,
+});
+
+const ToolUseBlock = Schema.Struct({
+  type: Schema.Literal("tool_use"),
+  id: Schema.String,
+  name: Schema.String,
+  input: Schema.Record({ key: Schema.String, value: Schema.Unknown }),
+});
+
+const ToolResultContentItem = Schema.Struct({
+  type: Schema.String,
+  text: Schema.optional(Schema.String),
+});
+
+const ToolResultBlock = Schema.Struct({
+  type: Schema.Literal("tool_result"),
+  tool_use_id: Schema.String,
+  content: Schema.optional(Schema.Union(Schema.String, Schema.Array(ToolResultContentItem))),
+});
+
+const ContentBlock = Schema.Union(TextBlock, ToolUseBlock, ToolResultBlock);
+type ContentBlock = Schema.Schema.Type<typeof ContentBlock>;
 
 /** Raw message envelope from stream-json. */
-type StreamMessage =
-  | { type: "system"; subtype: "init"; session_id: string; tools?: unknown[] }
-  | { type: "assistant"; message: { content: ContentBlock[] } }
-  | { type: "user"; message: { content: ContentBlock[] } }
-  | { type: "result"; subtype: string; result?: string; total_cost_usd?: number; duration_ms?: number; num_turns?: number };
+const SystemMessage = Schema.Struct({
+  type: Schema.Literal("system"),
+  subtype: Schema.Literal("init"),
+  session_id: Schema.String,
+  tools: Schema.optional(Schema.Array(Schema.Unknown)),
+});
+
+const AssistantMessage = Schema.Struct({
+  type: Schema.Literal("assistant"),
+  message: Schema.Struct({ content: Schema.Array(ContentBlock) }),
+});
+
+const UserMessage = Schema.Struct({
+  type: Schema.Literal("user"),
+  message: Schema.Struct({ content: Schema.Array(ContentBlock) }),
+});
+
+const ResultMessage = Schema.Struct({
+  type: Schema.Literal("result"),
+  subtype: Schema.String,
+  result: Schema.optional(Schema.String),
+  total_cost_usd: Schema.optional(Schema.Number),
+  duration_ms: Schema.optional(Schema.Number),
+  num_turns: Schema.optional(Schema.Number),
+});
+
+const StreamMessage = Schema.Union(SystemMessage, AssistantMessage, UserMessage, ResultMessage);
+type StreamMessage = Schema.Schema.Type<typeof StreamMessage>;
 
 export type StreamParseResult = {
   resultText: string;
@@ -67,8 +111,9 @@ function processMessage(state: ParserState, msg: StreamMessage): [ParserState, P
           textBlocks.push(block.text);
           events.push({ type: "text", text: block.text });
         } else if (block.type === "tool_use") {
-          newState.pendingTools.set(block.id, { name: block.name, input: block.input, startMs: Date.now() });
-          toolCalls.push({ name: block.name, input: block.input });
+          const input = block.input as Record<string, unknown>;
+          newState.pendingTools.set(block.id, { name: block.name, input, startMs: Date.now() });
+          toolCalls.push({ name: block.name, input });
         }
       }
 
@@ -131,8 +176,58 @@ function processMessage(state: ParserState, msg: StreamMessage): [ParserState, P
 }
 
 /**
+ * Parse a JSON line into a StreamMessage, returning null on failure.
+ */
+function parseLineToMessage(line: string): StreamMessage | null {
+  try {
+    const json = JSON.parse(line);
+    const result = Schema.decodeUnknownSync(StreamMessage)(json);
+    return result;
+  } catch {
+    debug(`Skipped malformed stream-json line: ${line.slice(0, 100)}${line.length > 100 ? "..." : ""}`);
+    return null;
+  }
+}
+
+/**
+ * Create an Effect that builds a parse stream and returns both the event stream and a way to get the final result.
+ * Uses Ref for safe state management.
+ */
+export function createParseStreamEffect(readable: ReadableStream<Uint8Array>) {
+  return Effect.gen(function* () {
+    const stateRef = yield* Ref.make(initialState);
+
+    const eventStream = Stream.fromReadableStream(() => readable, (e) => e as Error).pipe(
+      Stream.decodeText(),
+      Stream.splitLines,
+      Stream.filter((line) => line.trim().length > 0),
+      Stream.map(parseLineToMessage),
+      Stream.filter((msg): msg is StreamMessage => msg !== null),
+      Stream.mapAccum(initialState, (state, msg) => {
+        const [newState, events] = processMessage(state, msg);
+        return [newState, { state: newState, events }];
+      }),
+      Stream.tap(({ state }) => Ref.set(stateRef, state)),
+      Stream.flatMap(({ events }) => Stream.fromIterable(events)),
+    );
+
+    const getResult = Ref.get(stateRef).pipe(
+      Effect.map((s): StreamParseResult => ({
+        resultText: s.resultText,
+        turns: s.turns,
+        costUsd: s.costUsd,
+        numTurns: s.numTurns,
+      }))
+    );
+
+    return { stream: eventStream, getResult };
+  });
+}
+
+/**
  * Create an Effect Stream that parses NDJSON and emits ParseEvents.
  * Accumulates state and returns final result when stream completes.
+ * @deprecated Use createParseStreamEffect for better Effect integration
  */
 export function createParseStream(readable: ReadableStream<Uint8Array>) {
   let finalState = initialState;
@@ -141,14 +236,7 @@ export function createParseStream(readable: ReadableStream<Uint8Array>) {
     Stream.decodeText(),
     Stream.splitLines,
     Stream.filter((line) => line.trim().length > 0),
-    Stream.map((line) => {
-      try {
-        return JSON.parse(line) as StreamMessage;
-      } catch (err) {
-        debug(`Skipped malformed stream-json line: ${line.slice(0, 100)}${line.length > 100 ? "..." : ""}`);
-        return null;
-      }
-    }),
+    Stream.map(parseLineToMessage),
     Stream.filter((msg): msg is StreamMessage => msg !== null),
     Stream.mapAccum(initialState, (state, msg) => {
       const [newState, events] = processMessage(state, msg);
@@ -180,19 +268,16 @@ export function parseStreamJson(
   let state = initialState;
 
   for (const line of lines) {
-    try {
-      const msg = JSON.parse(line) as StreamMessage;
-      const [newState, events] = processMessage(state, msg);
-      state = newState;
+    const msg = parseLineToMessage(line);
+    if (!msg) continue;
 
-      // Fire handlers for events
-      for (const event of events) {
-        if (event.type === "tool-call") handlers?.onToolCall?.(event.toolCall);
-        else if (event.type === "text") handlers?.onText?.(event.text);
-      }
-    } catch (err) {
-      debug(`Skipped malformed stream-json line: ${line.slice(0, 100)}${line.length > 100 ? "..." : ""}`);
-      continue;
+    const [newState, events] = processMessage(state, msg);
+    state = newState;
+
+    // Fire handlers for events
+    for (const event of events) {
+      if (event.type === "tool-call") handlers?.onToolCall?.(event.toolCall);
+      else if (event.type === "text") handlers?.onText?.(event.text);
     }
   }
 
@@ -202,6 +287,34 @@ export function parseStreamJson(
     costUsd: state.costUsd,
     numTurns: state.numTurns,
   };
+}
+
+/**
+ * Run the parse stream to completion as an Effect, calling handlers for each event.
+ * Returns the final parse result.
+ */
+export function runParseStreamEffect(
+  readable: ReadableStream<Uint8Array>,
+  handlers?: {
+    onToolCall?: (toolCall: ToolCall) => void;
+    onText?: (text: string) => void;
+  },
+): Effect.Effect<StreamParseResult> {
+  return Effect.gen(function* () {
+    const { stream, getResult } = yield* createParseStreamEffect(readable);
+
+    yield* stream.pipe(
+      Stream.tap((event) =>
+        Effect.sync(() => {
+          if (event.type === "tool-call") handlers?.onToolCall?.(event.toolCall);
+          else if (event.type === "text") handlers?.onText?.(event.text);
+        }),
+      ),
+      Stream.runDrain,
+    );
+
+    return yield* getResult;
+  });
 }
 
 /**
@@ -215,18 +328,5 @@ export async function runParseStream(
     onText?: (text: string) => void;
   },
 ): Promise<StreamParseResult> {
-  const { stream, getResult } = createParseStream(readable);
-
-  const program = stream.pipe(
-    Stream.tap((event) =>
-      Effect.sync(() => {
-        if (event.type === "tool-call") handlers?.onToolCall?.(event.toolCall);
-        else if (event.type === "text") handlers?.onText?.(event.text);
-      }),
-    ),
-    Stream.runDrain,
-  );
-
-  await Effect.runPromise(program);
-  return getResult();
+  return Effect.runPromise(runParseStreamEffect(readable, handlers));
 }
