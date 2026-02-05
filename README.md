@@ -19,6 +19,16 @@ cd murmur && bun install && bun run build
 
 This compiles a standalone `./murmur` binary. Requires [Claude CLI](https://docs.anthropic.com/en/docs/claude-cli) installed and authenticated.
 
+**Optional: Install the skill** (recommended)
+
+The `heartbeat-cron` skill helps Claude Code create and test heartbeat prompts through an interactive interview — no manual HEARTBEAT.md writing needed.
+
+```bash
+npx skills add t0dorakis/murmur --skill heartbeat-cron
+```
+
+Then just tell Claude: *"Watch arxiv daily for papers on autonomous agents — summarize anything worth reading"* and it'll guide you through setup.
+
 ## Quick Start
 
 ```bash
