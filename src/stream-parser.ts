@@ -3,6 +3,7 @@
  */
 
 import { Chunk, Effect, Stream } from "effect";
+import { debug } from "./debug.ts";
 import type { ConversationTurn, ToolCall } from "./types.ts";
 
 /** Raw content block from Claude's stream-json messages. */
@@ -143,7 +144,8 @@ export function createParseStream(readable: ReadableStream<Uint8Array>) {
     Stream.map((line) => {
       try {
         return JSON.parse(line) as StreamMessage;
-      } catch {
+      } catch (err) {
+        debug(`Skipped malformed stream-json line: ${line.slice(0, 100)}${line.length > 100 ? "..." : ""}`);
         return null;
       }
     }),
@@ -172,7 +174,7 @@ export function createParseStream(readable: ReadableStream<Uint8Array>) {
  */
 export function parseStreamJson(
   ndjson: string,
-  callbacks?: { onToolCall?: (tc: ToolCall) => void; onAssistantText?: (text: string) => void },
+  handlers?: { onToolCall?: (tc: ToolCall) => void; onText?: (text: string) => void },
 ): StreamParseResult {
   const lines = ndjson.split("\n").filter((l) => l.trim());
   let state = initialState;
@@ -183,12 +185,13 @@ export function parseStreamJson(
       const [newState, events] = processMessage(state, msg);
       state = newState;
 
-      // Fire callbacks for events
+      // Fire handlers for events
       for (const event of events) {
-        if (event.type === "tool-call") callbacks?.onToolCall?.(event.toolCall);
-        else if (event.type === "text") callbacks?.onAssistantText?.(event.text);
+        if (event.type === "tool-call") handlers?.onToolCall?.(event.toolCall);
+        else if (event.type === "text") handlers?.onText?.(event.text);
       }
-    } catch {
+    } catch (err) {
+      debug(`Skipped malformed stream-json line: ${line.slice(0, 100)}${line.length > 100 ? "..." : ""}`);
       continue;
     }
   }

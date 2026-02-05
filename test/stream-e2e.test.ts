@@ -5,11 +5,11 @@ import { tmpdir } from "node:os";
 import { DEBUG_LOG_FILENAME } from "../src/debug.ts";
 
 /**
- * E2E tests for `murmur beat --verbose`.
+ * E2E tests for `murmur beat` (verbose by default, --quiet to suppress).
  *
  * These tests exercise the actual compiled murmur binary, verifying that
- * verbose mode surfaces tool calls, conversation summaries, and cost
- * information -- and that non-verbose mode omits those details.
+ * default mode surfaces tool calls, conversation summaries, and cost
+ * information -- and that quiet mode (--quiet) omits those details.
  *
  * Requirements:
  *   - Compiled murmur binary (run `bun run build` first)
@@ -28,7 +28,7 @@ let testWorkspace: string;
 /**
  * The heartbeat requires Claude to read a status file before it can respond.
  * This forces at least one tool call (Read or Bash) so we can verify
- * tool-call visibility in verbose mode.
+ * tool-call visibility in default (verbose) mode.
  */
 const TEST_HEARTBEAT = `# Heartbeat
 
@@ -103,35 +103,32 @@ afterAll(() => {
   }
 });
 
-describe("murmur beat --verbose e2e", () => {
-  test("verbose output shows tool calls", async () => {
-    const result = await murmur("beat", "--verbose", testWorkspace);
+describe("murmur beat (default verbose) e2e", () => {
+  test("default output shows tool calls with icons", async () => {
+    const result = await murmur("beat", testWorkspace);
     expect(result.exitCode).toBe(0);
 
-    // The verboseEmitter in cli.ts prints "[tool]" for each tool call
-    expect(result.stdout).toContain("[tool]");
+    // The cliEmitter prints "◆ ToolName target" for completed tool calls
+    expect(result.stdout).toContain("◆");
 
     // The heartbeat asks Claude to `cat status.txt` via Bash,
     // so we expect a Bash tool call in the output
-    expect(result.stdout).toMatch(/\[tool\].*Bash/i);
+    expect(result.stdout).toMatch(/◆.*Bash/i);
   }, 120_000);
 
-  test("verbose output shows conversation summary", async () => {
-    const result = await murmur("beat", "--verbose", testWorkspace);
+  test("default output shows conversation summary", async () => {
+    const result = await murmur("beat", testWorkspace);
     expect(result.exitCode).toBe(0);
 
-    // After completion, cli.ts prints "--- Conversation Turns ---"
-    expect(result.stdout).toContain("--- Conversation Turns ---");
-
-    // The summary includes tool call details with "Tool call:" prefix
-    expect(result.stdout).toContain("Tool call:");
+    // After completion, cli.ts prints "--- Conversation Summary ---"
+    expect(result.stdout).toContain("--- Conversation Summary ---");
 
     // The result section reports agent turn count
     expect(result.stdout).toContain("Agent turns:");
   }, 120_000);
 
   test("conversation log is saved to data dir", async () => {
-    const result = await murmur("beat", "--verbose", testWorkspace);
+    const result = await murmur("beat", testWorkspace);
     expect(result.exitCode).toBe(0);
 
     // saveConversationLog writes to <data-dir>/last-beat-<slug>.json
@@ -153,21 +150,20 @@ describe("murmur beat --verbose e2e", () => {
     expect(assistantTurn).toBeDefined();
   }, 120_000);
 
-  test("non-verbose mode does NOT show tool details", async () => {
-    const result = await murmur("beat", testWorkspace);
+  test("quiet mode (--quiet) does NOT show tool details", async () => {
+    const result = await murmur("beat", "--quiet", testWorkspace);
     expect(result.exitCode).toBe(0);
 
-    // Without --verbose, the verboseEmitter is not used, so no [tool] markers
-    expect(result.stdout).not.toContain("[tool]");
+    // With --quiet, tool call icons are not shown
+    expect(result.stdout).not.toContain("◆");
 
-    // The conversation turns summary is only printed in verbose mode
-    expect(result.stdout).not.toContain("--- Conversation Turns ---");
-    expect(result.stdout).not.toContain("Tool call:");
+    // The conversation summary is only printed in default (non-quiet) mode
+    expect(result.stdout).not.toContain("--- Conversation Summary ---");
     expect(result.stdout).not.toContain("Agent turns:");
   }, 120_000);
 
-  test("cost is displayed in verbose output", async () => {
-    const result = await murmur("beat", "--verbose", testWorkspace);
+  test("cost is displayed in default output", async () => {
+    const result = await murmur("beat", testWorkspace);
     expect(result.exitCode).toBe(0);
 
     // The conversation summary prints "Cost: $<amount>" for the result turn

@@ -6,6 +6,7 @@ import {
   styled, truncate, padRight, toolIcons,
 } from "./ansi.ts";
 import { createScreen, type Screen } from "./screen.ts";
+import { formatToolTarget, formatToolDuration } from "./tool-format.ts";
 import type { EventSource } from "./events.ts";
 import type { DaemonEvent, Outcome, ToolCall, WorkspaceStatus } from "./types.ts";
 
@@ -92,28 +93,13 @@ function outcomeLabel(outcome: Outcome): string {
   }
 }
 
-function formatToolTarget(tool: ToolCall): string {
-  const input = tool.input;
-  // Extract the most meaningful argument for display
-  if (input.file_path) return String(input.file_path);
-  if (input.command) return String(input.command).slice(0, 40);
-  if (input.pattern) return String(input.pattern);
-  if (input.path) return String(input.path);
-  if (input.query) return String(input.query).slice(0, 40);
-  if (input.url) return String(input.url).slice(0, 40);
-  // Fallback: show first string argument
-  const firstStr = Object.values(input).find((v) => typeof v === "string");
-  return firstStr ? String(firstStr).slice(0, 40) : "";
-}
-
 function formatToolLine(tool: ToolCall, termWidth: number): string {
   const icon = tool.output !== undefined ? toolIcons.complete : toolIcons.pending;
   const iconStyled = tool.output !== undefined ? icon : styled(icon, dim);
-  const target = formatToolTarget(tool);
-  const duration = tool.durationMs != null && tool.durationMs > 1000
-    ? ` ${styled(`(${(tool.durationMs / 1000).toFixed(1)}s)`, dim)}`
-    : "";
-  const content = `${tool.name} ${styled(target, dim)}${duration}`;
+  const target = formatToolTarget(tool.input, 40);
+  const duration = formatToolDuration(tool.durationMs);
+  const durationStyled = duration ? ` ${styled(duration, dim)}` : "";
+  const content = `${tool.name} ${styled(target, dim)}${durationStyled}`;
   return `   ${iconStyled} ${truncate(content, termWidth - 6)}`;
 }
 

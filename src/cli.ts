@@ -9,6 +9,7 @@ import { connectToSocket, type SocketConnection } from "./socket-client.ts";
 import { createTui } from "./tui.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
+import { formatToolTarget, formatToolDuration } from "./tool-format.ts";
 import type { DaemonEvent } from "./types.ts";
 
 // Injected by `bun build --define` at compile time; falls back to package.json in dev
@@ -313,32 +314,12 @@ async function beat(path: string, quietMode: boolean) {
   console.log(`(${entry.durationMs}ms)`);
 }
 
-function formatToolInput(input: Record<string, unknown>): string {
-  const entries = Object.entries(input);
-  if (entries.length === 0) return "";
-  if (entries.length === 1) {
-    const [key, val] = entries[0]!;
-    const valStr = typeof val === "string" ? val : JSON.stringify(val);
-    const truncated = valStr.length > 80 ? valStr.slice(0, 77) + "..." : valStr;
-    return `${key}: ${truncated}`;
-  }
-  return entries
-    .map(([key, val]) => {
-      const valStr = typeof val === "string" ? val : JSON.stringify(val);
-      const truncated = valStr.length > 40 ? valStr.slice(0, 37) + "..." : valStr;
-      return `${key}: ${truncated}`;
-    })
-    .join(", ");
-}
-
 function cliEmitter(event: DaemonEvent) {
   switch (event.type) {
     case "heartbeat:tool-call": {
-      const target = formatToolTarget(event.toolCall);
-      const duration = event.toolCall.durationMs != null && event.toolCall.durationMs > 1000
-        ? ` (${(event.toolCall.durationMs / 1000).toFixed(1)}s)`
-        : "";
-      console.log(`◆ ${event.toolCall.name} ${target}${duration}`);
+      const target = formatToolTarget(event.toolCall.input);
+      const duration = formatToolDuration(event.toolCall.durationMs);
+      console.log(`◆ ${event.toolCall.name} ${target}${duration ? ` ${duration}` : ""}`);
       break;
     }
     case "heartbeat:stdout":
@@ -346,18 +327,6 @@ function cliEmitter(event: DaemonEvent) {
       process.stdout.write(event.chunk);
       break;
   }
-}
-
-function formatToolTarget(tool: { input: Record<string, unknown> }): string {
-  const input = tool.input;
-  if (input.file_path) return String(input.file_path);
-  if (input.command) return String(input.command).slice(0, 60);
-  if (input.pattern) return String(input.pattern);
-  if (input.path) return String(input.path);
-  if (input.query) return String(input.query).slice(0, 60);
-  if (input.url) return String(input.url).slice(0, 60);
-  const firstStr = Object.values(input).find((v) => typeof v === "string");
-  return firstStr ? String(firstStr).slice(0, 60) : "";
 }
 
 const HEARTBEAT_TEMPLATE = `# Heartbeat

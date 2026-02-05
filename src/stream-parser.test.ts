@@ -176,7 +176,7 @@ describe("parseStreamJson", () => {
     }
   });
 
-  test("fires onAssistantText callback", () => {
+  test("fires onText callback", () => {
     const texts: string[] = [];
     const ndjson = [
       initEvent,
@@ -186,7 +186,7 @@ describe("parseStreamJson", () => {
     ].join("\n");
 
     parseStreamJson(ndjson, {
-      onAssistantText: (t) => texts.push(t),
+      onText: (t) => texts.push(t),
     });
 
     expect(texts).toEqual(["Hello world", "Second message"]);
