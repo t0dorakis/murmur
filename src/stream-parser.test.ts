@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseStreamJson, createStreamProcessor } from "./stream-parser.ts";
+import { parseStreamJson, runParseStream } from "./stream-parser.ts";
 import type { ToolCall } from "./types.ts";
 
 // Helpers to build stream-json NDJSON lines
@@ -204,54 +204,91 @@ describe("parseStreamJson", () => {
   });
 });
 
-describe("createStreamProcessor", () => {
-  test("processes chunks incrementally", () => {
+describe("runParseStream", () => {
+  function toReadableStream(text: string): ReadableStream<Uint8Array> {
+    const encoder = new TextEncoder();
+    return new ReadableStream({
+      start(controller) {
+        controller.enqueue(encoder.encode(text));
+        controller.close();
+      },
+    });
+  }
+
+  test("processes stream and returns result", async () => {
+    const ndjson = [
+      initEvent,
+      assistantTextEvent("HEARTBEAT_OK"),
+      resultEvent("HEARTBEAT_OK", 0.05, 1),
+    ].join("\n");
+
+    const result = await runParseStream(toReadableStream(ndjson));
+    expect(result.resultText).toBe("HEARTBEAT_OK");
+    expect(result.costUsd).toBe(0.05);
+    expect(result.numTurns).toBe(1);
+    expect(result.turns).toHaveLength(2);
+  });
+
+  test("calls handlers for tool calls", async () => {
     const toolCalls: ToolCall[] = [];
-    const processor = createStreamProcessor({
+    const ndjson = [
+      initEvent,
+      assistantToolCallEvent("Bash", { command: "ls" }, "tool_10"),
+      userToolResultEvent("tool_10", "file1\nfile2"),
+      resultEvent("done"),
+    ].join("\n");
+
+    const result = await runParseStream(toReadableStream(ndjson), {
       onToolCall: (tc) => toolCalls.push(tc),
     });
 
-    // Feed data in chunks
-    const line1 = assistantToolCallEvent("Bash", { command: "ls" }, "tool_10");
-    const line2 = userToolResultEvent("tool_10", "file1\nfile2");
-    const line3 = resultEvent("done");
-
-    processor.write(line1 + "\n");
-    processor.write(line2 + "\n");
-    processor.write(line3 + "\n");
-    processor.flush();
-
     expect(toolCalls).toHaveLength(1);
     expect(toolCalls[0]!.name).toBe("Bash");
-
-    const result = processor.result();
     expect(result.resultText).toBe("done");
-    expect(result.turns).toHaveLength(2); // assistant + result
+    expect(result.turns).toHaveLength(2);
   });
 
-  test("handles partial lines across chunks", () => {
-    const processor = createStreamProcessor();
-    const line = assistantTextEvent("hello");
+  test("calls handlers for text", async () => {
+    const texts: string[] = [];
+    const ndjson = [
+      initEvent,
+      assistantTextEvent("Hello"),
+      assistantTextEvent("World"),
+      resultEvent("done"),
+    ].join("\n");
 
-    // Split the line across two chunks
-    const mid = Math.floor(line.length / 2);
-    processor.write(line.slice(0, mid));
-    processor.write(line.slice(mid) + "\n");
+    await runParseStream(toReadableStream(ndjson), {
+      onText: (t) => texts.push(t),
+    });
 
-    const result = processor.result();
-    expect(result.turns).toHaveLength(1);
-    expect(result.turns[0]).toMatchObject({ role: "assistant", text: "hello" });
+    expect(texts).toEqual(["Hello", "World"]);
   });
 
-  test("flush processes remaining buffer", () => {
-    const processor = createStreamProcessor();
-    const line = resultEvent("final");
+  test("handles chunked input", async () => {
+    const line1 = assistantToolCallEvent("Read", { file_path: "/test" }, "tool_20");
+    const line2 = userToolResultEvent("tool_20", "contents");
+    const line3 = resultEvent("ok");
+    const ndjson = [line1, line2, line3].join("\n");
 
-    // No trailing newline
-    processor.write(line);
-    processor.flush();
+    // Split into multiple chunks
+    const encoder = new TextEncoder();
+    const chunks = [ndjson.slice(0, 50), ndjson.slice(50, 100), ndjson.slice(100)];
 
-    const result = processor.result();
-    expect(result.resultText).toBe("final");
+    const stream = new ReadableStream<Uint8Array>({
+      start(controller) {
+        for (const chunk of chunks) {
+          controller.enqueue(encoder.encode(chunk));
+        }
+        controller.close();
+      },
+    });
+
+    const toolCalls: ToolCall[] = [];
+    const result = await runParseStream(stream, {
+      onToolCall: (tc) => toolCalls.push(tc),
+    });
+
+    expect(toolCalls).toHaveLength(1);
+    expect(result.resultText).toBe("ok");
   });
 });
