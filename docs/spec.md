@@ -7,7 +7,6 @@ murmur start              # Start the daemon in background
 murmur stop               # Stop the daemon (SIGTERM)
 murmur status             # Show daemon PID, uptime, workspace states
 murmur beat [path]        # Fire one heartbeat now (path defaults to cwd)
-murmur beat --verbose [path]  # Fire heartbeat with full tool call visibility
 murmur init [path]        # Create HEARTBEAT.md template in workspace
 ```
 
@@ -145,7 +144,6 @@ const proc = Bun.spawn([
 - `--print` — non-interactive, output only
 - `--dangerously-skip-permissions` — no interactive permission prompts (consider `--allowedTools` for tighter scoping)
 - `--max-turns` — read from workspace config, defaults to `3`. Caps agent loop iterations to prevent runaway.
-- `--output-format stream-json` — added in verbose mode to capture tool calls and reasoning as NDJSON
 - `stdin: new Blob([prompt])` — prompt piped in (avoids shell escaping and arg length limits)
 - `cwd` — workspace directory so Claude has file access
 - `timeout` — built-in Bun.spawn timeout in ms, kills the process with SIGTERM on expiry
@@ -166,17 +164,6 @@ type Config = {
 
 type Outcome = "ok" | "attention" | "error";
 
-type ToolCall = {
-  name: string;
-  input: Record<string, unknown>;
-  output?: string;
-  durationMs?: number;
-};
-
-type ConversationTurn =
-  | { role: "assistant"; text?: string; toolCalls?: ToolCall[] }
-  | { role: "result"; text: string; costUsd?: number; durationMs?: number; numTurns?: number };
-
 type LogEntry = {
   ts: string;
   workspace: string;
@@ -184,7 +171,6 @@ type LogEntry = {
   durationMs: number;
   summary?: string;
   error?: string;
-  turns?: ConversationTurn[];  // populated when --verbose
 };
 ```
 
@@ -200,13 +186,8 @@ Shared type definitions exported for all modules.
 - `isDue(ws: WorkspaceConfig): boolean` — `lastRun + interval < now`
 - `ensureDataDir()` — create `~/.murmur/` if missing
 
-### `src/stream-parser.ts`
-- `parseStreamJson(ndjson, callbacks?)` — parse complete Claude CLI `--output-format stream-json` output
-- `createStreamProcessor(callbacks?)` — incremental NDJSON parser for real-time streaming
-- Extracts tool calls (name, input, output), assistant text, and result metadata
-
 ### `src/heartbeat.ts`
-- `runHeartbeat(ws, emit?, options?)` — full cycle: build prompt, spawn, classify, return. Accepts `{ verbose: true }` to enable stream-json parsing with tool call extraction
+- `runHeartbeat(ws: WorkspaceConfig): Promise<LogEntry>` — full cycle: build prompt, spawn, classify, return
 - `buildPrompt(ws: WorkspaceConfig): Promise<string>` — read HEARTBEAT.md, wrap in template
 - `classify(stdout: string, exitCode: number): Outcome` — determine ok/attention/error
 
@@ -235,33 +216,12 @@ Shared type definitions exported for all modules.
 6. Tests for classify, config parsing, interval parsing
 7. `package.json` bin field + `bun link`
 
-## Verbose Beat Mode
-
-When `murmur beat --verbose` (or `-V`) is passed:
-
-1. Claude is invoked with `--output-format stream-json` to produce NDJSON
-2. Each line is parsed incrementally to extract tool calls, assistant text, and results
-3. Tool calls are displayed in real-time as `[tool] ToolName(input)` during execution
-4. After completion, a full conversation summary is printed showing all turns
-5. The full conversation is saved to `~/.murmur/last-beat-{workspace}.json`
-6. The `LogEntry` in `heartbeats.jsonl` includes a `turns` array with all conversation turns
-
-### Stream-JSON Event Types
-
-The NDJSON stream from Claude Code CLI contains these event types:
-
-- `{ type: "system", subtype: "init" }` — session initialization (ignored)
-- `{ type: "assistant", message: { content: [...] } }` — assistant messages with text and/or tool_use blocks
-- `{ type: "user", message: { content: [...] } }` — tool_result blocks
-- `{ type: "result", subtype: "success", result, total_cost_usd, num_turns }` — final result
-
 ## Verification Plan
 
-1. `bun test` — unit tests pass (including stream-parser tests)
+1. `bun test` — unit tests pass
 2. `murmur init .` — creates HEARTBEAT.md
 3. `murmur beat .` — fires one heartbeat, prints result, appends to JSONL
-4. `murmur beat --verbose .` — fires heartbeat with tool call visibility, saves conversation log
-5. `murmur start` --> wait --> check `~/.murmur/heartbeats.jsonl` for entries
-6. Edit HEARTBEAT.md to include a failing check --> verify attention outcome logged
-7. `murmur status` — shows daemon running, workspace states
-8. `murmur stop` — clean shutdown
+4. `murmur start` --> wait --> check `~/.murmur/heartbeats.jsonl` for entries
+5. Edit HEARTBEAT.md to include a failing check --> verify attention outcome logged
+6. `murmur status` — shows daemon running, workspace states
+7. `murmur stop` — clean shutdown
