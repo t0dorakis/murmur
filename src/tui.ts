@@ -39,6 +39,9 @@ export type Tui = {
   stop(): void;
 };
 
+/** Maximum number of feed entries to keep in memory. */
+const MAX_FEED_ENTRIES = 50;
+
 // --- Formatting helpers ---
 
 function formatDuration(ms: number): string {
@@ -275,7 +278,7 @@ function reduceEvent(state: TuiState, event: DaemonEvent): boolean {
       if (state.activeBeat?.workspace === event.workspace) {
         state.activeBeat = null;
       }
-      if (state.feed.length > 50) state.feed.splice(0, state.feed.length - 50);
+      if (state.feed.length > MAX_FEED_ENTRIES) state.feed.splice(0, state.feed.length - MAX_FEED_ENTRIES);
       return true;
     }
 

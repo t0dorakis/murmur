@@ -12,6 +12,9 @@ import type {
   WorkspaceConfig,
 } from "./types.ts";
 
+/** Default max turns when not specified in workspace config. */
+const DEFAULT_MAX_TURNS = 99;
+
 export type HeartbeatOptions = {
   quiet?: boolean;
 };
@@ -104,7 +107,7 @@ export async function runHeartbeat(
     "--dangerously-skip-permissions",
     ...disallowedTools,
     "--max-turns",
-    String(ws.maxTurns ?? 99),
+    String(ws.maxTurns ?? DEFAULT_MAX_TURNS),
     "--verbose",
     "--output-format",
     "stream-json",
