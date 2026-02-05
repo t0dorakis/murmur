@@ -1,6 +1,36 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.2.0] - 2026-02-05
+
+### Bug Fixes
+
+- Correct stream-json field names and harden conversation log persistence
+
+### Documentation
+
+- Add design for default verbose logging
+
+### Features
+
+- Add verbose beat logging with tool call visibility
+- Make verbose logging default with --quiet option
+- Restructure heartbeat skill for skills.sh publishing
+- Add skill metadata and installation instructions
+- Add effect-ts-patterns skill
+- Add permission deny-list for heartbeat agents (#10)
+
+### Refactoring
+
+- Extract tool output parsing helper and fix review findings
+- Extract shared tool formatting and improve debug logging
+- Move skill to .agents/skills, fix search script
+
+### Testing
+
+- Add e2e tests for stream-json parsing against real Claude CLI
+- Rewrite e2e tests to exercise murmur beat --verbose
+
 ## [0.1.1] - 2026-02-04
 
 ### Bug Fixes
