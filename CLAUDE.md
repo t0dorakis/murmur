@@ -22,7 +22,19 @@ Default to using Bun instead of Node.js.
 
 ## Testing
 
-Use `bun test` to run tests.
+```bash
+# Build binary (required before e2e tests)
+bun run build
+
+# Unit tests only (fast, no binary needed)
+bun test src/
+
+# E2E tests (requires binary + Claude CLI + network, ~2min)
+bun test test/
+
+# All tests
+bun test
+```
 
 ## Frontend
 
