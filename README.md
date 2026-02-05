@@ -117,6 +117,14 @@ If anything looks off, tell me. Otherwise HEARTBEAT_OK.
 
 Use `interval` or `cron`, not both.
 
+## Permissions
+
+Murmur runs with `--dangerously-skip-permissions` but blocks destructive commands by default (`rm -rf /`, `sudo`, `mkfs`, etc). Network tools like `curl` are allowed — if your prompt involves web requests, results can be unpredictable.
+
+**Philosophy**: Blacklisting is better UX than whitelisting — agents can use tools freely without permission prompts. This works best with capable models (Opus recommended).
+
+**For more safety**: Run murmur in a container or VM sandbox.
+
 ## Logs
 
 Heartbeat results are appended to `~/.murmur/heartbeats.jsonl`:

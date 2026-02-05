@@ -1,6 +1,7 @@
 import { basename, join } from "node:path";
 import { debug } from "./debug.ts";
 import { getDataDir, ensureDataDir } from "./config.ts";
+import { buildDisallowedToolsArgs } from "./permissions.ts";
 import { runParseStream, type StreamParseResult } from "./stream-parser.ts";
 import type {
   ConversationTurn,
@@ -10,6 +11,9 @@ import type {
   ToolCall,
   WorkspaceConfig,
 } from "./types.ts";
+
+/** Default max turns when not specified in workspace config. */
+const DEFAULT_MAX_TURNS = 99;
 
 export type HeartbeatOptions = {
   quiet?: boolean;
@@ -95,13 +99,15 @@ export async function runHeartbeat(
     promptPreview: promptPreview(prompt),
   });
 
+  const disallowedTools = buildDisallowedToolsArgs(ws.permissions);
   // Always use stream-json to capture tool calls and reasoning
   const claudeArgs = [
     "claude",
     "--print",
     "--dangerously-skip-permissions",
+    ...disallowedTools,
     "--max-turns",
-    String(ws.maxTurns ?? 99),
+    String(ws.maxTurns ?? DEFAULT_MAX_TURNS),
     "--verbose",
     "--output-format",
     "stream-json",

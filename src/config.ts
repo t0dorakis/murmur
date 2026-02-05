@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { Cron, Either } from "effect";
 import { debug } from "./debug.ts";
+import { validatePermissions } from "./permissions.ts";
 import type { Config, WorkspaceConfig } from "./types.ts";
 
 let dataDir = join(homedir(), ".murmur");
@@ -65,6 +66,9 @@ export function validateWorkspace(ws: WorkspaceConfig): string | null {
       // Intl.supportedValuesOf not available — skip validation
     }
   }
+
+  const permError = validatePermissions(ws.permissions);
+  if (permError) return permError;
 
   return null;
 }
