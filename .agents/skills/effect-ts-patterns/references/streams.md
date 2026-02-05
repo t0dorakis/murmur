@@ -212,10 +212,11 @@ const sum = yield* Stream.fromIterable([1, 2, 3]).pipe(
 
 ### Grouping
 ```typescript
+// Group by key and process each group
 Stream.fromIterable(events).pipe(
-  Stream.groupBy((event) => event.userId),
-  Stream.flatMapGrouped((userId, events) =>
-    events.pipe(Stream.take(10))
+  Stream.groupByKey((event) => event.userId),
+  Stream.flatMap(([userId, eventStream]) =>
+    eventStream.pipe(Stream.take(10))
   )
 )
 ```

@@ -182,8 +182,8 @@ const fanOut = (items: Iterable<Item>, workers: number) =>
 ### Grouping by Key
 ```typescript
 const groupedProcessing = Stream.fromIterable(events).pipe(
-  Stream.groupBy((event) => event.userId),
-  Stream.flatMapGrouped((userId, userEvents) =>
+  Stream.groupByKey((event) => event.userId),
+  Stream.flatMap(([userId, userEvents]) =>
     userEvents.pipe(
       Stream.scan(initialState, (state, event) => reducer(state, event)),
       Stream.runLast
