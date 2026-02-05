@@ -437,9 +437,10 @@ if (daemon) {
         const removed = await removeWorkspace(wsPath);
         process.exit(removed ? 0 : 1);
         break;
-      case "clear":
-        await clearWorkspaces();
-        break;
+      case "clear": {
+        const cleared = await clearWorkspaces();
+        process.exit(cleared ? 0 : 1);
+      }
       default:
         console.error(subcommand ? `Unknown subcommand: ${subcommand}` : "Missing subcommand");
         console.error("Usage: murmur workspaces <list|remove|clear>");

@@ -81,7 +81,8 @@ describe("clearWorkspaces", () => {
       { path: "/test/path3", cron: "0 9 * * *", lastRun: null },
     ]);
 
-    await clearWorkspaces();
+    const result = await clearWorkspaces();
+    expect(result).toBe(true);
 
     const config = JSON.parse(await Bun.file(getConfigPath()).text());
     expect(config.workspaces).toHaveLength(0);
@@ -89,7 +90,8 @@ describe("clearWorkspaces", () => {
 
   test("handles already empty config", async () => {
     writeTestConfig([]);
-    await clearWorkspaces();
+    const result = await clearWorkspaces();
+    expect(result).toBe(true);
 
     const config = JSON.parse(await Bun.file(getConfigPath()).text());
     expect(config.workspaces).toHaveLength(0);

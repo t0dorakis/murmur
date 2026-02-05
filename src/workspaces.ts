@@ -34,16 +34,27 @@ export async function removeWorkspace(targetPath: string): Promise<boolean> {
   }
 
   config.workspaces.splice(index, 1);
-  await writeConfig(config);
+  try {
+    await writeConfig(config);
+  } catch (err) {
+    console.error(`Failed to write config: ${err instanceof Error ? err.message : err}`);
+    return false;
+  }
   console.log(`Removed workspace: ${resolved}`);
   return true;
 }
 
-export async function clearWorkspaces(): Promise<void> {
+export async function clearWorkspaces(): Promise<boolean> {
   const config = readConfig();
   const count = config.workspaces.length;
 
   config.workspaces = [];
-  await writeConfig(config);
+  try {
+    await writeConfig(config);
+  } catch (err) {
+    console.error(`Failed to write config: ${err instanceof Error ? err.message : err}`);
+    return false;
+  }
   console.log(`Cleared ${count} workspace(s).`);
+  return true;
 }
