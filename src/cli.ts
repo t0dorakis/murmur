@@ -9,6 +9,8 @@ import { connectToSocket, type SocketConnection } from "./socket-client.ts";
 import { createTui } from "./tui.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
+import { formatToolTarget, formatToolDuration } from "./tool-format.ts";
+import type { DaemonEvent } from "./types.ts";
 
 // Injected by `bun build --define` at compile time; falls back to package.json in dev
 declare const __VERSION__: string;
@@ -66,6 +68,7 @@ function parseGlobalArgs() {
   let detach = false;
   let daemon = false;
   let debugFlag = false;
+  let quiet = false;
   const rest: string[] = [];
   for (let i = 0; i < raw.length; i++) {
     if (raw[i] === "--data-dir") {
@@ -78,14 +81,16 @@ function parseGlobalArgs() {
       daemon = true;
     } else if (raw[i] === "--debug") {
       debugFlag = true;
+    } else if (raw[i] === "--quiet" || raw[i] === "-q") {
+      quiet = true;
     } else {
       rest.push(raw[i]!);
     }
   }
-  return { dataDir, tick, detach, daemon, debug: debugFlag, command: rest[0], targetPath: rest[1] ?? "." };
+  return { dataDir, tick, detach, daemon, debug: debugFlag, quiet, command: rest[0], targetPath: rest[1] ?? "." };
 }
 
-const { dataDir, tick, detach, daemon, debug: debugFlag, command, targetPath } = parseGlobalArgs();
+const { dataDir, tick, detach, daemon, debug: debugFlag, quiet, command, targetPath } = parseGlobalArgs();
 if (dataDir) setDataDir(dataDir);
 if (debugFlag) {
   enableDebug();
@@ -264,7 +269,7 @@ async function watch() {
   });
 }
 
-async function beat(path: string) {
+async function beat(path: string, quietMode: boolean) {
   const resolved = resolve(path);
   const heartbeatFile = join(resolved, "HEARTBEAT.md");
   if (!existsSync(heartbeatFile)) {
@@ -273,8 +278,31 @@ async function beat(path: string) {
   }
 
   console.log(`Running heartbeat for ${resolved}...`);
-  const entry = await runHeartbeat({ path: resolved, lastRun: null });
+  if (!quietMode) {
+    console.log(`(showing tool calls and reasoning)\n`);
+  }
+
+  const entry = await runHeartbeat(
+    { path: resolved, lastRun: null },
+    quietMode ? undefined : cliEmitter,
+    { quiet: quietMode },
+  );
   appendLog(entry);
+
+  if (!quietMode && entry.turns && entry.turns.length > 0) {
+    console.log("\n--- Conversation Summary ---\n");
+    for (const turn of entry.turns) {
+      if (turn.role === "result") {
+        if (turn.costUsd != null) {
+          console.log(`  Cost: $${turn.costUsd.toFixed(6)}`);
+        }
+        if (turn.numTurns != null) {
+          console.log(`  Agent turns: ${turn.numTurns}`);
+        }
+      }
+    }
+    console.log("");
+  }
 
   if (entry.outcome === "ok") {
     console.log("OK — nothing to report.");
@@ -284,6 +312,21 @@ async function beat(path: string) {
     console.error(`ERROR: ${entry.error}`);
   }
   console.log(`(${entry.durationMs}ms)`);
+}
+
+function cliEmitter(event: DaemonEvent) {
+  switch (event.type) {
+    case "heartbeat:tool-call": {
+      const target = formatToolTarget(event.toolCall.input);
+      const duration = formatToolDuration(event.toolCall.durationMs);
+      console.log(`◆ ${event.toolCall.name} ${target}${duration ? ` ${duration}` : ""}`);
+      break;
+    }
+    case "heartbeat:stdout":
+      // Stream assistant text as it arrives
+      process.stdout.write(event.chunk);
+      break;
+  }
 }
 
 const HEARTBEAT_TEMPLATE = `# Heartbeat
@@ -344,7 +387,7 @@ if (daemon) {
     await watch();
     break;
   case "beat":
-    await beat(targetPath);
+    await beat(targetPath, quiet);
     break;
   case "init":
     await init(targetPath);
@@ -364,6 +407,7 @@ Commands:
 Options:
   --data-dir <path>            Override data directory (default: ~/.murmur)
   --debug                      Enable debug logging to <data-dir>/debug.log
+  --quiet, -q                  Hide tool calls during beat (show summary only)
   --version, -v                Show version`);
     process.exit(command ? 1 : 0);
 }

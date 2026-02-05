@@ -3,11 +3,12 @@ import {
   altScreenOn, altScreenOff, cursorHide, cursorShow, cursorHome,
   clearLine, clearToEnd,
   bold, dim, green, yellow, red, white,
-  styled, truncate, padRight,
+  styled, truncate, padRight, toolIcons,
 } from "./ansi.ts";
 import { createScreen, type Screen } from "./screen.ts";
+import { formatToolTarget, formatToolDuration } from "./tool-format.ts";
 import type { EventSource } from "./events.ts";
-import type { DaemonEvent, Outcome, WorkspaceStatus } from "./types.ts";
+import type { DaemonEvent, Outcome, ToolCall, WorkspaceStatus } from "./types.ts";
 
 type FeedEntry = {
   workspace: string;
@@ -16,13 +17,21 @@ type FeedEntry = {
   outcome: Outcome | null;
   durationMs: number | null;
   output: string;
+  toolCount: number;
+};
+
+type ActiveBeat = {
+  workspace: string;
+  output: string;
+  startedAt: number;
+  tools: ToolCall[];
 };
 
 type TuiState = {
   pid: number;
   workspaces: WorkspaceStatus[];
   feed: FeedEntry[];
-  activeBeat: { workspace: string; output: string; startedAt: number } | null;
+  activeBeat: ActiveBeat | null;
 };
 
 export type Tui = {
@@ -84,6 +93,16 @@ function outcomeLabel(outcome: Outcome): string {
   }
 }
 
+function formatToolLine(tool: ToolCall, termWidth: number): string {
+  const icon = tool.output !== undefined ? toolIcons.complete : toolIcons.pending;
+  const iconStyled = tool.output !== undefined ? icon : styled(icon, dim);
+  const target = formatToolTarget(tool.input, 40);
+  const duration = formatToolDuration(tool.durationMs);
+  const durationStyled = duration ? ` ${styled(duration, dim)}` : "";
+  const content = `${tool.name} ${styled(target, dim)}${durationStyled}`;
+  return `   ${iconStyled} ${truncate(content, termWidth - 6)}`;
+}
+
 // --- Rendering ---
 
 function renderHeader(state: TuiState): string {
@@ -138,7 +157,7 @@ function renderSeparator(termWidth: number): string {
 
 function renderActiveBeat(state: TuiState, termWidth: number, maxLines: number): string[] {
   if (!state.activeBeat) return [];
-  const { workspace, output, startedAt } = state.activeBeat;
+  const { workspace, output, tools, startedAt } = state.activeBeat;
   const name = workspaceDisplayName(workspace, state.workspaces);
   const elapsed = formatDuration(Date.now() - startedAt);
 
@@ -148,11 +167,20 @@ function renderActiveBeat(state: TuiState, termWidth: number, maxLines: number):
   const feedEntry = state.feed.findLast((f) => f.workspace === workspace);
   if (feedEntry?.promptPreview) {
     lines.push(`   ${styled(truncate(feedEntry.promptPreview, termWidth - 4), dim)}`);
-    lines.push(`   ${styled("┄┄┄", dim)}`);
   }
 
+  // Show recent tool calls
+  if (tools.length > 0) {
+    const available = Math.floor((maxLines - lines.length) * 0.6);
+    const start = Math.max(0, tools.length - available);
+    for (let i = start; i < tools.length; i++) {
+      lines.push(formatToolLine(tools[i]!, termWidth));
+    }
+  }
+
+  // Show assistant text output
   if (output) {
-    const outputLines = output.split("\n");
+    const outputLines = output.split("\n").filter((l) => l.trim());
     const available = maxLines - lines.length;
     const start = Math.max(0, outputLines.length - available);
     for (let i = start; i < outputLines.length; i++) {
@@ -166,23 +194,25 @@ function renderActiveBeat(state: TuiState, termWidth: number, maxLines: number):
 function renderFeedEntry(entry: FeedEntry, termWidth: number): string[] {
   const name = entry.name;
   const dur = entry.durationMs != null ? formatDuration(entry.durationMs) : "";
+  const tools = entry.toolCount > 0 ? styled(`${entry.toolCount} tool${entry.toolCount !== 1 ? "s" : ""}`, dim) : "";
 
   if (entry.outcome === "ok") {
-    return [` ${outcomeIcon("ok")} ${styled(name, dim)}${" ".repeat(Math.max(1, termWidth - name.length - dur.length - 14))}${outcomeLabel("ok")}  ${styled(dur, dim)}`];
+    const meta = [outcomeLabel("ok"), tools, styled(dur, dim)].filter(Boolean).join("  ");
+    return [` ${outcomeIcon("ok")} ${styled(name, dim)}${" ".repeat(Math.max(1, termWidth - name.length - meta.length - 8))}${meta}`];
   }
 
   const icon = outcomeIcon(entry.outcome);
   const label = entry.outcome ? outcomeLabel(entry.outcome) : "";
   const lines: string[] = [];
-  lines.push(` ${icon} ${styled(name, bold, white)}${" ".repeat(Math.max(1, termWidth - name.length - dur.length - (entry.outcome?.length ?? 0) - 10))}${label}  ${styled(dur, dim)}`);
+  const meta = [label, tools, styled(dur, dim)].filter(Boolean).join("  ");
+  lines.push(` ${icon} ${styled(name, bold, white)}${" ".repeat(Math.max(1, termWidth - name.length - meta.length - 6))}${meta}`);
 
   if (entry.promptPreview) {
     lines.push(`   ${styled(truncate(entry.promptPreview, termWidth - 4), dim)}`);
-    lines.push(`   ${styled("┄┄┄", dim)}`);
   }
 
   if (entry.output) {
-    for (const line of entry.output.split("\n")) {
+    for (const line of entry.output.split("\n").slice(0, 3)) {
       lines.push(`   ${truncate(line, termWidth - 4)}`);
     }
   }
@@ -203,7 +233,7 @@ function reduceEvent(state: TuiState, event: DaemonEvent): boolean {
       return true;
 
     case "heartbeat:start": {
-      state.activeBeat = { workspace: event.workspace, output: "", startedAt: Date.now() };
+      state.activeBeat = { workspace: event.workspace, output: "", startedAt: Date.now(), tools: [] };
       const name = workspaceDisplayName(event.workspace, state.workspaces);
       state.feed.push({
         workspace: event.workspace,
@@ -212,6 +242,7 @@ function reduceEvent(state: TuiState, event: DaemonEvent): boolean {
         outcome: null,
         durationMs: null,
         output: "",
+        toolCount: 0,
       });
       return true;
     }
@@ -219,6 +250,12 @@ function reduceEvent(state: TuiState, event: DaemonEvent): boolean {
     case "heartbeat:stdout":
       if (state.activeBeat?.workspace === event.workspace) {
         state.activeBeat.output += event.chunk;
+      }
+      return true;
+
+    case "heartbeat:tool-call":
+      if (state.activeBeat?.workspace === event.workspace) {
+        state.activeBeat.tools.push(event.toolCall);
       }
       return true;
 
@@ -231,6 +268,9 @@ function reduceEvent(state: TuiState, event: DaemonEvent): boolean {
         feedEntry.output = state.activeBeat?.workspace === event.workspace
           ? state.activeBeat.output
           : "";
+        feedEntry.toolCount = state.activeBeat?.workspace === event.workspace
+          ? state.activeBeat.tools.length
+          : 0;
       }
       if (state.activeBeat?.workspace === event.workspace) {
         state.activeBeat = null;
