@@ -5,7 +5,10 @@ export type PermissionsConfig = {
 /** "skip" restores naked --dangerously-skip-permissions behavior (no deny list). */
 export type PermissionsOption = PermissionsConfig | "skip";
 
-export type WorkspaceConfig = {
+/**
+ * Base configuration shared by all agents.
+ */
+type BaseWorkspaceConfig = {
   path: string;
   interval?: string;
   cron?: string;
@@ -13,18 +16,40 @@ export type WorkspaceConfig = {
   maxTurns?: number;
   permissions?: PermissionsOption;
   lastRun: string | null;
+};
 
-  /** Agent harness to use (default: "claude-code") */
-  agent?: string;
+/**
+ * Claude Code-specific configuration.
+ */
+type ClaudeCodeConfig = BaseWorkspaceConfig & {
+  agent?: "claude-code";
+  claudeModel?: string;
+};
 
-  /** Pi-specific configuration */
+/**
+ * Pi agent-specific configuration.
+ */
+type PiConfig = BaseWorkspaceConfig & {
+  agent: "pi";
   piExtensions?: string[];
   piSession?: string;
   piModel?: string;
-
-  /** Claude Code-specific configuration */
-  claudeModel?: string;
 };
+
+/**
+ * Generic agent configuration (for future/unknown agents).
+ */
+type GenericAgentConfig = BaseWorkspaceConfig & {
+  agent: string;
+  // Allow any additional properties for future agents
+  [key: string]: unknown;
+};
+
+/**
+ * Workspace configuration supporting multiple agent harnesses.
+ * Uses discriminated union based on the 'agent' field for type safety.
+ */
+export type WorkspaceConfig = ClaudeCodeConfig | PiConfig | GenericAgentConfig;
 
 export type Config = {
   workspaces: WorkspaceConfig[];

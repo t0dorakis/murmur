@@ -1,15 +1,14 @@
 import { debug } from "../debug.ts";
 import { buildDisallowedToolsArgs } from "../permissions.ts";
 import { runParseStream } from "../stream-parser.ts";
+import { isCommandAvailable, getCommandVersion } from "./cli-utils.ts";
+import { DEFAULT_AGENT_TIMEOUT_MS, DEFAULT_MAX_TURNS } from "./constants.ts";
 import type {
   AgentAdapter,
   AgentExecutionResult,
   AgentStreamCallbacks,
 } from "./adapter.ts";
 import type { WorkspaceConfig } from "../types.ts";
-
-/** Default max turns when not specified in workspace config. */
-const DEFAULT_MAX_TURNS = 99;
 
 /**
  * Agent adapter for Claude Code (Anthropic's official CLI).
@@ -50,7 +49,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       stdin: new Blob([prompt]),
       stdout: "pipe",
       stderr: "pipe",
-      timeout: 300_000,
+      timeout: DEFAULT_AGENT_TIMEOUT_MS,
     });
 
     if (!proc.stdout) throw new Error("Spawned process stdout is not piped");
@@ -104,28 +103,10 @@ export class ClaudeCodeAdapter implements AgentAdapter {
   }
 
   async isAvailable(): Promise<boolean> {
-    try {
-      const proc = Bun.spawn(["which", "claude"], {
-        stdout: "pipe",
-        stderr: "ignore",
-      });
-      await proc.exited;
-      return proc.exitCode === 0;
-    } catch {
-      return false;
-    }
+    return isCommandAvailable("claude");
   }
 
   async getVersion(): Promise<string | null> {
-    try {
-      const proc = Bun.spawn(["claude", "--version"], {
-        stdout: "pipe",
-        stderr: "ignore",
-      });
-      const output = await new Response(proc.stdout).text();
-      return output.trim() || null;
-    } catch {
-      return null;
-    }
+    return getCommandVersion("claude", "--version");
   }
 }

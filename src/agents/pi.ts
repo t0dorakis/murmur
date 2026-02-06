@@ -1,4 +1,6 @@
 import { debug } from "../debug.ts";
+import { isCommandAvailable, getCommandVersion } from "./cli-utils.ts";
+import { DEFAULT_AGENT_TIMEOUT_MS } from "./constants.ts";
 import type {
   AgentAdapter,
   AgentExecutionResult,
@@ -42,31 +44,56 @@ export class PiAdapter implements AgentAdapter {
     callbacks?: AgentStreamCallbacks,
   ): Promise<AgentExecutionResult> {
     const start = Date.now();
-    const piConfig = workspace as WorkspaceConfig & PiConfig;
+
+    // Validate pi-specific config
+    if (workspace.piExtensions) {
+      if (!Array.isArray(workspace.piExtensions)) {
+        throw new Error(
+          `piExtensions must be an array, got: ${typeof workspace.piExtensions}`,
+        );
+      }
+      for (const ext of workspace.piExtensions) {
+        if (typeof ext !== "string" || !ext.trim()) {
+          throw new Error(`piExtension must be a non-empty string, got: ${ext}`);
+        }
+      }
+    }
+
+    if (workspace.piModel && typeof workspace.piModel !== "string") {
+      throw new Error(
+        `piModel must be a string, got: ${typeof workspace.piModel}`,
+      );
+    }
+
+    if (workspace.piSession && typeof workspace.piSession !== "string") {
+      throw new Error(
+        `piSession must be a string, got: ${typeof workspace.piSession}`,
+      );
+    }
 
     const piArgs = ["pi", "--mode=print"];
 
     // Add extensions
-    if (piConfig.piExtensions && piConfig.piExtensions.length > 0) {
-      for (const ext of piConfig.piExtensions) {
+    if (workspace.piExtensions && workspace.piExtensions.length > 0) {
+      for (const ext of workspace.piExtensions) {
         piArgs.push("--extension", ext);
       }
     }
 
     // Add session for context reuse
-    if (piConfig.piSession) {
-      piArgs.push("--session", piConfig.piSession);
+    if (workspace.piSession) {
+      piArgs.push("--session", workspace.piSession);
       piArgs.push("--reuse"); // Reuse session context
     }
 
     // Add model selection
-    if (piConfig.piModel) {
-      piArgs.push("--model", piConfig.piModel);
+    if (workspace.piModel) {
+      piArgs.push("--model", workspace.piModel);
     }
 
     // Add max turns
-    if (piConfig.maxTurns) {
-      piArgs.push("--max-turns", String(piConfig.maxTurns));
+    if (workspace.maxTurns) {
+      piArgs.push("--max-turns", String(workspace.maxTurns));
     }
 
     // Add prompt as argument (pi accepts prompts via --prompt flag or stdin)
@@ -80,7 +107,7 @@ export class PiAdapter implements AgentAdapter {
       stdin: new Blob([prompt]),
       stdout: "pipe",
       stderr: "pipe",
-      timeout: 300_000,
+      timeout: DEFAULT_AGENT_TIMEOUT_MS,
     });
 
     if (!proc.stdout) throw new Error("Spawned process stdout is not piped");
@@ -132,28 +159,10 @@ export class PiAdapter implements AgentAdapter {
   }
 
   async isAvailable(): Promise<boolean> {
-    try {
-      const proc = Bun.spawn(["which", "pi"], {
-        stdout: "pipe",
-        stderr: "ignore",
-      });
-      await proc.exited;
-      return proc.exitCode === 0;
-    } catch {
-      return false;
-    }
+    return isCommandAvailable("pi");
   }
 
   async getVersion(): Promise<string | null> {
-    try {
-      const proc = Bun.spawn(["pi", "--version"], {
-        stdout: "pipe",
-        stderr: "ignore",
-      });
-      const output = await new Response(proc.stdout).text();
-      return output.trim() || null;
-    } catch {
-      return null;
-    }
+    return getCommandVersion("pi", "--version");
   }
 }

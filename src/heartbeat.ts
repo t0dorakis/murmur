@@ -113,6 +113,20 @@ export async function runHeartbeat(
     return entry;
   }
 
+  // Check if the agent CLI is available before attempting execution
+  const available = await adapter.isAvailable();
+  if (!available) {
+    const entry: LogEntry = {
+      ts,
+      workspace: ws.path,
+      outcome: "error",
+      durationMs: Date.now() - start,
+      error: `Agent '${agentName}' CLI is not available. Please install it or check your PATH.`,
+    };
+    emit?.({ type: "heartbeat:done", workspace: ws.path, entry });
+    return entry;
+  }
+
   // Execute agent with callbacks (unless in quiet mode)
   let result;
   try {
