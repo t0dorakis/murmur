@@ -13,6 +13,17 @@ export type WorkspaceConfig = {
   maxTurns?: number;
   permissions?: PermissionsOption;
   lastRun: string | null;
+
+  /** Agent harness to use (default: "claude-code") */
+  agent?: string;
+
+  /** Pi-specific configuration */
+  piExtensions?: string[];
+  piSession?: string;
+  piModel?: string;
+
+  /** Claude Code-specific configuration */
+  claudeModel?: string;
 };
 
 export type Config = {

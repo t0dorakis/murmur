@@ -129,8 +129,46 @@ If nothing new or nothing worth proposing, HEARTBEAT_OK.
 | `cron` | Cron expression (alternative to interval): `0 9 * * 1-5` |
 | `tz` | Timezone for cron (default: system) |
 | `maxTurns` | Cap agent iterations per heartbeat (default: unlimited) |
+| `agent` | Agent harness to use: `claude-code` (default), `pi`, etc. |
 
 Use `interval` or `cron`, not both.
+
+## Agent Harnesses
+
+Murmur supports multiple AI agent harnesses, allowing you to choose the best tool for each heartbeat:
+
+**Claude Code (default):**
+```json
+{
+  "path": "/Users/you/repos/project",
+  "agent": "claude-code",
+  "interval": "1h"
+}
+```
+
+**Pi ([pi-mono](https://github.com/badlogic/pi-mono)):**
+```json
+{
+  "path": "/Users/you/repos/research",
+  "agent": "pi",
+  "piExtensions": ["@mariozechner/pi-browser"],
+  "piSession": "research-daily",
+  "piModel": "anthropic/claude-sonnet-4.5",
+  "cron": "0 9 * * *"
+}
+```
+
+| Agent | Description | Config Options |
+|-------|-------------|----------------|
+| `claude-code` | Anthropic's official CLI (default) | `maxTurns`, `permissions` |
+| `pi` | Minimal coding agent by @badlogic | `piExtensions`, `piSession`, `piModel` |
+
+**Pi-specific options:**
+- `piExtensions` — Array of pi extensions to load (e.g., `["@mariozechner/pi-google-calendar"]`)
+- `piSession` — Session ID for context reuse across heartbeats
+- `piModel` — Model/provider to use (e.g., `"anthropic/claude-sonnet-4.5"`)
+
+If `agent` is not specified, murmur defaults to `claude-code` for backward compatibility.
 
 ## Extending
 
