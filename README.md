@@ -1,56 +1,60 @@
 # murmur
 
-Scheduled Claude prompts that only speak when something needs attention. Write a prompt in markdown, tell murmur how often to run it, and it handles the rest — staying silent unless there's something you should know.
+A cron daemon for Claude Code. Schedule automated Claude sessions that run on intervals or cron expressions — each one a fresh CLI invocation with full tool access.
 
-Inspired by the heartbeat concept from [OpenClaw](https://github.com/openclaw) (formerly clawdbot), repacked into a minimal form factor that works with just [Claude Code](https://docs.anthropic.com/en/docs/claude-cli). Each prompt runs as a fresh Claude CLI invocation with full tool access (bash, MCP servers, file system). No session history, no context bloat. Files and git are the memory.
+Murmur is deliberately minimal: it schedules, runs, and logs. What happens inside each session — checking APIs, sending notifications, updating files — is defined by you and your agent in a markdown prompt. Claude builds the pipeline.
 
-## Install
-
-**Homebrew (macOS/Linux):**
-```bash
-brew install t0dorakis/murmur/murmur
-```
-
-**From source:**
-```bash
-git clone https://github.com/t0dorakis/murmur.git
-cd murmur && bun install && bun run build
-```
-
-This compiles a standalone `./murmur` binary. Requires [Claude CLI](https://docs.anthropic.com/en/docs/claude-cli) installed and authenticated.
-
-**Optional: Install the skill** (recommended)
-
-The `heartbeat-cron` skill helps Claude Code create and test heartbeat prompts through an interactive interview — no manual HEARTBEAT.md writing needed.
+**Get started in one conversation:**
 
 ```bash
 npx skills add t0dorakis/murmur --skill heartbeat-cron
 ```
 
-Then just tell Claude: *"Watch arxiv daily for papers on autonomous agents — summarize anything worth reading"* and it'll guide you through setup.
+Then: `/heartbeat-cron watch my GitHub issues and alert me when something urgent comes in`
 
-## Quick Start
+## Install
+
+**Recommended:** Install the skill, then let Claude handle the rest:
 
 ```bash
-# Create a heartbeat prompt in any project
-murmur init ~/repos/my-project
-
-# Edit the prompt — describe what Claude should check
-vim ~/repos/my-project/HEARTBEAT.md
-
-# Start the daemon
-murmur start
+npx skills add t0dorakis/murmur --skill heartbeat-cron
 ```
 
-The daemon reads `~/.murmur/config.json` and runs each workspace on its schedule. Press `q` to quit, `Ctrl-D` to detach to background.
+The skill prompts you to install murmur if needed.
+
+**Or install manually:**
+
+```bash
+brew install t0dorakis/murmur/murmur
+```
+
+From source:
+```bash
+git clone https://github.com/t0dorakis/murmur.git
+cd murmur && bun install && bun run build
+```
+
+Requires [Claude CLI](https://docs.anthropic.com/en/docs/claude-cli) installed and authenticated.
+
+## Manual Setup
+
+If you prefer to write the heartbeat yourself:
+
+```bash
+murmur init ~/repos/my-project    # Creates HEARTBEAT.md template
+vim ~/repos/my-project/HEARTBEAT.md
+murmur start                       # Start the daemon
+```
+
+The daemon reads `~/.murmur/config.json` and runs each workspace on schedule. Press `q` to quit, `Ctrl-D` to detach.
 
 ## Usage
 
 ```
-murmur start [--tick <interval>]   Start daemon with TUI (foreground)
-murmur start --detach              Start daemon in background
+murmur start [--tick <interval>]   Start daemon (foreground, TUI)
+murmur start --detach              Start daemon (background)
 murmur watch                       Attach TUI to running daemon
-murmur stop                        Stop the daemon
+murmur stop                        Stop daemon
 murmur status                      Show daemon and workspace status
 murmur beat [path]                 Run one heartbeat immediately
 murmur init [path]                 Create HEARTBEAT.md template
@@ -58,49 +62,60 @@ murmur init [path]                 Create HEARTBEAT.md template
 
 ## HEARTBEAT.md
 
-The prompt file. Write whatever you want Claude to do on each run. Two rules for the response:
+The prompt file. Write what you want Claude to do on each run — or let the skill generate it through an interview.
 
-- **Nothing to report** → respond with `HEARTBEAT_OK` (suppressed from output)
-- **Needs attention** → respond with `ATTENTION:` followed by a summary
+**Response protocol:**
+- `HEARTBEAT_OK` — nothing to report (silent, just logged)
+- `ATTENTION: <summary>` — needs attention (surfaced in TUI)
+
+But often your heartbeat handles delivery itself (write to a file, create an issue, post somewhere). The protocol is just for murmur's logs and TUI.
 
 ### Examples
 
-**Run tests and check git status:**
+**Research curation:**
 ```markdown
-Run `bun test` and check `git status`.
-If tests pass and no uncommitted work, respond HEARTBEAT_OK.
-Otherwise tell me what's wrong.
+Search arxiv for new papers on "autonomous AI agents" from the last 24 hours.
+For each relevant paper, extract: title, authors, key findings, and why it matters.
+Create a note in ~/obsidian/research/agents/ with today's date.
+If nothing relevant, HEARTBEAT_OK.
 ```
 
-**Monitor GitHub issues:**
+**GitHub digest:**
 ```markdown
-Check for new GitHub issues on my-org/my-repo using `gh`.
-For any untagged issues, add a triage label based on the content.
-If there are urgent issues (security, data loss, outage), tell me.
+Check my GitHub notifications using `gh`.
+Filter out bot comments and CI noise.
+For anything that needs my attention (review requests, mentions, failing checks on my PRs), write a summary to ~/notes/github-daily.md.
+If inbox zero, HEARTBEAT_OK.
 ```
 
-**Verify deploys:**
+**Competitor watch:**
 ```markdown
-Curl https://staging.example.com/health and verify it returns 200.
-Check the last 3 deploys via `gh run list`.
-If anything looks off, tell me. Otherwise HEARTBEAT_OK.
+Fetch the changelog from https://competitor.com/changelog.
+Compare against ~/tracking/competitor-last.md to find new features.
+
+For each new feature:
+- Consider: does this make sense for our product? Check our existing issues and roadmap in this repo.
+- Think about our users, our positioning, and whether this aligns with where we're headed.
+- Only if it genuinely adds value: create a GitHub issue with `gh issue create`, explaining the feature idea and your reasoning.
+
+Update competitor-last.md with current state.
+If nothing new or nothing worth proposing, HEARTBEAT_OK.
 ```
 
 ## Config
 
-`~/.murmur/config.json` — edit directly to add/remove workspaces.
+`~/.murmur/config.json` — workspaces and their schedules.
 
 ```json
 {
   "workspaces": [
     {
       "path": "/Users/you/repos/my-project",
-      "interval": "30m",
-      "maxTurns": 3
+      "interval": "30m"
     },
     {
-      "path": "/Users/you/repos/infra",
-      "cron": "0 9,17 * * 1-5",
+      "path": "/Users/you/repos/research",
+      "cron": "0 9 * * 1-5",
       "tz": "America/New_York"
     }
   ]
@@ -110,48 +125,51 @@ If anything looks off, tell me. Otherwise HEARTBEAT_OK.
 | Field | Description |
 |-------|-------------|
 | `path` | Absolute path to workspace (must contain `HEARTBEAT.md`) |
-| `interval` | Run every N units: `"15m"`, `"1h"`, `"2h"`, `"1d"` |
-| `cron` | Cron expression (alternative to `interval`): `"0 */6 * * *"` |
-| `tz` | Timezone for cron schedules: `"America/New_York"` |
-| `maxTurns` | Max agent iterations per heartbeat (default: unlimited) |
+| `interval` | Run every N units: `15m`, `1h`, `6h`, `1d` |
+| `cron` | Cron expression (alternative to interval): `0 9 * * 1-5` |
+| `tz` | Timezone for cron (default: system) |
+| `maxTurns` | Cap agent iterations per heartbeat (default: unlimited) |
 
 Use `interval` or `cron`, not both.
 
+## Extending
+
+Murmur runs your prompts. Everything else — API calls, webhooks, notifications — lives inside the heartbeat itself. Claude can build these for you.
+
+**Helpful skills:**
+
+- [`skill-creator`](https://github.com/anthropics/skills) — Build reusable skills for integrations you use often
+- [`webhook-skills`](https://github.com/hookdeck/webhook-skills) — Patterns for Slack, Discord, GitHub webhooks with signature verification
+- [skills.sh](https://skills.sh) — Browse community skills for common integrations
+
+Need Slack notifications? Your heartbeat calls the webhook. Need to create GitHub issues? Use `gh`. The heartbeat *is* the integration.
+
 ## Permissions
 
-Murmur runs with `--dangerously-skip-permissions` but blocks destructive commands by default (`rm -rf /`, `sudo`, `mkfs`, etc). Network tools like `curl` are allowed — if your prompt involves web requests, results can be unpredictable.
+Murmur runs with `--dangerously-skip-permissions` but blocks destructive commands by default (`rm -rf /`, `sudo`, `mkfs`, etc).
 
-**Philosophy**: Blacklisting is better UX than whitelisting — agents can use tools freely without permission prompts. This works best with capable models (Opus recommended).
+**Philosophy:** Blacklisting beats whitelisting for agent UX — tools work without prompts. Works best with capable models (Opus recommended).
 
-**For more safety**: Run murmur in a container or VM sandbox.
+For more safety, run murmur in a container or VM.
 
 ## Logs
 
-Heartbeat results are appended to `~/.murmur/heartbeats.jsonl`:
+Heartbeat results append to `~/.murmur/heartbeats.jsonl`:
 
 ```jsonl
-{"ts":"2026-02-03T10:00:00Z","workspace":"/Users/you/repos/my-project","outcome":"ok","durationMs":8200}
-{"ts":"2026-02-03T10:30:12Z","workspace":"/Users/you/repos/my-project","outcome":"attention","durationMs":14500,"summary":"2 tests failing in auth.test.ts"}
+{"ts":"2026-02-03T10:00:00Z","workspace":"/Users/you/repos/research","outcome":"ok","durationMs":8200}
+{"ts":"2026-02-03T10:30:12Z","workspace":"/Users/you/repos/research","outcome":"attention","durationMs":14500,"summary":"3 new papers on autonomous agents"}
 ```
 
-Outcomes: `ok` (silent), `attention` (needs action), `error` (something broke).
-
-```bash
-# Recent entries
-tail -5 ~/.murmur/heartbeats.jsonl
-
-# Filter attention entries
-grep '"attention"' ~/.murmur/heartbeats.jsonl | jq .
-```
+Outcomes: `ok`, `attention`, `error`.
 
 ## Development
 
 ```bash
-bun install          # install dependencies
-bun run build        # compile to ./murmur binary
-bun src/cli.ts       # run from source (skip compile)
+bun install          # dependencies
+bun run build        # compile to ./murmur
 bun test src/        # unit tests
-bun run test:e2e     # e2e tests (requires compiled binary + Claude CLI)
+bun run test:e2e     # e2e tests (requires binary + Claude CLI)
 ```
 
 ## License
