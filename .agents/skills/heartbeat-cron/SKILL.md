@@ -26,6 +26,10 @@ Murmur is a minimal scheduler. It reads a HEARTBEAT.md file, sends its contents 
 
 **Murmur cannot notify the user.** It only runs the prompt and logs the result. If the user wants notifications (Slack, Telegram, push), the HEARTBEAT.md itself must include the delivery step. The heartbeat is the entire pipeline: gather data → decide → act → deliver.
 
+**Each heartbeat is stateless.** Every run is a fresh Claude session with no memory of previous runs. For workflows that need to track changes over time (price deltas, last-checked timestamps), use files in the workspace as simple state stores (e.g., `last-price.txt`, `tracking-state.json`).
+
+**Sleep/wake behavior.** When the machine sleeps, the daemon freezes — no ticks fire. On wake, overdue jobs run immediately but multiple missed runs collapse into a single catch-up execution (not one per missed interval). This is correct for heartbeat-style tasks: you want to check current state, not replay missed checks. If the user needs reliable scheduling, advise them to disable sleep on their machine (see FAQ in README).
+
 ## Workflow
 
 ### 0. Preflight
@@ -55,6 +59,21 @@ Conduct a focused interview using AskUserQuestion. Go one or two questions at a 
 **Round 1 — The goal:**
 
 Ask what they want automated. If they're unsure or exploring, read [references/examples.md](references/examples.md) for inspiration across categories: code/repos, research/intelligence, ops/infrastructure, personal/creative. Suggest examples that match their context.
+
+**Round 1b — Tool discovery:**
+
+Before diving into details, check whether the user's goal needs tools beyond what's already installed. Run a web search to find relevant CLIs, MCP servers, or agent skills that could help.
+
+**Browser tools** — Many valuable heartbeats need to interact with real websites (checking prices, monitoring pages, logging into portals). Claude's built-in `WebFetch` works for simple static pages, but sites with JavaScript rendering, login flows, or anti-bot measures need a real browser:
+- [agent-browser](https://github.com/vercel-labs/agent-browser) — Headless browser CLI for AI agents. Works with Claude Code out of the box.
+- [pi-browser](https://github.com/badlogic/pi-mono) — Browser extension for pi. Use with `"agent": "pi"` and `"piExtensions": ["@mariozechner/pi-browser"]`.
+
+**Other tools** — Search the web for: `"{user's goal}" CLI tool` or `"{user's goal}" MCP server` or check [skills.sh](https://skills.sh) for community skills. Examples:
+- Calendar access → Google Calendar MCP or pi-google-calendar extension
+- Slack/Discord delivery → webhook skills on [skills.sh](https://skills.sh)
+- GitHub operations → ensure `gh` CLI is installed
+
+Tell the user what you found and recommend installing anything that would make the heartbeat more capable.
 
 **Round 2 — The details:**
 
@@ -90,6 +109,7 @@ Write the HEARTBEAT.md file. Rules:
 
 - Start with `# Heartbeat` and the standard preamble about HEARTBEAT_OK / ATTENTION
 - Be explicit about every step — Claude has no memory between heartbeats
+- For change-detection workflows (price drops, new items, status changes), include steps to read/write state files in the workspace (e.g., `last-price.txt`, `tracking-state.json`)
 - Include exact commands with real values (no `{placeholder}` left behind)
 - Include the delivery step if the user wants notifications
 - Keep it focused — one purpose per heartbeat
