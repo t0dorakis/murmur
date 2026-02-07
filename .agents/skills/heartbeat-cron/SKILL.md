@@ -31,6 +31,32 @@ Murmur is a minimal scheduler. It reads a HEARTBEAT.md file, sends its contents 
 
 **Sleep/wake behavior.** When the machine sleeps, the daemon freezes — no ticks fire. On wake, overdue jobs run immediately but multiple missed runs collapse into a single catch-up execution (not one per missed interval). This is correct for heartbeat-style tasks: you want to check current state, not replay missed checks. If the user needs reliable scheduling, advise them to disable sleep on their machine (see FAQ in README).
 
+## HEARTBEAT.md Format
+
+Every heartbeat is a markdown file with an optional YAML frontmatter block. Frontmatter values **take precedence** over config.json.
+
+```yaml
+---
+interval: 1h            # or cron: "0 9 * * 1-5" (pick one)
+# tz: America/New_York  # timezone for cron (default: local system tz)
+# timeout: 15m          # max run time (default: 5m)
+# agent: claude-code    # "claude-code" (default) or "pi"
+# model: opus           # model hint passed to the agent
+# maxTurns: 50          # cap agent iterations per run (default: 99)
+# name: My Heartbeat
+# description: What this heartbeat does
+# session: my-session   # pi-specific: reuse a named browser session
+# permissions: skip      # skip permission checks (only "skip" supported in frontmatter)
+---
+
+Your prompt here...
+```
+
+**Notes:**
+- `interval` or `cron` — use one, not both. Intervals: `15m`, `1h`, `6h`, `1d`. Cron: standard 5-field expressions.
+- `permissions: "skip"` is the only permissions value supported in frontmatter. For deny lists, use config.json.
+- `murmur init` generates a template with these fields pre-filled.
+
 ## Workflow
 
 ### 0. Preflight
@@ -52,6 +78,12 @@ which murmur
   cd murmur && bun install && bun run build
   # Then add ./murmur to PATH
   ```
+
+You can also scaffold a workspace immediately with flags:
+```bash
+murmur init {path} --interval 30m
+murmur init {path} --cron "0 9 * * 1-5" --timeout 15m
+```
 
 ### 1. Interview
 
@@ -88,6 +120,9 @@ Based on their goal, dig into specifics:
   - **Interval** — fixed frequency: `15m`, `1h`, `6h`, `1d`
   - **Cron** — precise schedule: `0 9 * * 1-5` (weekdays at 9am), `*/30 * * * *` (every 30 min)
   - If they pick cron, ask about timezone (defaults to local system tz)
+- Does the heartbeat need more than the default 5-minute timeout? (e.g., `timeout: 15m` for long-running tasks)
+- Any model preference? (default uses whatever the agent defaults to; can set `model: opus`, `model: sonnet`, etc.)
+- Agent choice: `claude-code` (default) runs Claude Code CLI; `pi` runs the pi agent (has browser extensions)
 
 **Round 3 — Delivery:**
 
@@ -113,6 +148,7 @@ If delivery or data sources need tokens/webhooks:
 
 Write the HEARTBEAT.md file. Rules:
 
+- Include a YAML frontmatter block with at least the schedule (`interval` or `cron`). Add `timeout`, `model`, or other fields as needed based on the interview.
 - Don't include instructions about HEARTBEAT_OK / ATTENTION — the runtime injects those automatically
 - Be explicit about every step — Claude has no memory between heartbeats
 - For change-detection workflows (price drops, new items, status changes), include steps to read/write state files in the workspace (e.g., `last-price.txt`, `tracking-state.json`)
@@ -121,7 +157,7 @@ Write the HEARTBEAT.md file. Rules:
 - Keep it focused — one purpose per heartbeat
 - Use `$VAR_NAME` for secrets
 
-Place the file at `{workspace}/HEARTBEAT.md`. If not initialized, run `murmur init {path}` first.
+Place the file at `{workspace}/HEARTBEAT.md`.
 
 ### 3. Test
 
@@ -142,36 +178,15 @@ Ask the user: "Did that do what you expected?"
 
 ### 5. Register
 
-Ensure the workspace is in murmur's config (`~/.murmur/config.json`):
+Register the workspace with murmur so the daemon knows about it:
 
-1. Check for an existing entry with this workspace path
-2. If missing, add it with the agreed schedule. Use **either** `interval` or `cron`, never both:
-
-   **Interval-based:**
-
-   ```json
-   {
-     "path": "{absolute_workspace_path}",
-     "interval": "{interval}",
-     "lastRun": null
-   }
-   ```
-
-   **Cron-based:**
-
-   ```json
-   {
-     "path": "{absolute_workspace_path}",
-     "cron": "{cron_expression}",
-     "tz": "{timezone}",
-     "lastRun": null
-   }
-   ```
-
-   Omit `tz` if the user is fine with their local system timezone.
-
-3. Optional: set `"maxTurns": N` to cap Claude's agent iterations per heartbeat
-4. Tell the user to start murmur if not running: `murmur start`
+1. Run `murmur init {absolute_workspace_path}` — this auto-registers the workspace in `~/.murmur/config.json` (with `{ path, lastRun: null }`). If HEARTBEAT.md already exists, it skips creating it but still registers.
+2. Verify registration: `murmur workspaces list`
+3. Schedule, timeout, model, and other settings live in the HEARTBEAT.md frontmatter — no need to edit config.json for these.
+4. **Only** edit `~/.murmur/config.json` directly if you need a `permissions.deny` list (frontmatter only supports `permissions: skip`).
+5. Tell the user to start the daemon:
+   - `murmur start` — foreground with TUI (press `q` to quit, `d` to detach)
+   - `murmur start --detach` — background mode (reattach with `murmur watch`)
 
 ## Rules
 

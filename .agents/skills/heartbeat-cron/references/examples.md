@@ -24,7 +24,9 @@ Remind the user: if they want to be _notified_, the heartbeat itself must do the
 ### Auto-triage incoming issues
 
 ```markdown
-# Heartbeat
+---
+interval: 30m
+---
 
 Check for new GitHub issues on {org}/{repo} using `gh issue list --state open --json number,title,body,labels`.
 For any issue with no labels:
@@ -39,12 +41,12 @@ If any issue is labeled `security`, post to Slack:
 If no unlabeled issues, respond HEARTBEAT_OK.
 ```
 
-Interval: `30m`
-
 ### Stale PR nudge
 
 ```markdown
-# Heartbeat
+---
+interval: 12h
+---
 
 List open PRs on {org}/{repo} with `gh pr list --json number,title,author,createdAt,reviewRequests`.
 For any PR open > 48 hours with no reviews:
@@ -55,12 +57,12 @@ For any PR open > 48 hours with no reviews:
 If all PRs are reviewed or < 48h old, respond HEARTBEAT_OK.
 ```
 
-Interval: `12h`
-
 ### CI failure digest
 
 ```markdown
-# Heartbeat
+---
+interval: 1h
+---
 
 Check the last 10 GitHub Actions runs: `gh run list --limit 10 --json status,conclusion,name,headBranch,createdAt`.
 Collect any with conclusion=failure.
@@ -73,14 +75,14 @@ If failures exist, write a summary to `ci-report.md` in this workspace:
 If all green, respond HEARTBEAT_OK.
 ```
 
-Interval: `1h`
-
 ## Research & Intelligence
 
 ### Hacker News scout
 
 ```markdown
-# Heartbeat
+---
+interval: 6h
+---
 
 Fetch top 30 HN stories via `curl -s https://hacker-news.firebaseio.com/v0/topstories.json`.
 For each, fetch details: `curl -s https://hacker-news.firebaseio.com/v0/item/{id}.json`.
@@ -98,12 +100,12 @@ Also post the top 3 to Slack:
 If nothing relevant, respond HEARTBEAT_OK.
 ```
 
-Interval: `6h`
-
 ### Competitor changelog tracker
 
 ```markdown
-# Heartbeat
+---
+interval: 1d
+---
 
 Fetch the changelog/release pages for:
 
@@ -116,12 +118,12 @@ If anything new, write a summary to `competitive-intel.md` in this workspace and
 If nothing new, respond HEARTBEAT_OK.
 ```
 
-Interval: `1d`
-
 ### Arxiv paper monitor
 
 ```markdown
-# Heartbeat
+---
+interval: 1d
+---
 
 Search recent arxiv papers using the API:
 `curl -s "http://export.arxiv.org/api/query?search_query=all:{keywords}&sortBy=submittedDate&sortOrder=descending&max_results=10"`
@@ -137,14 +139,14 @@ If relevant papers found, append to `papers.md`:
 If nothing relevant, respond HEARTBEAT_OK.
 ```
 
-Interval: `1d`
-
 ## Ops & Infrastructure
 
 ### Endpoint canary
 
 ```markdown
-# Heartbeat
+---
+interval: 15m
+---
 
 Check these endpoints and record response status + latency:
 
@@ -159,12 +161,12 @@ Log every check to `uptime.csv` (timestamp, url, status, latency).
 If all healthy, respond HEARTBEAT_OK.
 ```
 
-Interval: `15m`
-
 ### Docker resource check
 
 ```markdown
-# Heartbeat
+---
+interval: 6h
+---
 
 Run `docker system df` and `docker ps --format '{{.Names}} {{.Status}}'`.
 
@@ -176,14 +178,14 @@ Append results to `docker-health.log` in this workspace.
 If everything is healthy and disk < 80%, respond HEARTBEAT_OK.
 ```
 
-Interval: `6h`
-
 ## Personal & Creative
 
 ### Daily journal prompt
 
 ```markdown
-# Heartbeat
+---
+interval: 1d
+---
 
 Create today's journal entry file: `journal/{YYYY-MM-DD}.md`.
 Include:
@@ -195,12 +197,12 @@ Include:
 If today's file already exists, respond HEARTBEAT_OK.
 ```
 
-Interval: `1d`
-
 ### Repo activity digest
 
 ```markdown
-# Heartbeat
+---
+interval: 1d
+---
 
 For each repo in [{repo_list}]:
 
@@ -216,8 +218,6 @@ Write a digest to `weekly-activity.md`:
 If zero activity across all repos, respond HEARTBEAT_OK.
 ```
 
-## Interval: `1d`
-
 ## Choosing the Right Schedule
 
 Use **interval** for fixed-frequency checks. Use **cron** when you need specific times or weekday-only runs.
@@ -230,4 +230,4 @@ Use **interval** for fixed-frequency checks. Use **cron** when you need specific
 | Research & intelligence                | `6h` – `1d`  | `0 8 * * *` (daily at 8am)            |
 | Housekeeping (deps, cleanup, digests)  | `1d`         | `0 3 * * 0` (Sunday 3am)              |
 
-Cron workspaces support an optional `tz` field (e.g., `"America/New_York"`) — defaults to local system timezone.
+Cron heartbeats support an optional `tz` frontmatter field (e.g., `tz: America/New_York`) — defaults to local system timezone.
