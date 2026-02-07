@@ -132,7 +132,7 @@ async function testDaemonLifecycle(
   // Start daemon in background
   const startResult = await murmur("start", "--detach", "--tick", "5s");
   expect(startResult.exitCode).toBe(0);
-  expect(startResult.stdout).toContain("Started");
+  expect(startResult.stdout).toContain("Daemon started");
 
   // PID file exists and process is alive
   const pidFile = join(testDataDir, PID_FILENAME);
@@ -158,7 +158,7 @@ async function testDaemonLifecycle(
   // Stop daemon
   const stopResult = await murmur("stop");
   expect(stopResult.exitCode).toBe(0);
-  expect(stopResult.stdout).toContain("Stopped");
+  expect(stopResult.stdout).toContain("Daemon stopped");
 
   await Bun.sleep(1_000);
 

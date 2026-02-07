@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { resolve, join, basename } from "node:path";
+import prettyMs from "pretty-ms";
 import {
   setDataDir,
   getDataDir,
@@ -11,6 +12,7 @@ import {
   getPidPath,
   getSocketPath,
   parseInterval,
+  nextRunAt,
   validateResolvedConfig,
   cleanupRuntimeFiles,
 } from "./config.ts";
@@ -76,6 +78,31 @@ function cleanStaleSocket() {
     }
   }
 }
+
+/** Get workspace count and soonest next-heartbeat info from config. */
+function getWorkspaceSummary(): { count: number; nextHeartbeat: string | null } {
+  const config = readConfig();
+  const count = config.workspaces.length;
+  if (count === 0) return { count, nextHeartbeat: null };
+
+  let soonestName: string | null = null;
+  let soonestMs = Infinity;
+
+  for (const ws of config.workspaces) {
+    const resolved = resolveWorkspaceConfig(ws);
+    if (!resolved.interval && !resolved.cron) continue;
+    const nextMs = nextRunAt(resolved) - Date.now();
+    if (nextMs < soonestMs) {
+      soonestMs = nextMs;
+      soonestName = resolved.name ?? basename(ws.path);
+    }
+  }
+
+  if (!soonestName) return { count, nextHeartbeat: null };
+  if (soonestMs <= 0) return { count, nextHeartbeat: `${soonestName} (due now)` };
+  return { count, nextHeartbeat: `${soonestName} in ${prettyMs(soonestMs, { secondsDecimalDigits: 0 })}` };
+}
+
 
 function parseGlobalArgs() {
   const raw = process.argv.slice(2);
@@ -156,8 +183,12 @@ async function startForeground() {
   ensureDataDir();
   const pid = readPid();
   if (pid && isProcessAlive(pid)) {
-    console.log(`Already running (PID ${pid}). Use "murmur watch" to attach.`);
-    process.exit(1);
+    const { count, nextHeartbeat } = getWorkspaceSummary();
+    console.log(`Daemon already running (PID ${pid}). Watching ${count} workspace(s).`);
+    if (nextHeartbeat) console.log(`Next heartbeat: ${nextHeartbeat}`);
+    console.log(`View status: murmur status`);
+    console.log(`Attach to TUI: murmur watch`);
+    process.exit(0);
   }
 
   cleanStaleSocket();
@@ -166,6 +197,8 @@ async function startForeground() {
   const config = readConfig();
 
   writeFileSync(getPidPath(), String(process.pid));
+
+  console.log(`Daemon started (PID ${process.pid}). Watching ${config.workspaces.length} workspace(s). Press Ctrl+C to stop.`);
 
   const handle = startDaemon(tickMs);
 
@@ -213,8 +246,12 @@ async function startDetached() {
   ensureDataDir();
   const pid = readPid();
   if (pid && isProcessAlive(pid)) {
-    console.log(`Already running (PID ${pid}).`);
-    process.exit(1);
+    const { count, nextHeartbeat } = getWorkspaceSummary();
+    console.log(`Daemon already running (PID ${pid}). Watching ${count} workspace(s).`);
+    if (nextHeartbeat) console.log(`Next heartbeat: ${nextHeartbeat}`);
+    console.log(`View status: murmur status`);
+    console.log(`Attach to TUI: murmur watch`);
+    process.exit(0);
   }
 
   const isCompiled = process.execPath === process.argv[0];
@@ -236,7 +273,11 @@ async function startDetached() {
   await Bun.sleep(500);
   const newPid = readPid();
   if (newPid && isProcessAlive(newPid)) {
-    console.log(`Started (PID ${newPid}).`);
+    const { count, nextHeartbeat } = getWorkspaceSummary();
+    console.log(`Daemon started (PID ${newPid}). Watching ${count} workspace(s).`);
+    if (nextHeartbeat) console.log(`Next heartbeat: ${nextHeartbeat}`);
+    console.log(`View status: murmur status`);
+    console.log(`Attach to TUI: murmur watch`);
   } else {
     const stderr = existsSync(stderrLog) ? readFileSync(stderrLog, "utf-8").trim() : "";
     console.error(`Daemon failed to start.${stderr ? `\n${stderr}` : ""}`);
@@ -250,8 +291,10 @@ function stop() {
     console.log("Not running.");
     return;
   }
+  const { count } = getWorkspaceSummary();
   process.kill(pid, "SIGTERM");
-  console.log(`Stopped (PID ${pid}).`);
+  console.log(`Daemon stopped (PID ${pid}). ${count} workspace(s) released.`);
+  console.log(`Restart: murmur start --detach`);
 }
 
 function status() {
