@@ -1,6 +1,21 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.2.1] - 2026-02-07
+
+### Bug Fixes
+
+- Add error handling to workspace commands
+
+### Documentation
+
+- Rewrite README to clarify minimal building-block positioning (#24)
+
+### Features
+
+- Add workspace management commands, fix exit codes (#11, #14)
+- Multi-agent support - Enable pi, Claude Code, and future agent harnesses (#26)
+
 ## [0.2.0] - 2026-02-05
 
 ### Bug Fixes
