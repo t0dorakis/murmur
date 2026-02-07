@@ -1,6 +1,16 @@
 # Changelog
 
 All notable changes to this project will be documented in this file.
+## [0.3.0] - 2026-02-07
+
+### Bug Fixes
+
+- **cli:** Resolve frontmatter config in beat command
+
+### Features
+
+- HEARTBEAT.md frontmatter as source of truth for heartbeat config
+- HEARTBEAT.md frontmatter as source of truth for config (#29)
 
 ## [0.2.1] - 2026-02-07
 
@@ -58,3 +68,4 @@ All notable changes to this project will be documented in this file.
 - Add changelog generation and release automation
 
 ## [0.1.0] - 2026-02-04
+
