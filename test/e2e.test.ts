@@ -120,7 +120,7 @@ async function testDaemonLifecycle(
 }
 
 describe("e2e", () => {
-  test("murmur beat fires a real heartbeat", async () => {
+  test("murmur beat fires a real heartbeat (claude-code)", async () => {
     const jokesBefore = jokeCount();
 
     const result = await murmur("beat", EXAMPLE_DIR);
@@ -138,6 +138,41 @@ describe("e2e", () => {
     expect(jokeCount()).toBeGreaterThan(jokesBefore);
   }, 60_000);
 
+  test("murmur beat with pi agent", async () => {
+    const jokesBefore = jokeCount();
+
+    // Create config with pi agent
+    const configFile = join(testDataDir, "config.json");
+    writeFileSync(configFile, JSON.stringify({
+      workspaces: [{
+        path: EXAMPLE_DIR,
+        agent: "pi",
+        lastRun: null,
+      }],
+    }, null, 2));
+
+    const result = await murmur("beat", EXAMPLE_DIR);
+    expect(result.exitCode).toBe(0);
+
+    // Log file created with a valid entry
+    const logFile = join(testDataDir, "heartbeats.jsonl");
+    expect(existsSync(logFile)).toBe(true);
+
+    const logContent = readFileSync(logFile, "utf-8");
+    expect(logContent).toContain('"outcome"');
+    expect(logContent).not.toContain('"outcome":"error"');
+
+    // Pi actually did the work
+    expect(jokeCount()).toBeGreaterThan(jokesBefore);
+
+    // Verify pi agent was used in the log
+    const lastLine = logContent.trim().split("\n").pop();
+    expect(lastLine).toBeTruthy();
+    const entry = JSON.parse(lastLine!);
+    expect(entry.turns).toBeTruthy();
+    expect(entry.turns.length).toBeGreaterThan(0);
+  }, 60_000);
+
   test("daemon lifecycle: start, scheduled beat, stop", async () => {
     await testDaemonLifecycle({ interval: "1s" });
 
@@ -151,5 +186,13 @@ describe("e2e", () => {
       { cron: "* * * * *" },
       (stdout) => expect(stdout).toContain("cron"),
     );
+  }, 60_000);
+
+  test("daemon lifecycle with pi agent", async () => {
+    await testDaemonLifecycle({ agent: "pi", interval: "1s" });
+
+    // Status reports stopped after lifecycle completes
+    const statusAfter = await murmur("status");
+    expect(statusAfter.stdout).toContain("stopped");
   }, 60_000);
 });
