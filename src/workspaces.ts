@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { readConfig, writeConfig } from "./config.ts";
+import { resolveWorkspaceConfig } from "./daemon.ts";
 
 export function listWorkspaces(): void {
   const config = readConfig();
@@ -12,13 +13,19 @@ export function listWorkspaces(): void {
 
   console.log(`Workspaces (${config.workspaces.length}):\n`);
   for (const ws of config.workspaces) {
+    const resolved = resolveWorkspaceConfig(ws);
     console.log(`  ${ws.path}`);
-    const schedule = ws.cron
-      ? `cron ${ws.cron}${ws.tz ? ` (${ws.tz})` : ""}`
-      : `every ${ws.interval}`;
+    if (resolved.name) console.log(`    Name: ${resolved.name}`);
+    if (resolved.description) console.log(`    Description: ${resolved.description}`);
+    const schedule = resolved.cron
+      ? `cron ${resolved.cron}${resolved.tz ? ` (${resolved.tz})` : ""}`
+      : resolved.interval ? `every ${resolved.interval}` : "(none)";
     console.log(`    Schedule: ${schedule}`);
+    if (resolved.timeout) console.log(`    Timeout: ${resolved.timeout}`);
     console.log(`    Last run: ${ws.lastRun ?? "never"}`);
-    if (ws.maxTurns) console.log(`    Max turns: ${ws.maxTurns}`);
+    if (resolved.agent) console.log(`    Agent: ${resolved.agent}`);
+    if (resolved.model) console.log(`    Model: ${resolved.model}`);
+    if (resolved.maxTurns) console.log(`    Max turns: ${resolved.maxTurns}`);
     console.log("");
   }
 }

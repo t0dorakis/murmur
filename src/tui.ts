@@ -13,6 +13,7 @@ import type { DaemonEvent, Outcome, ToolCall, WorkspaceStatus } from "./types.ts
 type FeedEntry = {
   workspace: string;
   name: string;
+  description?: string;
   promptPreview: string;
   outcome: Outcome | null;
   durationMs: number | null;
@@ -167,9 +168,11 @@ function renderActiveBeat(state: TuiState, termWidth: number, maxLines: number):
   const lines: string[] = [];
   lines.push(` ${styled("▶", bold, white)} ${styled(name, bold, white)}${" ".repeat(Math.max(1, termWidth - name.length - elapsed.length - 6))}${styled(elapsed, dim)}`);
 
+  const wsStatus = state.workspaces.find((w) => w.path === workspace);
   const feedEntry = state.feed.findLast((f) => f.workspace === workspace);
-  if (feedEntry?.promptPreview) {
-    lines.push(`   ${styled(truncate(feedEntry.promptPreview, termWidth - 4), dim)}`);
+  const subtitle = wsStatus?.description ?? feedEntry?.promptPreview;
+  if (subtitle) {
+    lines.push(`   ${styled(truncate(subtitle, termWidth - 4), dim)}`);
   }
 
   // Show recent tool calls
@@ -210,8 +213,9 @@ function renderFeedEntry(entry: FeedEntry, termWidth: number): string[] {
   const meta = [label, tools, styled(dur, dim)].filter(Boolean).join("  ");
   lines.push(` ${icon} ${styled(name, bold, white)}${" ".repeat(Math.max(1, termWidth - name.length - meta.length - 6))}${meta}`);
 
-  if (entry.promptPreview) {
-    lines.push(`   ${styled(truncate(entry.promptPreview, termWidth - 4), dim)}`);
+  const subtitle = entry.description ?? entry.promptPreview;
+  if (subtitle) {
+    lines.push(`   ${styled(truncate(subtitle, termWidth - 4), dim)}`);
   }
 
   if (entry.output) {
@@ -238,9 +242,11 @@ function reduceEvent(state: TuiState, event: DaemonEvent): boolean {
     case "heartbeat:start": {
       state.activeBeat = { workspace: event.workspace, output: "", startedAt: Date.now(), tools: [] };
       const name = workspaceDisplayName(event.workspace, state.workspaces);
+      const wsStatus = state.workspaces.find((w) => w.path === event.workspace);
       state.feed.push({
         workspace: event.workspace,
         name,
+        description: wsStatus?.description,
         promptPreview: event.promptPreview,
         outcome: null,
         durationMs: null,

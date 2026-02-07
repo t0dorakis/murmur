@@ -66,6 +66,9 @@ function parseGlobalArgs() {
   const raw = process.argv.slice(2);
   let dataDir: string | undefined;
   let tick: string | undefined;
+  let interval: string | undefined;
+  let cronFlag: string | undefined;
+  let timeout: string | undefined;
   let detach = false;
   let daemon = false;
   let debugFlag = false;
@@ -76,6 +79,12 @@ function parseGlobalArgs() {
       dataDir = raw[++i];
     } else if (raw[i] === "--tick") {
       tick = raw[++i];
+    } else if (raw[i] === "--interval") {
+      interval = raw[++i];
+    } else if (raw[i] === "--cron") {
+      cronFlag = raw[++i];
+    } else if (raw[i] === "--timeout") {
+      timeout = raw[++i];
     } else if (raw[i] === "--detach") {
       detach = true;
     } else if (raw[i] === "--daemon") {
@@ -88,10 +97,10 @@ function parseGlobalArgs() {
       rest.push(raw[i]!);
     }
   }
-  return { dataDir, tick, detach, daemon, debug: debugFlag, quiet, command: rest[0], targetPath: rest[1] ?? ".", args: rest };
+  return { dataDir, tick, interval, cron: cronFlag, timeout, detach, daemon, debug: debugFlag, quiet, command: rest[0], targetPath: rest[1] ?? ".", args: rest };
 }
 
-const { dataDir, tick, detach, daemon, debug: debugFlag, quiet, command, targetPath, args } = parseGlobalArgs();
+const { dataDir, tick, interval: initInterval, cron: initCron, timeout: initTimeout, detach, daemon, debug: debugFlag, quiet, command, targetPath, args } = parseGlobalArgs();
 if (dataDir) setDataDir(dataDir);
 if (debugFlag) {
   enableDebug();
@@ -330,23 +339,43 @@ function cliEmitter(event: DaemonEvent) {
   }
 }
 
-const HEARTBEAT_TEMPLATE = `# Heartbeat
+const HEARTBEAT_TEMPLATE = (interval: string, timeout?: string, cron?: string) => {
+  const lines = ["---"];
+  if (cron) {
+    lines.push(`interval: ${cron}`);
+  } else {
+    lines.push(`interval: ${interval}`);
+  }
+  if (timeout) lines.push(`timeout: ${timeout}`);
+  lines.push(
+    "# name: My Heartbeat",
+    "# description: What this heartbeat does",
+    "# agent: claude-code",
+    "# model: opus",
+    "# maxTurns: 50",
+    "---",
+    "",
+    "# Heartbeat",
+    "",
+    "What to do on each heartbeat. If nothing needs attention, respond with",
+    "exactly `HEARTBEAT_OK`. Otherwise, start with `ATTENTION:` and a brief summary.",
+    "",
+    "## Do this",
+    "",
+    "- Check for new GitHub issues on my-org/my-repo using `gh`",
+    "- For any untagged issues, add a triage label based on the content",
+    "- If there are urgent issues (security, data loss, outage), tell me",
+    "",
+  );
+  return lines.join("\n");
+};
 
-What to do on each heartbeat. If nothing needs attention, respond with
-exactly \`HEARTBEAT_OK\`. Otherwise, start with \`ATTENTION:\` and a brief summary.
-
-## Do this
-
-- Check for new GitHub issues on my-org/my-repo using \`gh\`
-- For any untagged issues, add a triage label based on the content
-- If there are urgent issues (security, data loss, outage), tell me
-`;
-
-async function init(path: string) {
+async function init(path: string, opts?: { interval?: string; cron?: string; timeout?: string }) {
   const resolved = resolve(path);
   const heartbeatFile = join(resolved, "HEARTBEAT.md");
   if (!existsSync(heartbeatFile)) {
-    await Bun.write(heartbeatFile, HEARTBEAT_TEMPLATE);
+    const tpl = HEARTBEAT_TEMPLATE(opts?.interval ?? "1h", opts?.timeout, opts?.cron);
+    await Bun.write(heartbeatFile, tpl);
     console.log(`Created ${heartbeatFile}`);
   } else {
     console.log(`HEARTBEAT.md already exists in ${resolved}.`);
@@ -356,7 +385,7 @@ async function init(path: string) {
   const config = readConfig();
   const alreadyRegistered = config.workspaces.some((ws) => ws.path === resolved);
   if (!alreadyRegistered) {
-    config.workspaces.push({ path: resolved, interval: "1h", lastRun: null });
+    config.workspaces.push({ path: resolved, lastRun: null });
     await writeConfig(config);
     console.log(`Added workspace to config.`);
   }
@@ -379,6 +408,9 @@ Commands:
 
 Options:
   --data-dir <path>            Override data directory (default: ~/.murmur)
+  --interval <interval>        Set interval in HEARTBEAT.md (init only, e.g. 30m)
+  --cron <expr>                Set cron in HEARTBEAT.md (init only, e.g. "0 9 * * *")
+  --timeout <interval>         Set timeout in HEARTBEAT.md (init only, e.g. 15m)
   --debug                      Enable debug logging to <data-dir>/debug.log
   --quiet, -q                  Hide tool calls during beat (show summary only)
   --help, -h                   Show this help message
@@ -419,7 +451,7 @@ if (daemon) {
     await beat(targetPath, quiet);
     break;
   case "init":
-    await init(targetPath);
+    await init(targetPath, { interval: initInterval, cron: initCron, timeout: initTimeout });
     break;
   case "workspaces": {
     const subcommand = args[1];

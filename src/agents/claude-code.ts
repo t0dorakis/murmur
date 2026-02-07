@@ -1,4 +1,5 @@
 import { debug } from "../debug.ts";
+import { parseInterval } from "../config.ts";
 import { buildDisallowedToolsArgs } from "../permissions.ts";
 import { runParseStream } from "../stream-parser.ts";
 import { isCommandAvailable, getCommandVersion } from "./cli-utils.ts";
@@ -49,7 +50,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       stdin: new Blob([prompt]),
       stdout: "pipe",
       stderr: "pipe",
-      timeout: DEFAULT_AGENT_TIMEOUT_MS,
+      timeout: workspace.timeout ? parseInterval(workspace.timeout) : DEFAULT_AGENT_TIMEOUT_MS,
     });
 
     if (!proc.stdout) throw new Error("Spawned process stdout is not piped");

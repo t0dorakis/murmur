@@ -64,6 +64,42 @@ murmur init [path]                 Create HEARTBEAT.md template
 
 The prompt file. Write what you want Claude to do on each run — or let the skill generate it through an interview.
 
+HEARTBEAT.md supports optional YAML frontmatter for per-heartbeat configuration:
+
+```markdown
+---
+name: Issue Worker
+description: Picks up triaged GitHub issues
+interval: 30m
+timeout: 30m
+maxTurns: 50
+agent: claude-code
+model: opus
+# session: my-session
+# permissions: skip
+---
+
+# Heartbeat
+
+Check for new issues...
+```
+
+Frontmatter values override config.json. Config.json values are used as fallback. A HEARTBEAT.md without frontmatter works unchanged.
+
+| Frontmatter Field | Description |
+|-------------------|-------------|
+| `name` | Display name in TUI (falls back to `# heading`, then dirname) |
+| `description` | Description shown in TUI (falls back to content preview) |
+| `interval` | Run every N units: `15m`, `1h`, `6h`, `1d` |
+| `cron` | Cron expression (alternative to interval) |
+| `tz` | Timezone for cron |
+| `timeout` | Execution timeout: `15m`, `1h` (default: 5m) |
+| `maxTurns` | Cap agent iterations per heartbeat |
+| `agent` | Agent harness: `claude-code` (default), `pi` |
+| `model` | Model selection (e.g., `opus`, `anthropic/claude-sonnet-4.5`) |
+| `session` | Session ID for context reuse (pi agent) |
+| `permissions` | `skip` or deny list |
+
 **Response protocol:**
 - `HEARTBEAT_OK` — nothing to report (silent, just logged)
 - `ATTENTION: <summary>` — needs attention (surfaced in TUI)
@@ -118,14 +154,13 @@ If nothing new or nothing worth proposing, HEARTBEAT_OK.
 
 ## Config
 
-`~/.murmur/config.json` — workspaces and their schedules.
+`~/.murmur/config.json` — workspace paths and mutable state. Schedule and agent configuration lives in HEARTBEAT.md frontmatter (preferred) or config.json (fallback).
 
 ```json
 {
   "workspaces": [
     {
-      "path": "/Users/you/repos/my-project",
-      "interval": "30m"
+      "path": "/Users/you/repos/my-project"
     },
     {
       "path": "/Users/you/repos/research",
@@ -142,47 +177,43 @@ If nothing new or nothing worth proposing, HEARTBEAT_OK.
 | `interval` | Run every N units: `15m`, `1h`, `6h`, `1d` |
 | `cron` | Cron expression (alternative to interval): `0 9 * * 1-5` |
 | `tz` | Timezone for cron (default: system) |
+| `timeout` | Execution timeout: `15m`, `1h` (default: 5m) |
 | `maxTurns` | Cap agent iterations per heartbeat (default: unlimited) |
 | `agent` | Agent harness to use: `claude-code` (default), `pi`, etc. |
+| `model` | Model selection (agent-agnostic) |
+| `session` | Session ID for context reuse |
 
-Use `interval` or `cron`, not both.
+All config fields can also be set in HEARTBEAT.md frontmatter (takes precedence). Use `interval` or `cron`, not both.
 
 ## Agent Harnesses
 
 Murmur supports multiple AI agent harnesses, allowing you to choose the best tool for each heartbeat:
 
 **Claude Code (default):**
-```json
-{
-  "path": "/Users/you/repos/project",
-  "agent": "claude-code",
-  "interval": "1h"
-}
+```markdown
+---
+agent: claude-code
+interval: 1h
+model: opus
+---
 ```
 
 **Pi ([pi-mono](https://github.com/badlogic/pi-mono)):**
-```json
-{
-  "path": "/Users/you/repos/research",
-  "agent": "pi",
-  "piExtensions": ["@mariozechner/pi-browser"],
-  "piSession": "research-daily",
-  "piModel": "anthropic/claude-sonnet-4.5",
-  "cron": "0 9 * * *"
-}
+```markdown
+---
+agent: pi
+model: anthropic/claude-sonnet-4.5
+session: research-daily
+cron: 0 9 * * *
+---
 ```
 
 | Agent | Description | Config Options |
 |-------|-------------|----------------|
-| `claude-code` | Anthropic's official CLI (default) | `maxTurns`, `permissions` |
-| `pi` | Minimal coding agent by @badlogic | `piExtensions`, `piSession`, `piModel` |
+| `claude-code` | Anthropic's official CLI (default) | `maxTurns`, `permissions`, `model` |
+| `pi` | Minimal coding agent by @badlogic | `model`, `session` |
 
-**Pi-specific options:**
-- `piExtensions` — Array of pi extensions to load (e.g., `["@mariozechner/pi-google-calendar"]`)
-- `piSession` — Session ID for context reuse across heartbeats
-- `piModel` — Model/provider to use (e.g., `"anthropic/claude-sonnet-4.5"`)
-
-If `agent` is not specified, murmur defaults to `claude-code` for backward compatibility.
+If `agent` is not specified, murmur defaults to `claude-code`.
 
 ## Extending
 
@@ -220,7 +251,7 @@ Outcomes: `ok`, `attention`, `error`.
 **Add a browser tool.** Many useful heartbeats need to interact with real websites — checking prices, monitoring pages, filling forms. Claude's built-in `WebFetch` works for simple static pages, but sites with JavaScript rendering, login flows, or anti-bot measures need a real browser. Two good options:
 
 - [**agent-browser**](https://github.com/vercel-labs/agent-browser) — Headless browser CLI for AI agents. Works with Claude Code out of the box.
-- [**pi-browser**](https://github.com/badlogic/pi-mono) — Browser extension for pi. Use with `"agent": "pi"` and `"piExtensions": ["@mariozechner/pi-browser"]`.
+- [**pi-browser**](https://github.com/badlogic/pi-mono) — Browser extension for pi. Use with `agent: pi`.
 
 **Use CLIs as tools.** Claude can run any CLI command, so install tools that give your heartbeats superpowers: [`gh`](https://cli.github.com/) for GitHub, [`jq`](https://jqlang.github.io/jq/) for JSON processing, [`rg`](https://github.com/BurntSushi/ripgrep) for fast search. The more CLIs available, the more your heartbeats can do without custom scripts.
 

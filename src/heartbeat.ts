@@ -1,6 +1,7 @@
 import { basename, join } from "node:path";
 import { debug } from "./debug.ts";
 import { getDataDir, ensureDataDir } from "./config.ts";
+import { parseFrontmatter, type FrontmatterResult } from "./frontmatter.ts";
 import { getAdapter } from "./agents/index.ts";
 import type {
   ConversationTurn,
@@ -14,20 +15,26 @@ export type HeartbeatOptions = {
   quiet?: boolean;
 };
 
-export async function buildPrompt(ws: WorkspaceConfig): Promise<string> {
-  const heartbeatPath = join(ws.path, "HEARTBEAT.md");
+/** Read and parse a HEARTBEAT.md file, separating frontmatter from content. */
+export async function readHeartbeatFile(wsPath: string): Promise<FrontmatterResult> {
+  const heartbeatPath = join(wsPath, "HEARTBEAT.md");
   const file = Bun.file(heartbeatPath);
   if (!(await file.exists())) {
-    throw new Error(`HEARTBEAT.md not found in ${ws.path}`);
+    throw new Error(`HEARTBEAT.md not found in ${wsPath}`);
   }
-  const contents = await file.text();
+  const raw = await file.text();
+  return parseFrontmatter(raw);
+}
+
+export async function buildPrompt(ws: WorkspaceConfig): Promise<string> {
+  const { content } = await readHeartbeatFile(ws.path);
   return `You are a heartbeat agent. Follow the instructions below.
 
 WORKSPACE: ${ws.path}
 TIME: ${new Date().toISOString()}
 
 ---
-${contents}
+${content}
 ---
 
 Rules:

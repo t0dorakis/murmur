@@ -13,8 +13,13 @@ type BaseWorkspaceConfig = {
   interval?: string;
   cron?: string;
   tz?: string;
+  timeout?: string;
   maxTurns?: number;
   permissions?: PermissionsOption;
+  name?: string;
+  description?: string;
+  model?: string;
+  session?: string;
   lastRun: string | null;
 };
 
@@ -23,7 +28,6 @@ type BaseWorkspaceConfig = {
  */
 type ClaudeCodeConfig = BaseWorkspaceConfig & {
   agent?: "claude-code";
-  claudeModel?: string;
 };
 
 /**
@@ -31,9 +35,6 @@ type ClaudeCodeConfig = BaseWorkspaceConfig & {
  */
 export type PiConfig = BaseWorkspaceConfig & {
   agent: "pi";
-  piExtensions?: string[];
-  piSession?: string;
-  piModel?: string;
 };
 
 /**
@@ -84,6 +85,7 @@ export type LogEntry = {
 export type WorkspaceStatus = {
   path: string;
   name: string;
+  description?: string;
   schedule: string;
   scheduleType: "interval" | "cron";
   nextRunAt: number;

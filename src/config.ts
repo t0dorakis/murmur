@@ -36,12 +36,15 @@ export function ensureDataDir(): void {
   mkdirSync(dataDir, { recursive: true });
 }
 
+/**
+ * Validate a workspace entry from config.json.
+ * Schedule is optional here — it may come from HEARTBEAT.md frontmatter.
+ */
 export function validateWorkspace(ws: WorkspaceConfig): string | null {
   const hasInterval = typeof ws.interval === "string" && ws.interval.length > 0;
   const hasCron = typeof ws.cron === "string" && ws.cron.length > 0;
 
   if (hasInterval && hasCron) return `has both "interval" and "cron" — pick one`;
-  if (!hasInterval && !hasCron) return `missing "interval" or "cron"`;
 
   if (hasInterval) {
     try {
@@ -67,8 +70,31 @@ export function validateWorkspace(ws: WorkspaceConfig): string | null {
     }
   }
 
+  if (ws.timeout) {
+    try {
+      parseInterval(ws.timeout);
+    } catch {
+      return `invalid timeout: "${ws.timeout}"`;
+    }
+  }
+
   const permError = validatePermissions(ws.permissions);
   if (permError) return permError;
+
+  return null;
+}
+
+/**
+ * Validate a resolved workspace config (after merging frontmatter).
+ * A schedule (interval or cron) is required at this point.
+ */
+export function validateResolvedConfig(ws: WorkspaceConfig): string | null {
+  const base = validateWorkspace(ws);
+  if (base) return base;
+
+  const hasInterval = typeof ws.interval === "string" && ws.interval.length > 0;
+  const hasCron = typeof ws.cron === "string" && ws.cron.length > 0;
+  if (!hasInterval && !hasCron) return `missing "interval" or "cron" (set in HEARTBEAT.md frontmatter or config.json)`;
 
   return null;
 }

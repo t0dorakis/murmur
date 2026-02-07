@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { parseInterval, isDue, nextRunAt, validateWorkspace } from "./config.ts";
+import { parseInterval, isDue, nextRunAt, validateWorkspace, validateResolvedConfig } from "./config.ts";
 import type { WorkspaceConfig } from "./types.ts";
 
 describe("parseInterval", () => {
@@ -147,9 +147,14 @@ describe("validateWorkspace", () => {
     expect(err).toContain("both");
   });
 
-  test("rejects workspace with neither interval nor cron", () => {
+  test("accepts workspace with neither interval nor cron (may come from frontmatter)", () => {
     const err = validateWorkspace({ path: "/tmp/test", lastRun: null });
-    expect(err).toContain("missing");
+    expect(err).toBeNull();
+  });
+
+  test("validates timeout field", () => {
+    expect(validateWorkspace({ path: "/tmp/test", interval: "30m", timeout: "15m", lastRun: null })).toBeNull();
+    expect(validateWorkspace({ path: "/tmp/test", interval: "30m", timeout: "xyz", lastRun: null })).toContain("invalid timeout");
   });
 
   test("rejects invalid interval", () => {
@@ -210,5 +215,20 @@ describe("validateWorkspace", () => {
       lastRun: null,
     });
     expect(err).toContain("must be an array");
+  });
+});
+
+describe("validateResolvedConfig", () => {
+  test("requires schedule after merge", () => {
+    const err = validateResolvedConfig({ path: "/tmp/test", lastRun: null });
+    expect(err).toContain("missing");
+  });
+
+  test("accepts resolved config with interval", () => {
+    expect(validateResolvedConfig({ path: "/tmp/test", interval: "30m", lastRun: null })).toBeNull();
+  });
+
+  test("accepts resolved config with cron", () => {
+    expect(validateResolvedConfig({ path: "/tmp/test", cron: "0 9 * * *", lastRun: null })).toBeNull();
   });
 });

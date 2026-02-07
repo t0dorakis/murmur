@@ -1,4 +1,5 @@
 import { debug } from "../debug.ts";
+import { parseInterval } from "../config.ts";
 import { isCommandAvailable, getCommandVersion } from "./cli-utils.ts";
 import { DEFAULT_AGENT_TIMEOUT_MS } from "./constants.ts";
 import type {
@@ -13,34 +14,19 @@ import type { WorkspaceConfig, ConversationTurn, PiConfig } from "../types.ts";
  * @throws Error if validation fails
  */
 function validatePiConfig(workspace: WorkspaceConfig): asserts workspace is PiConfig {
-  // Runtime check to narrow the discriminated union
   if (workspace.agent !== "pi") {
     throw new Error(`Expected agent 'pi', got: ${workspace.agent ?? "claude-code"}`);
   }
 
-  // Now TypeScript knows workspace.agent === "pi", so workspace is PiConfig
-  if (workspace.piExtensions) {
-    if (!Array.isArray(workspace.piExtensions)) {
-      throw new Error(
-        `piExtensions must be an array, got: ${typeof workspace.piExtensions}`,
-      );
-    }
-    for (const ext of workspace.piExtensions) {
-      if (typeof ext !== "string" || !ext.trim()) {
-        throw new Error(`piExtension must be a non-empty string, got: ${ext}`);
-      }
-    }
-  }
-
-  if (workspace.piModel && typeof workspace.piModel !== "string") {
+  if (workspace.model && typeof workspace.model !== "string") {
     throw new Error(
-      `piModel must be a string, got: ${typeof workspace.piModel}`,
+      `model must be a string, got: ${typeof workspace.model}`,
     );
   }
 
-  if (workspace.piSession && typeof workspace.piSession !== "string") {
+  if (workspace.session && typeof workspace.session !== "string") {
     throw new Error(
-      `piSession must be a string, got: ${typeof workspace.piSession}`,
+      `session must be a string, got: ${typeof workspace.session}`,
     );
   }
 }
@@ -50,10 +36,10 @@ function validatePiConfig(workspace: WorkspaceConfig): asserts workspace is PiCo
  *
  * Supports:
  * - Print mode output (--mode=print)
- * - Extension loading (--extension)
  * - Session persistence (--session)
  * - Model selection (--model)
  * - Max turns configuration
+ * - Configurable timeout
  *
  * Note: Pi uses simpler output format than Claude Code (plain text, no stream-json).
  * We parse the output to extract text and approximate conversation turns.
@@ -73,22 +59,15 @@ export class PiAdapter implements AgentAdapter {
 
     const piArgs = ["pi", "--mode=print"];
 
-    // Add extensions
-    if (workspace.piExtensions && workspace.piExtensions.length > 0) {
-      for (const ext of workspace.piExtensions) {
-        piArgs.push("--extension", ext);
-      }
-    }
-
     // Add session for context reuse
-    if (workspace.piSession) {
-      piArgs.push("--session", workspace.piSession);
-      piArgs.push("--reuse"); // Reuse session context
+    if (workspace.session) {
+      piArgs.push("--session", workspace.session);
+      piArgs.push("--reuse");
     }
 
     // Add model selection
-    if (workspace.piModel) {
-      piArgs.push("--model", workspace.piModel);
+    if (workspace.model) {
+      piArgs.push("--model", workspace.model);
     }
 
     // Add max turns
@@ -107,7 +86,7 @@ export class PiAdapter implements AgentAdapter {
       stdin: new Blob([prompt]),
       stdout: "pipe",
       stderr: "pipe",
-      timeout: DEFAULT_AGENT_TIMEOUT_MS,
+      timeout: workspace.timeout ? parseInterval(workspace.timeout) : DEFAULT_AGENT_TIMEOUT_MS,
     });
 
     if (!proc.stdout) throw new Error("Spawned process stdout is not piped");
