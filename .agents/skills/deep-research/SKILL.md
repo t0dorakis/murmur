@@ -14,6 +14,7 @@ description: Conduct enterprise-grade research with multi-source synthesis, cita
 **Purpose:** Deliver citation-backed, verified research reports through 8-phase pipeline (Scope → Plan → Retrieve → Triangulate → Synthesize → Critique → Refine → Package) with source credibility scoring and progressive context management.
 
 **Context Strategy:** This skill uses 2025 context engineering best practices:
+
 - Static instructions cached (this section)
 - Progressive disclosure (load references only when needed)
 - Avoid "loss in the middle" (critical info at start/end, not buried)
@@ -58,12 +59,14 @@ Validation Gate
 **DEFAULT: Proceed autonomously. Derive assumptions from query signals.**
 
 **ONLY ask if CRITICALLY ambiguous:**
+
 - Query is incomprehensible (e.g., "research the thing")
 - Contradictory requirements (e.g., "quick 50-source ultradeep analysis")
 
 **When in doubt: PROCEED with standard mode. User will redirect if incorrect.**
 
 **Default assumptions:**
+
 - Technical query → Assume technical audience
 - Comparison query → Assume balanced perspective needed
 - Trend query → Assume recent 1-2 years unless specified
@@ -74,12 +77,14 @@ Validation Gate
 ### 2. Plan
 
 **Mode selection criteria:**
+
 - **Quick** (2-5 min): Exploration, broad overview, time-sensitive
 - **Standard** (5-10 min): Most use cases, balanced depth/speed [DEFAULT]
 - **Deep** (10-20 min): Important decisions, need thorough verification
 - **UltraDeep** (20-45 min): Critical analysis, maximum rigor
 
 **Announce plan and execute:**
+
 - Briefly state: selected mode, estimated time, number of sources
 - Example: "Starting standard mode research (5-10 min, 15-30 sources)"
 - Proceed without waiting for approval
@@ -89,31 +94,37 @@ Validation Gate
 ### 3. Act (Phase Execution)
 
 **All modes execute:**
+
 - Phase 1: SCOPE - Define boundaries ([method](./reference/methodology.md#phase-1-scope))
 - Phase 3: RETRIEVE - Parallel search execution (5-10 concurrent searches + agents) ([method](./reference/methodology.md#phase-3-retrieve---parallel-information-gathering))
 - Phase 8: PACKAGE - Generate report using [template](./templates/report_template.md)
 
 **Standard/Deep/UltraDeep execute:**
+
 - Phase 2: PLAN - Strategy formulation
 - Phase 4: TRIANGULATE - Verify 3+ sources per claim
 - Phase 4.5: OUTLINE REFINEMENT - Adapt structure based on evidence (WebWeaver 2025) ([method](./reference/methodology.md#phase-45-outline-refinement---dynamic-evolution-webweaver-2025))
 - Phase 5: SYNTHESIZE - Generate novel insights
 
 **Deep/UltraDeep execute:**
+
 - Phase 6: CRITIQUE - Red-team analysis
 - Phase 7: REFINE - Address gaps
 
 **Critical: Avoid "Loss in the Middle"**
+
 - Place key findings at START and END of sections, not buried
 - Use explicit headers and markers
 - Structure: Summary → Details → Conclusion (not Details sandwiched)
 
 **Progressive Context Loading:**
+
 - Load [methodology](./reference/methodology.md) sections on-demand
 - Load [template](./templates/report_template.md) only for Phase 8
 - Do not inline everything - reference external files
 
 **Anti-Hallucination Protocol (CRITICAL):**
+
 - **Source grounding**: Every factual claim MUST cite a specific source immediately [N]
 - **Clear boundaries**: Distinguish between FACTS (from sources) and SYNTHESIS (your analysis)
 - **Explicit markers**: Use "According to [1]..." or "[1] reports..." for source-grounded statements
@@ -124,6 +135,7 @@ Validation Gate
 **Parallel Execution Requirements (CRITICAL for Speed):**
 
 **Phase 3 RETRIEVE - Mandatory Parallel Search:**
+
 1. **Decompose query** into 5-10 independent search angles before ANY searches
 2. **Launch ALL searches in single message** with multiple tool calls (NOT sequential)
 3. **Quality threshold monitoring** for FFS pattern:
@@ -133,6 +145,7 @@ Validation Gate
 4. **Spawn 3-5 parallel agents** using Task tool for deep-dive investigations
 
 **Example correct execution:**
+
 ```
 [Single message with 8+ parallel tool calls]
 WebSearch #1: Core topic semantic
@@ -146,11 +159,13 @@ Task agent #2: Technical documentation deep dive
 ```
 
 **❌ WRONG (sequential execution):**
+
 ```
 WebSearch #1 → wait for results → WebSearch #2 → wait → WebSearch #3...
 ```
 
 **✅ RIGHT (parallel execution):**
+
 ```
 All searches + agents launched simultaneously in one message
 ```
@@ -166,11 +181,13 @@ python scripts/verify_citations.py --report [path]
 ```
 
 **Checks:**
+
 - DOI resolution (verifies citation actually exists)
 - Title/year matching (detects mismatched metadata)
 - Flags suspicious entries (2024+ without DOI, no URL, failed verification)
 
 **If suspicious citations found:**
+
 - Review flagged entries manually
 - Remove or replace fabricated sources
 - Re-run until clean
@@ -182,6 +199,7 @@ python scripts/validate_report.py --report [path]
 ```
 
 **8 automated checks:**
+
 1. Executive summary length (50-250 words)
 2. Required sections present (+ recommended: Claims table, Counterevidence)
 3. Citations formatted [1], [2], [3]
@@ -192,6 +210,7 @@ python scripts/validate_report.py --report [path]
 8. No broken internal links
 
 **If fails:**
+
 - Attempt 1: Auto-fix formatting/links
 - Attempt 2: Manual review + correction
 - After 2 failures: **STOP** → Report issues → Ask user
@@ -205,6 +224,7 @@ python scripts/validate_report.py --report [path]
 **File Organization (CRITICAL - Clean Accessibility):**
 
 **1. Create Organized Folder in Documents:**
+
 - ALWAYS create dedicated folder: `~/Documents/[TopicName]_Research_[YYYYMMDD]/`
 - Extract clean topic name from research question (remove special chars, use underscores/CamelCase)
 - Examples:
@@ -217,11 +237,13 @@ python scripts/validate_report.py --report [path]
 **2. Save All Formats to Same Folder:**
 
 **Markdown (Primary Source):**
+
 - Save to: `[Documents folder]/research_report_[YYYYMMDD]_[topic_slug].md`
 - Also save copy to: `~/.claude/research_output/` (internal tracking)
 - Full detailed report with all findings
 
 **HTML (McKinsey Style - ALWAYS GENERATE):**
+
 - Save to: `[Documents folder]/research_report_[YYYYMMDD]_[topic_slug].html`
 - Use McKinsey template: [mckinsey_template](./templates/mckinsey_report_template.html)
 - Design principles: Sharp corners (NO border-radius), muted corporate colors (navy #003d5c, gray #f8f9fa), ultra-compact layout, info-first structure
@@ -232,6 +254,7 @@ python scripts/validate_report.py --report [path]
 - OPEN in browser automatically after generation
 
 **PDF (Professional Print - ALWAYS GENERATE):**
+
 - Save to: `[Documents folder]/research_report_[YYYYMMDD]_[topic_slug].pdf`
 - Use generating-pdf skill (via Task tool with general-purpose agent)
 - Professional formatting with headers, page numbers
@@ -239,11 +262,13 @@ python scripts/validate_report.py --report [path]
 
 **3. File Naming Convention:**
 All files use same base name for easy matching:
+
 - `research_report_20251104_psilocybin_2025.md`
 - `research_report_20251104_psilocybin_2025.html`
 - `research_report_20251104_psilocybin_2025.pdf`
 
 **Length Requirements (UNLIMITED with Progressive Assembly):**
+
 - Quick mode: 2,000+ words (baseline quality threshold)
 - Standard mode: 4,000+ words (comprehensive analysis)
 - Deep mode: 6,000+ words (thorough investigation)
@@ -255,6 +280,7 @@ Each section is written to file immediately (avoiding output token limits).
 Complex topics with many findings? Generate 20, 30, 50+ findings - no constraint!
 
 **Content Requirements:**
+
 - Use [template](./templates/report_template.md) as exact structure
 - Generate each section to APPROPRIATE depth (determined by evidence, not word targets)
 - Include specific data, statistics, dates, numbers (not vague statements)
@@ -263,6 +289,7 @@ Complex topics with many findings? Generate 20, 30, 50+ findings - no constraint
 - DO NOT write summaries - write FULL analysis
 
 **Writing Standards:**
+
 - **Narrative-driven**: Write in flowing prose. Each finding tells a story with beginning (context), middle (evidence), end (implications)
 - **Precision**: Every word deliberately chosen, carries intention
 - **Economy**: No fluff, eliminate fancy grammar, unnecessary modifiers
@@ -271,6 +298,7 @@ Complex topics with many findings? Generate 20, 30, 50+ findings - no constraint
 - **High signal-to-noise**: Dense information, respect reader's time
 
 **Bullet Point Policy (Anti-Fatigue Enforcement):**
+
 - Use bullets SPARINGLY: Only for distinct lists (product names, company roster, enumerated steps)
 - NEVER use bullets as primary content delivery - they fragment thinking
 - Each findings section requires substantive prose paragraphs (3-5+ paragraphs minimum)
@@ -278,6 +306,7 @@ Complex topics with many findings? Generate 20, 30, 50+ findings - no constraint
 
 **Anti-Fatigue Quality Check (Apply to EVERY Section):**
 Before considering a section complete, verify:
+
 - [ ] **Paragraph count**: ≥3 paragraphs for major sections (## headings)
 - [ ] **Prose-first**: <20% of content is bullet points (≥80% must be flowing prose)
 - [ ] **No placeholders**: Zero instances of "Content continues", "Due to length", "[Sections X-Y]"
@@ -287,6 +316,7 @@ Before considering a section complete, verify:
 **If ANY check fails:** Regenerate the section before moving to next.
 
 **Source Attribution Standards (Critical for Preventing Fabrication):**
+
 - **Immediate citation**: Every factual claim followed by [N] citation in same sentence
 - **Quote sources directly**: Use "According to [1]..." or "[1] reports..." for factual statements
 - **Distinguish fact from synthesis**:
@@ -304,6 +334,7 @@ Before considering a section complete, verify:
 - **Template pattern**: "[Specific claim with numbers/data] [Citation]. [Analysis/implication]."
 
 **Deliver to user:**
+
 1. Executive summary (inline in chat)
 2. Organized folder path (e.g., "All files saved to: ~/Documents/Psilocybin_Research_20251104/")
 3. Confirmation of all three formats generated:
@@ -316,6 +347,7 @@ Before considering a section complete, verify:
 **Generation Workflow: Progressive File Assembly (Unlimited Length)**
 
 **Phase 8.1: Setup**
+
 ```bash
 # Extract topic slug from research question
 # Create folder: ~/Documents/[TopicName]_Research_[YYYYMMDD]/
@@ -336,11 +368,13 @@ Claude Code default limit: 32,000 output tokens (≈24,000 words total per skill
 This is a HARD LIMIT and cannot be changed within the skill.
 
 **What this means:**
+
 - Total output (your text + all tool call content) must be <32,000 tokens
 - 32,000 tokens ≈ 24,000 words max
 - Leave safety margin: Target ≤20,000 words total output
 
 **Realistic report sizes per mode:**
+
 - Quick mode: 2,000-4,000 words ✅ (well under limit)
 - Standard mode: 4,000-8,000 words ✅ (comfortably under limit)
 - Deep mode: 8,000-15,000 words ✅ (achievable with care)
@@ -348,6 +382,7 @@ This is a HARD LIMIT and cannot be changed within the skill.
 
 **For reports >20,000 words:**
 User must run skill multiple times:
+
 - Run 1: "Generate Part 1 (sections 1-6)" → saves to part1.md
 - Run 2: "Generate Part 2 (sections 7-12)" → saves to part2.md
 - User manually combines or asks Claude to merge files
@@ -355,6 +390,7 @@ User must run skill multiple times:
 **Auto-Continuation Strategy (TRUE Unlimited Length):**
 
 When report exceeds 18,000 words in single run:
+
 1. Generate sections 1-10 (stay under 18K words)
 2. Save continuation state file with context preservation
 3. Spawn continuation agent via Task tool
@@ -364,6 +400,7 @@ When report exceeds 18,000 words in single run:
 This achieves UNLIMITED length while respecting 32K limit per agent
 
 **Initialize Citation Tracking:**
+
 ```
 citations_used = []  # Maintain this list in working memory throughout
 ```
@@ -439,6 +476,7 @@ The FILE grows to 15,000 words, but no single tool call exceeds limits
 After generating sections, check word count:
 
 **If total output ≤18,000 words:** Complete normally
+
 - Generate Bibliography (all citations)
 - Generate Methodology
 - Verify complete report
@@ -555,6 +593,7 @@ HANDOFF PROTOCOL (if spawning next agent):
 
 **Step 3: Report Continuation Status**
 Tell user:
+
 ```
 📊 Report Generation: Part 1 Complete (N sections, X words)
 🔄 Auto-continuing via spawned agent...
@@ -567,6 +606,7 @@ Tell user:
 When continuation agent starts:
 
 **Context Loading (CRITICAL):**
+
 1. Read continuation_state.json → Load ALL context
 2. Read existing report file → Review last 3 sections
 3. Extract patterns:
@@ -576,6 +616,7 @@ When continuation agent starts:
    - Paragraph transition style
 
 **Pre-Generation Checklist:**
+
 - [ ] Loaded research context (themes, question, narrative arc)
 - [ ] Reviewed previous sections for flow
 - [ ] Loaded citation numbering (start from N+1)
@@ -583,6 +624,7 @@ When continuation agent starts:
 - [ ] Understand where in narrative arc (beginning/middle/end)
 
 **Per-Section Generation:**
+
 1. Generate section content
 2. Quality checks:
    - Word count: Within target ±20%
@@ -594,11 +636,13 @@ When continuation agent starts:
 4. If passes: Write to file, update state
 
 **Handoff Decision:**
+
 - Calculate: Current word count + remaining sections × avg_words_per_section
 - If total < 18K: Generate all remaining sections + finish
 - If total > 18K: Generate partial batch, update state, spawn next agent
 
 **Final Agent Responsibilities:**
+
 - Generate final content sections
 - Generate COMPLETE bibliography using ALL citations from state.citations.bibliography_entries
 - Read entire assembled report
@@ -611,6 +655,7 @@ Each agent generates manageable chunks (≤18K words), maintaining quality.
 Context preservation ensures coherence across continuation boundaries.
 
 **Generate HTML (McKinsey Style)**
+
 1. Read McKinsey template from `./templates/mckinsey_report_template.html`
 2. Extract 3-4 key quantitative metrics from findings for dashboard
 3. **Use Python script for MD to HTML conversion:**
@@ -629,13 +674,15 @@ Context preservation ensures coherence across continuation boundaries.
    - Lists: Markdown bullets → `<ul><li>` with proper nesting
    - Tables: Markdown tables → `<table>` with thead/tbody
    - Paragraphs: Text wrapped in `<p>` tags
-   - Bold/italic: **text** → `<strong>`, *text* → `<em>`
+   - Bold/italic: **text** → `<strong>`, _text_ → `<em>`
    - Citations: [N] preserved for tooltip conversion in step 4
 
 4. **Add Citation Tooltips (Attribution Gradients):**
    For each [N] citation in {{CONTENT}} (not bibliography), optionally add interactive tooltips:
+
    ```html
-   <span class="citation">[N]
+   <span class="citation"
+     >[N]
      <span class="citation-tooltip">
        <div class="tooltip-title">[Source Title]</div>
        <div class="tooltip-source">[Author/Publisher]</div>
@@ -646,6 +693,7 @@ Context preservation ensures coherence across continuation boundaries.
      </span>
    </span>
    ```
+
    NOTE: This step is optional for speed. Basic [N] citations are sufficient.
 
 5. Replace placeholders in template:
@@ -661,15 +709,18 @@ Context preservation ensures coherence across continuation boundaries.
 7. Save to: `[folder]/research_report_[YYYYMMDD]_[slug].html`
 
 8. **Verify HTML (MANDATORY):**
+
    ```bash
    python scripts/verify_html.py --html [html_path] --md [md_path]
    ```
+
    - Check passes: Proceed to step 9
    - Check fails: Fix errors and re-run verification
 
 9. Open in browser: `open [html_path]`
 
 **Generate PDF**
+
 1. Use Task tool with general-purpose agent
 2. Invoke generating-pdf skill with markdown as input
 3. Save to: `[folder]/research_report_[YYYYMMDD]_[slug].pdf`
@@ -682,6 +733,7 @@ Context preservation ensures coherence across continuation boundaries.
 **Format:** Comprehensive markdown report following [template](./templates/report_template.md) EXACTLY
 
 **Required sections (all must be detailed):**
+
 - Executive Summary (2-3 concise paragraphs, 50-250 words)
 - Introduction (2-3 paragraphs: question, scope, methodology, assumptions)
 - Main Analysis (4-8 findings, each 300-500 words with citations [1], [2], [3])
@@ -692,6 +744,7 @@ Context preservation ensures coherence across continuation boundaries.
 - Methodology Appendix (2-3 paragraphs: process, sources, verification)
 
 **Bibliography Requirements (ZERO TOLERANCE - Report is UNUSABLE without complete bibliography):**
+
 - ✅ MUST include EVERY citation [N] used in report body (if report has [1]-[50], write all 50 entries)
 - ✅ Format: [N] Author/Org (Year). "Title". Publication. URL (Retrieved: Date)
 - ✅ Each entry on its own line, complete with all metadata
@@ -702,6 +755,7 @@ Context preservation ensures coherence across continuation boundaries.
 - ⚠️ Report is GARBAGE without complete bibliography - no way to verify claims
 
 **Strictly Prohibited:**
+
 - Placeholder text (TBD, TODO, [citation needed])
 - Uncited major claims
 - Broken links
@@ -710,6 +764,7 @@ Context preservation ensures coherence across continuation boundaries.
 - **Vague statements without specific evidence**
 
 **Writing Standards (Critical):**
+
 - **Narrative-driven**: Write in flowing prose with complete sentences that build understanding progressively
 - **Precision**: Choose each word deliberately - every word must carry intention
 - **Economy**: Eliminate fluff, unnecessary adjectives, fancy grammar
@@ -724,6 +779,7 @@ Context preservation ensures coherence across continuation boundaries.
   - Bad: "• Market: $2.4B" → Good: "The market reached $2.4 billion in 2023, driven by consumer demand [1]."
 
 **Quality gates (enforced by validator):**
+
 - Minimum 2,000 words (standard mode)
 - Average credibility score >60/100
 - 3+ sources per major claim
@@ -735,16 +791,19 @@ Context preservation ensures coherence across continuation boundaries.
 ## Error Handling & Stop Rules
 
 **Stop immediately if:**
+
 - 2 validation failures on same error → Pause, report, ask user
 - <5 sources after exhaustive search → Report limitation, request direction
 - User interrupts/changes scope → Confirm new direction
 
 **Graceful degradation:**
+
 - 5-10 sources → Note in limitations, proceed with extra verification
 - Time constraint reached → Package partial results, document gaps
 - High-priority critique issue → Address immediately
 
 **Error format:**
+
 ```
 ⚠️ Issue: [Description]
 📊 Context: [What was attempted]
@@ -760,6 +819,7 @@ Context preservation ensures coherence across continuation boundaries.
 ## Quality Standards (Always Enforce)
 
 Every report must:
+
 - 10+ sources (document if fewer)
 - 3+ sources per major claim
 - Executive summary <250 words
@@ -776,15 +836,18 @@ Every report must:
 ## Inputs & Assumptions
 
 **Required:**
+
 - Research question (string)
 
 **Optional:**
+
 - Mode (quick/standard/deep/ultradeep)
 - Time constraints
 - Required perspectives/sources
 - Output format
 
 **Assumptions:**
+
 - User requires verified, citation-backed information
 - 10-50 sources available on topic
 - Time investment: 5-45 minutes
@@ -794,6 +857,7 @@ Every report must:
 ## When to Use / NOT Use
 
 **Use when:**
+
 - Comprehensive analysis (10+ sources needed)
 - Comparing technologies/approaches/strategies
 - State-of-the-art reviews
@@ -802,6 +866,7 @@ Every report must:
 - Market/trend analysis
 
 **Do NOT use:**
+
 - Simple lookups (use WebSearch)
 - Debugging (use standard tools)
 - 1-2 search answers
@@ -825,6 +890,7 @@ Every report must:
 ## Progressive References (Load On-Demand)
 
 **Do not inline these - reference only:**
+
 - [Complete Methodology](./reference/methodology.md) - 8-phase details
 - [Report Template](./templates/report_template.md) - Output structure
 - [README](./README.md) - Usage docs

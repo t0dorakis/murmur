@@ -17,6 +17,7 @@ The version string in `src/cli.ts` is injected at compile time via `bun build --
 ### 3. git-cliff Changelog Generation
 
 `cliff.toml` configures how conventional commits map to changelog sections:
+
 - `feat` -> Features
 - `fix` -> Bug Fixes
 - `perf` -> Performance
@@ -28,6 +29,7 @@ The version string in `src/cli.ts` is injected at compile time via `bun build --
 ### 4. Release Script
 
 `scripts/release.sh` takes a version argument and:
+
 1. Validates semver format and clean working tree
 2. Bumps `version` in `package.json`
 3. Runs `git-cliff --tag vX.Y.Z -o CHANGELOG.md`

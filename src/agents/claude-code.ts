@@ -3,11 +3,7 @@ import { buildDisallowedToolsArgs } from "../permissions.ts";
 import { runParseStream } from "../stream-parser.ts";
 import { isCommandAvailable, getCommandVersion } from "./cli-utils.ts";
 import { DEFAULT_MAX_TURNS, resolveTimeoutMs } from "./constants.ts";
-import type {
-  AgentAdapter,
-  AgentExecutionResult,
-  AgentStreamCallbacks,
-} from "./adapter.ts";
+import type { AgentAdapter, AgentExecutionResult, AgentStreamCallbacks } from "./adapter.ts";
 import type { WorkspaceConfig } from "../types.ts";
 
 /**

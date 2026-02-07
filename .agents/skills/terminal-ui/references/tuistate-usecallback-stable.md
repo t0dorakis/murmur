@@ -67,6 +67,7 @@ function SearchableList({ filter }: { filter: string }) {
 ```
 
 **When NOT to use this pattern:**
+
 - For callbacks not passed to child components
 - When the component is already fast and memoization adds complexity
 - With inline handlers in simple components

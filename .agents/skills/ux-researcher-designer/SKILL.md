@@ -8,6 +8,7 @@ description: UX research and design toolkit for Senior UX Designer/Researcher in
 Comprehensive toolkit for user-centered research and experience design.
 
 ## Core Capabilities
+
 - Data-driven persona generation
 - Customer journey mapping
 - Usability testing frameworks
@@ -17,11 +18,13 @@ Comprehensive toolkit for user-centered research and experience design.
 ## Key Scripts
 
 ### persona_generator.py
+
 Creates research-backed personas from user data and interviews.
 
 **Usage**: `python scripts/persona_generator.py [json]`
 
 **Features**:
+
 - Analyzes user behavior patterns
 - Identifies persona archetypes
 - Extracts psychographics

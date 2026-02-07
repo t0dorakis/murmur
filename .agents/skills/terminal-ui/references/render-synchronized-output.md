@@ -13,8 +13,8 @@ Use the Synchronized Output protocol (DECSET 2026) to signal frame boundaries. T
 
 ```typescript
 function renderFrame(frame: string) {
-  process.stdout.write('\x1b[H')  // Move to top-left
-  process.stdout.write(frame)
+  process.stdout.write("\x1b[H"); // Move to top-left
+  process.stdout.write(frame);
   // Terminal may refresh mid-frame
 }
 ```
@@ -22,14 +22,14 @@ function renderFrame(frame: string) {
 **Correct (synchronized frame boundaries):**
 
 ```typescript
-const SYNC_START = '\x1b[?2026h'  // Begin synchronized update
-const SYNC_END = '\x1b[?2026l'    // End synchronized update
+const SYNC_START = "\x1b[?2026h"; // Begin synchronized update
+const SYNC_END = "\x1b[?2026l"; // End synchronized update
 
 function renderFrame(frame: string) {
-  process.stdout.write(SYNC_START)
-  process.stdout.write('\x1b[H')
-  process.stdout.write(frame)
-  process.stdout.write(SYNC_END)
+  process.stdout.write(SYNC_START);
+  process.stdout.write("\x1b[H");
+  process.stdout.write(frame);
+  process.stdout.write(SYNC_END);
   // Terminal waits until SYNC_END to display
 }
 ```
@@ -37,6 +37,7 @@ function renderFrame(frame: string) {
 **Note:** This protocol is supported by most modern terminals (kitty, WezTerm, iTerm2, Windows Terminal). Unsupported terminals safely ignore the sequences.
 
 **When NOT to use this pattern:**
+
 - For single, non-animated updates where overhead isn't justified
 - When targeting very old terminal emulators that may misbehave
 

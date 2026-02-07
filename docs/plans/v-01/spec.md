@@ -80,6 +80,7 @@ exactly `HEARTBEAT_OK`. Otherwise, start with `ATTENTION:` and a brief summary.
 The template is a starting point. Real prompts will vary widely:
 
 **Email monitoring:**
+
 ```markdown
 Check my Gmail via MCP for anything urgent in the last hour.
 Urgent = from my boss, contains "production", or marked high priority.
@@ -87,6 +88,7 @@ If nothing urgent, respond HEARTBEAT_OK.
 ```
 
 **Code project health:**
+
 ```markdown
 Run `bun test` and check `git status`.
 If tests pass and no uncommitted work, respond HEARTBEAT_OK.
@@ -94,6 +96,7 @@ Otherwise tell me what's wrong.
 ```
 
 **Deploy verification:**
+
 ```markdown
 Curl https://staging.example.com/health and verify it returns 200.
 Check the last 3 deploys via `gh run list`.
@@ -133,19 +136,23 @@ otherwise                                --> attention
 
 ```typescript
 const disallowedTools = buildDisallowedToolsArgs(ws.permissions);
-const proc = Bun.spawn([
-  "claude",
-  "--print",
-  "--dangerously-skip-permissions",
-  ...disallowedTools,
-  "--max-turns", String(ws.maxTurns ?? 3),
-], {
-  cwd: ws.path,
-  stdin: new Blob([prompt]),
-  stdout: "pipe",
-  stderr: "pipe",
-  timeout: 300_000, // 5 minutes — Bun.spawn kills with SIGTERM on expiry
-});
+const proc = Bun.spawn(
+  [
+    "claude",
+    "--print",
+    "--dangerously-skip-permissions",
+    ...disallowedTools,
+    "--max-turns",
+    String(ws.maxTurns ?? 3),
+  ],
+  {
+    cwd: ws.path,
+    stdin: new Blob([prompt]),
+    stdout: "pipe",
+    stderr: "pipe",
+    timeout: 300_000, // 5 minutes — Bun.spawn kills with SIGTERM on expiry
+  },
+);
 ```
 
 - `--print` — non-interactive, output only
@@ -161,7 +168,7 @@ const proc = Bun.spawn([
 
 ```typescript
 type PermissionsConfig = {
-  deny?: string[];       // additional tool patterns to block
+  deny?: string[]; // additional tool patterns to block
 };
 
 type PermissionsOption = PermissionsConfig | "skip";
@@ -169,8 +176,8 @@ type PermissionsOption = PermissionsConfig | "skip";
 type WorkspaceConfig = {
   path: string;
   interval: string;
-  maxTurns?: number;          // default: 3
-  permissions?: PermissionsOption;  // "skip" to opt out of deny list
+  maxTurns?: number; // default: 3
+  permissions?: PermissionsOption; // "skip" to opt out of deny list
   lastRun: string | null;
 };
 
@@ -198,7 +205,7 @@ type LogEntry = {
   durationMs: number;
   summary?: string;
   error?: string;
-  turns?: ConversationTurn[];  // populated when --verbose
+  turns?: ConversationTurn[]; // populated when --verbose
 };
 ```
 
@@ -210,20 +217,20 @@ Heartbeat agents run with `--dangerously-skip-permissions` because daemon execut
 
 The following tool patterns are always blocked:
 
-| Pattern | Purpose |
-|---------|---------|
-| `Bash(rm -rf /)` | Filesystem destruction (root) |
-| `Bash(rm -rf /*)` | Filesystem destruction (root contents) |
-| `Bash(rm -rf ~)` | Home directory destruction |
-| `Bash(rm -rf ~/*)` | Home directory contents destruction |
-| `Bash(mkfs*)` | Disk formatting |
-| `Bash(dd if=* of=/dev/*)` | Raw disk writes |
-| `Bash(shred *)` | Secure file deletion |
-| `Bash(sudo *)` | Privilege escalation |
-| `Bash(shutdown *)` | System shutdown |
-| `Bash(reboot*)` | System reboot |
-| `Bash(halt*)` | System halt |
-| `Bash(poweroff*)` | System power off |
+| Pattern                   | Purpose                                |
+| ------------------------- | -------------------------------------- |
+| `Bash(rm -rf /)`          | Filesystem destruction (root)          |
+| `Bash(rm -rf /*)`         | Filesystem destruction (root contents) |
+| `Bash(rm -rf ~)`          | Home directory destruction             |
+| `Bash(rm -rf ~/*)`        | Home directory contents destruction    |
+| `Bash(mkfs*)`             | Disk formatting                        |
+| `Bash(dd if=* of=/dev/*)` | Raw disk writes                        |
+| `Bash(shred *)`           | Secure file deletion                   |
+| `Bash(sudo *)`            | Privilege escalation                   |
+| `Bash(shutdown *)`        | System shutdown                        |
+| `Bash(reboot*)`           | System reboot                          |
+| `Bash(halt*)`             | System halt                            |
+| `Bash(poweroff*)`         | System power off                       |
 
 ### Per-Workspace Overrides
 
@@ -260,6 +267,7 @@ Use this only for fully trusted workspaces where the heartbeat prompt requires u
 ### Pattern Format
 
 Patterns follow Claude Code's `--disallowedTools` glob syntax:
+
 - `Bash(command*)` -- matches any Bash tool call whose command starts with the given prefix (`*` is a glob wildcard)
 - `Edit` -- blocks the Edit tool entirely
 - `mcp__servername` -- blocks all tools from an MCP server
@@ -267,15 +275,18 @@ Patterns follow Claude Code's `--disallowedTools` glob syntax:
 ## Module Responsibilities
 
 ### `src/types.ts`
+
 Shared type definitions exported for all modules.
 
 ### `src/permissions.ts`
+
 - `DEFAULT_DENY_LIST` — built-in deny list of catastrophic tool patterns
 - `buildDenyList(permissions?)` — merge defaults with workspace-specific deny rules
 - `buildDisallowedToolsArgs(permissions?)` — construct `--disallowedTools` CLI arguments
 - `validatePermissions(permissions)` — validate permissions config structure
 
 ### `src/config.ts`
+
 - `readConfig(): Config` — read and parse `~/.murmur/config.json`
 - `writeConfig(config: Config)` — atomic write (write temp file, rename)
 - `parseInterval(s: string): number` — `"30m"` --> `1800000`, `"1h"` --> `3600000`
@@ -284,24 +295,29 @@ Shared type definitions exported for all modules.
 - Validates `permissions` field on workspace configs via `validatePermissions()`
 
 ### `src/stream-parser.ts`
+
 - `parseStreamJson(ndjson, callbacks?)` — parse complete Claude CLI `--output-format stream-json` output
 - `createStreamProcessor(callbacks?)` — incremental NDJSON parser for real-time streaming
 - Extracts tool calls (name, input, output), assistant text, and result metadata
 
 ### `src/heartbeat.ts`
+
 - `runHeartbeat(ws, emit?, options?)` — full cycle: build prompt, spawn, classify, return. Accepts `{ verbose: true }` to enable stream-json parsing with tool call extraction
 - `buildPrompt(ws: WorkspaceConfig): Promise<string>` — read HEARTBEAT.md, wrap in template
 - `classify(stdout: string, exitCode: number): Outcome` — determine ok/attention/error
 - Applies `buildDisallowedToolsArgs()` when spawning Claude to enforce the deny list
 
 ### `src/log.ts`
+
 - `appendLog(entry: LogEntry)` — append JSON line to `~/.murmur/heartbeats.jsonl` (uses `appendFileSync` from `node:fs`)
 
 ### `src/daemon.ts`
+
 - Main loop: read config, check due workspaces, run heartbeats, update lastRun, sleep 10s
 - Signal handlers: SIGTERM/SIGINT --> clean up PID file, exit
 
 ### `src/cli.ts`
+
 - Parse `process.argv[2]` as command name
 - `start`: check PID liveness, spawn daemon detached
 - `stop`: read PID, send SIGTERM

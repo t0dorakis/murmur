@@ -11,6 +11,7 @@ This skill implements cutting-edge context engineering research from 2025 to ach
 ### Static-First Structure
 
 **SKILL.md organized as:**
+
 ```
 [STATIC BLOCK - Cached, >1024 tokens]
 ├─ Frontmatter
@@ -27,7 +28,7 @@ This skill implements cutting-edge context engineering research from 2025 to ach
 └─ Generated analysis
 ```
 
-**Result:**  After first invocation, static instructions are cached, reducing latency by up to 85% and costs by up to 90% on subsequent calls.
+**Result:** After first invocation, static instructions are cached, reducing latency by up to 85% and costs by up to 90% on subsequent calls.
 
 ### Format Consistency
 
@@ -47,6 +48,7 @@ Rather than inlining all content, we reference external files:
 
 ```markdown
 # Load only when needed
+
 - [methodology.md](./reference/methodology.md) - Loaded per-phase
 - [report_template.md](./templates/report_template.md) - Loaded for Phase 8 only
 ```
@@ -70,6 +72,7 @@ Research shows LLMs struggle with information buried in middle of long contexts.
 ### Our Solution
 
 **Explicit guidance in SKILL.md:**
+
 ```
 Critical: Avoid "Loss in the Middle"
 - Place key findings at START and END of sections, not buried
@@ -78,6 +81,7 @@ Critical: Avoid "Loss in the Middle"
 ```
 
 **Report structure enforced:**
+
 - Executive Summary (START)
 - Main content (MIDDLE)
 - Synthesis & Insights (END)
@@ -114,6 +118,7 @@ Critical: Avoid "Loss in the Middle"
 ### Selective Loading
 
 **Phase 1 (SCOPE):**
+
 ```python
 # Only load scope instructions
 load("./reference/methodology.md#phase-1-scope")
@@ -121,6 +126,7 @@ load("./reference/methodology.md#phase-1-scope")
 ```
 
 **Phase 8 (PACKAGE):**
+
 ```python
 # Only load template when needed
 load("./templates/report_template.md")
@@ -128,9 +134,9 @@ load("./templates/report_template.md")
 
 ### Benefits
 
-| Approach | Token Usage | Latency | Cost |
-|----------|-------------|---------|------|
-| Inline all | ~15,000 | High | High |
+| Approach           | Token Usage  | Latency   | Cost      |
+| ------------------ | ------------ | --------- | --------- |
+| Inline all         | ~15,000      | High      | High      |
 | Progressive (ours) | ~4,000-6,000 | 85% lower | 90% lower |
 
 ---
@@ -163,11 +169,13 @@ agent.context = {
 The static block acts as consistent prefix across all invocations:
 
 **First call:**
+
 ```
 [Static Block 2000 tokens] + [Query 100 tokens] = 2100 tokens processed
 ```
 
 **Subsequent calls (cached):**
+
 ```
 [Cached] + [Query 100 tokens] = 100 tokens processed
 ```
@@ -230,12 +238,12 @@ Cache hit: 2,000 tokens reused, only 4,000 new tokens processed
 
 ### Performance Gains
 
-| Metric | Old | New | Improvement |
-|--------|-----|-----|-------------|
-| **First call latency** | 10 min | 10 min | 0% (same) |
-| **Cached call latency** | 10 min | 1.5 min | **85%** |
-| **Token cost (cached)** | 18K | 4K | **78%** |
-| **Context efficiency** | Low | High | **3-4x** |
+| Metric                  | Old    | New     | Improvement |
+| ----------------------- | ------ | ------- | ----------- |
+| **First call latency**  | 10 min | 10 min  | 0% (same)   |
+| **Cached call latency** | 10 min | 1.5 min | **85%**     |
+| **Token cost (cached)** | 18K    | 4K      | **78%**     |
+| **Context efficiency**  | Low    | High    | **3-4x**    |
 
 ---
 

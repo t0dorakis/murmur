@@ -11,24 +11,29 @@ Rename the project from **orchester** to **murmur** before publishing.
 ## Scope of Changes
 
 ### package.json
+
 - `"name": "orchester"` -> `"name": "murmur"`
 - `"bin": { "orchester": ... }` -> `"bin": { "murmur": ... }`
 
 ### Source files
 
 **src/config.ts**
+
 - `~/.orchester` -> `~/.murmur`
 
 **src/cli.ts**
+
 - `orchester.pid` -> `murmur.pid`
 - Usage strings and help text: `orchester` -> `murmur`
 
 **src/daemon.ts**
+
 - `orchester.pid` -> `murmur.pid`
 
 ### Tests
 
 **test/e2e.test.ts**
+
 - Helper function name: `orchester()` -> `murmur()`
 - Temp dir prefix: `orchester-e2e-` -> `murmur-e2e-`
 - PID file references: `orchester.pid` -> `murmur.pid`
@@ -45,9 +50,11 @@ Rename the project from **orchester** to **murmur** before publishing.
 **docs/vision.md** — Vision doc references.
 
 ### Generated files
+
 - `bun.lock` will update automatically after `bun install`
 
 ### NOT changed
+
 - `HEARTBEAT.md` template and filename (keeping heartbeat terminology)
 - `heartbeats.jsonl` log filename
 - Internal heartbeat/beat concepts and variable names

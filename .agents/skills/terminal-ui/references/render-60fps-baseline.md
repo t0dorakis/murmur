@@ -13,13 +13,13 @@ Use 60fps (16.67ms per frame) as the baseline for terminal animations. Higher ra
 
 ```typescript
 function animateSpinner() {
-  const frames = ['|', '/', '-', '\\']
-  let i = 0
+  const frames = ["|", "/", "-", "\\"];
+  let i = 0;
 
   // Too fast - wastes CPU, no visual benefit
   setInterval(() => {
-    process.stdout.write(`\r${frames[i++ % 4]}`)
-  }, 1)  // 1000fps - excessive
+    process.stdout.write(`\r${frames[i++ % 4]}`);
+  }, 1); // 1000fps - excessive
 }
 ```
 
@@ -27,34 +27,34 @@ function animateSpinner() {
 
 ```typescript
 function animateSpinner() {
-  const frames = ['|', '/', '-', '\\']
-  let i = 0
-  const FRAME_MS = 16  // ~60fps
+  const frames = ["|", "/", "-", "\\"];
+  let i = 0;
+  const FRAME_MS = 16; // ~60fps
 
   setInterval(() => {
-    process.stdout.write(`\r${frames[i++ % 4]}`)
-  }, FRAME_MS)
+    process.stdout.write(`\r${frames[i++ % 4]}`);
+  }, FRAME_MS);
 }
 ```
 
 **With Ink (automatic frame management):**
 
 ```tsx
-import { render, Text, Box } from 'ink'
-import { useEffect, useState } from 'react'
+import { render, Text, Box } from "ink";
+import { useEffect, useState } from "react";
 
 function Spinner() {
-  const [frame, setFrame] = useState(0)
-  const frames = ['|', '/', '-', '\\']
+  const [frame, setFrame] = useState(0);
+  const frames = ["|", "/", "-", "\\"];
 
   useEffect(() => {
     const timer = setInterval(() => {
-      setFrame(f => (f + 1) % frames.length)
-    }, 80)  // 12.5fps is sufficient for spinner
-    return () => clearInterval(timer)
-  }, [])
+      setFrame((f) => (f + 1) % frames.length);
+    }, 80); // 12.5fps is sufficient for spinner
+    return () => clearInterval(timer);
+  }, []);
 
-  return <Text>{frames[frame]}</Text>
+  return <Text>{frames[frame]}</Text>;
 }
 ```
 

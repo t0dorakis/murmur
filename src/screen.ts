@@ -47,7 +47,9 @@ export function createTestScreen(cols = 80, rows = 24): TestScreen {
       return buffer.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "");
     },
     lines() {
-      return this.text().split("\n").filter((l) => l.trim().length > 0);
+      return this.text()
+        .split("\n")
+        .filter((l) => l.trim().length > 0);
     },
   };
 }

@@ -13,11 +13,11 @@ Display progress indicators for any operation taking longer than 1 second. Inclu
 
 ```typescript
 async function deploy() {
-  console.log('Deploying...')
-  await uploadFiles()      // 10 seconds
-  await runMigrations()    // 5 seconds
-  await restartServices()  // 3 seconds
-  console.log('Done!')
+  console.log("Deploying...");
+  await uploadFiles(); // 10 seconds
+  await runMigrations(); // 5 seconds
+  await restartServices(); // 3 seconds
+  console.log("Done!");
   // User stares at "Deploying..." for 18 seconds
 }
 ```
@@ -25,18 +25,18 @@ async function deploy() {
 **Correct (progress with Clack):**
 
 ```typescript
-import * as p from '@clack/prompts'
+import * as p from "@clack/prompts";
 
 async function deploy() {
-  const s = p.spinner()
+  const s = p.spinner();
 
-  s.start('Uploading files...')
-  const uploaded = await uploadFiles()
-  s.message(`Uploaded ${uploaded} files, running migrations...`)
-  await runMigrations()
-  s.message('Restarting services...')
-  await restartServices()
-  s.stop('Deployment complete!')
+  s.start("Uploading files...");
+  const uploaded = await uploadFiles();
+  s.message(`Uploaded ${uploaded} files, running migrations...`);
+  await runMigrations();
+  s.message("Restarting services...");
+  await restartServices();
+  s.stop("Deployment complete!");
 }
 ```
 
@@ -74,6 +74,7 @@ function DeployProgress({ files }: { files: string[] }) {
 ```
 
 **Guidelines:**
+
 - < 1s: No indicator needed
 - 1-10s: Spinner with status message
 - > 10s: Progress bar with percentage/ETA

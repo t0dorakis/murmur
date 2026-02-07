@@ -48,12 +48,12 @@ python3 ~/.claude/skills/deep-research/research_engine.py \
 
 ## Research Modes Explained
 
-| Mode | Phases | Time | Use When |
-|------|--------|------|----------|
-| **Quick** | 3 | 2-5 min | Initial exploration, simple questions |
-| **Standard** | 6 | 5-10 min | Most research needs (default) |
-| **Deep** | 8 | 10-20 min | Complex topics, important decisions |
-| **UltraDeep** | 8+ | 20-45 min | Critical analysis, comprehensive reports |
+| Mode          | Phases | Time      | Use When                                 |
+| ------------- | ------ | --------- | ---------------------------------------- |
+| **Quick**     | 3      | 2-5 min   | Initial exploration, simple questions    |
+| **Standard**  | 6      | 5-10 min  | Most research needs (default)            |
+| **Deep**      | 8      | 10-20 min | Complex topics, important decisions      |
+| **UltraDeep** | 8+     | 20-45 min | Critical analysis, comprehensive reports |
 
 ## What You Get
 
@@ -70,6 +70,7 @@ Every research report includes:
 ## Output Location
 
 All research is saved to:
+
 ```
 ~/.claude/research_output/
 ```
@@ -91,26 +92,31 @@ Format: `research_report_YYYYMMDD_HHMMSS.md`
 ## Example Use Cases
 
 ### Technology Evaluation
+
 ```
 Use deep research to compare Next.js 15 vs Remix vs Astro for my project
 ```
 
 ### Market Analysis
+
 ```
 Deep research: What are the key trends in longevity biotech funding 2023-2025?
 ```
 
 ### Technical Decision
+
 ```
 Use deep research to help me choose between Auth0, Clerk, and Supabase Auth
 ```
 
 ### Scientific Review
+
 ```
 Use deep research in ultradeep mode to summarize senolytics research progress
 ```
 
 ### Competitive Intelligence
+
 ```
 Deep research: Who are the top 5 competitors in the AI code assistant space?
 ```
@@ -118,6 +124,7 @@ Deep research: Who are the top 5 competitors in the AI code assistant space?
 ## Quality Standards
 
 Every report guarantees:
+
 - ✅ 10+ distinct sources (unless highly specialized topic)
 - ✅ 3+ source verification for major claims
 - ✅ Full citation tracking
@@ -160,6 +167,7 @@ Built to match and exceed Claude Desktop's Advanced Research feature.
 ---
 
 **Ready to use?** Just type:
+
 ```
 Use deep research to [your question here]
 ```

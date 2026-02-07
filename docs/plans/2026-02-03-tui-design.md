@@ -76,12 +76,12 @@ Red `✗` and "error" label. Shows the error message.
 
 ## CLI Integration
 
-| Command | Behavior |
-|---------|----------|
-| `murmur start` | Foreground with TUI (new default) |
-| `murmur start --detach` | Background, silent (old behavior) |
-| `murmur watch` | Attach TUI to running background daemon |
-| `murmur stop` | Unchanged (kills from another terminal) |
+| Command                 | Behavior                                |
+| ----------------------- | --------------------------------------- |
+| `murmur start`          | Foreground with TUI (new default)       |
+| `murmur start --detach` | Background, silent (old behavior)       |
+| `murmur watch`          | Attach TUI to running background daemon |
+| `murmur stop`           | Unchanged (kills from another terminal) |
 
 ## Keyboard Controls
 
@@ -107,6 +107,7 @@ In foreground mode, the TUI reads from the same event stream in-process. `murmur
 **Long output:** Feed entries are uncapped. Old entries scroll off the top.
 
 **Empty state:**
+
 ```
  murmur ∙ 2 workspaces ∙ pid 37037
 
@@ -117,6 +118,7 @@ In foreground mode, the TUI reads from the same event stream in-process. `murmur
 ```
 
 **No workspaces:**
+
 ```
  murmur ∙ 0 workspaces ∙ pid 37037
 
@@ -125,6 +127,7 @@ In foreground mode, the TUI reads from the same event stream in-process. `murmur
 ```
 
 **Timeout:** Appears as error entry:
+
 ```
  ✗ Check Email                              error  300.0s
    Timed out after 5m
@@ -132,13 +135,13 @@ In foreground mode, the TUI reads from the same event stream in-process. `murmur
 
 ## Color Palette
 
-| Element | Color |
-|---------|-------|
-| Default text | dim gray |
-| Active/current | white, bold |
-| ok | green (dim) |
-| attention | yellow |
-| error | red |
-| Countdowns | white |
-| Prompt preview | dim gray |
+| Element          | Color        |
+| ---------------- | ------------ |
+| Default text     | dim gray     |
+| Active/current   | white, bold  |
+| ok               | green (dim)  |
+| attention        | yellow       |
+| error            | red          |
+| Countdowns       | white        |
+| Prompt preview   | dim gray     |
 | Streaming output | normal white |

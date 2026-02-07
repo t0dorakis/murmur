@@ -69,10 +69,13 @@ The prompt is just the starting instruction. Claude figures out the rest.
 ## Inspirations
 
 ### OpenClaw Heartbeat
+
 Periodic trigger (default 30min) that injects a prompt into an active agent session. Uses `HEARTBEAT.md` as a persistent checklist. Agent responds `HEARTBEAT_OK` when nothing needs attention (suppressed from user). Known issue: context bloat from replaying full conversation history each heartbeat.
 
 ### Ralph Wiggum Pattern
+
 Fresh context window each iteration. Git and files are the persistence layer — not the conversation. Progress lives in the filesystem, not in token windows. Avoids context compaction and bloat entirely.
 
 ### Murmur's Synthesis
+
 Take the heartbeat trigger from OpenClaw. Take the fresh-context-per-iteration from Ralph Wiggum. Result: periodic prompt execution with zero context bloat, where the filesystem is the only shared state between runs. Each prompt runs in a fresh Claude session with full tool access — it can read files, call APIs, use MCP servers, run commands — then reports back.

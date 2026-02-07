@@ -13,15 +13,15 @@ Use colors to convey meaning, not decoration. Reserve red for errors, yellow for
 
 ```typescript
 // Colors chosen for aesthetics, not meaning
-console.log(color.magenta('Error: File not found'))  // Error in magenta?
-console.log(color.blue('Warning: Low disk space'))   // Warning in blue?
-console.log(color.red('Success!'))                   // Success in red??
+console.log(color.magenta("Error: File not found")); // Error in magenta?
+console.log(color.blue("Warning: Low disk space")); // Warning in blue?
+console.log(color.red("Success!")); // Success in red??
 ```
 
 **Correct (semantic colors):**
 
 ```typescript
-import color from 'picocolors'
+import color from "picocolors";
 
 // Consistent semantic color scheme
 const log = {
@@ -29,29 +29,30 @@ const log = {
   warn: (msg: string) => console.log(color.yellow(`⚠ ${msg}`)),
   success: (msg: string) => console.log(color.green(`✔ ${msg}`)),
   info: (msg: string) => console.log(color.cyan(`ℹ ${msg}`)),
-  dim: (msg: string) => console.log(color.dim(msg))
-}
+  dim: (msg: string) => console.log(color.dim(msg)),
+};
 
-log.success('Build complete')
-log.warn('Deprecated API usage detected')
-log.error('Connection failed')
-log.info('Server running on port 3000')
-log.dim('Press Ctrl+C to stop')
+log.success("Build complete");
+log.warn("Deprecated API usage detected");
+log.error("Connection failed");
+log.info("Server running on port 3000");
+log.dim("Press Ctrl+C to stop");
 ```
 
 **With Clack logging:**
 
 ```typescript
-import * as p from '@clack/prompts'
+import * as p from "@clack/prompts";
 
-p.log.success('Dependencies installed')
-p.log.warn('Using deprecated config format')
-p.log.error('Build failed')
-p.log.info('Starting server...')
-p.log.message('Custom message')  // Neutral
+p.log.success("Dependencies installed");
+p.log.warn("Using deprecated config format");
+p.log.error("Build failed");
+p.log.info("Starting server...");
+p.log.message("Custom message"); // Neutral
 ```
 
 **Color scheme reference:**
+
 - **Red**: Errors, failures, destructive actions
 - **Yellow**: Warnings, caution, deprecation
 - **Green**: Success, completion, safe actions

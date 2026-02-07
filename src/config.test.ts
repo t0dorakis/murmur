@@ -1,5 +1,11 @@
 import { describe, expect, test } from "bun:test";
-import { parseInterval, isDue, nextRunAt, validateWorkspace, validateResolvedConfig } from "./config.ts";
+import {
+  parseInterval,
+  isDue,
+  nextRunAt,
+  validateWorkspace,
+  validateResolvedConfig,
+} from "./config.ts";
 import type { WorkspaceConfig } from "./types.ts";
 
 describe("parseInterval", () => {
@@ -105,7 +111,11 @@ describe("nextRunAt", () => {
   });
 
   test("returns now for interval workspace with no lastRun", () => {
-    const ws: WorkspaceConfig = { path: "/tmp/test", interval: "30m", lastRun: null };
+    const ws: WorkspaceConfig = {
+      path: "/tmp/test",
+      interval: "30m",
+      lastRun: null,
+    };
     const before = Date.now();
     const next = nextRunAt(ws);
     expect(next).toBeGreaterThanOrEqual(before);
@@ -115,14 +125,22 @@ describe("nextRunAt", () => {
   test("computes next run for cron workspace", () => {
     // Cron "0 * * * *" — every hour on the hour
     const lastRun = new Date(Date.now() - 10 * 60_000).toISOString();
-    const ws: WorkspaceConfig = { path: "/tmp/test", cron: "0 * * * *", lastRun };
+    const ws: WorkspaceConfig = {
+      path: "/tmp/test",
+      cron: "0 * * * *",
+      lastRun,
+    };
     const next = nextRunAt(ws);
     // Next run should be in the future (at the next hour mark after lastRun)
     expect(next).toBeGreaterThan(new Date(lastRun).getTime());
   });
 
   test("computes next run for cron workspace with no lastRun", () => {
-    const ws: WorkspaceConfig = { path: "/tmp/test", cron: "0 * * * *", lastRun: null };
+    const ws: WorkspaceConfig = {
+      path: "/tmp/test",
+      cron: "0 * * * *",
+      lastRun: null,
+    };
     const next = nextRunAt(ws);
     // Should be the next hour mark from now
     expect(next).toBeGreaterThan(Date.now());
@@ -135,15 +153,33 @@ describe("validateWorkspace", () => {
   });
 
   test("accepts valid cron workspace", () => {
-    expect(validateWorkspace({ path: "/tmp/test", cron: "0 9 * * *", lastRun: null })).toBeNull();
+    expect(
+      validateWorkspace({
+        path: "/tmp/test",
+        cron: "0 9 * * *",
+        lastRun: null,
+      }),
+    ).toBeNull();
   });
 
   test("accepts cron workspace with tz", () => {
-    expect(validateWorkspace({ path: "/tmp/test", cron: "0 9 * * *", tz: "Europe/Berlin", lastRun: null })).toBeNull();
+    expect(
+      validateWorkspace({
+        path: "/tmp/test",
+        cron: "0 9 * * *",
+        tz: "Europe/Berlin",
+        lastRun: null,
+      }),
+    ).toBeNull();
   });
 
   test("rejects workspace with both interval and cron", () => {
-    const err = validateWorkspace({ path: "/tmp/test", interval: "30m", cron: "0 9 * * *", lastRun: null });
+    const err = validateWorkspace({
+      path: "/tmp/test",
+      interval: "30m",
+      cron: "0 9 * * *",
+      lastRun: null,
+    });
     expect(err).toContain("both");
   });
 
@@ -153,27 +189,59 @@ describe("validateWorkspace", () => {
   });
 
   test("validates timeout field", () => {
-    expect(validateWorkspace({ path: "/tmp/test", interval: "30m", timeout: "15m", lastRun: null })).toBeNull();
-    expect(validateWorkspace({ path: "/tmp/test", interval: "30m", timeout: "xyz", lastRun: null })).toContain("invalid timeout");
+    expect(
+      validateWorkspace({
+        path: "/tmp/test",
+        interval: "30m",
+        timeout: "15m",
+        lastRun: null,
+      }),
+    ).toBeNull();
+    expect(
+      validateWorkspace({
+        path: "/tmp/test",
+        interval: "30m",
+        timeout: "xyz",
+        lastRun: null,
+      }),
+    ).toContain("invalid timeout");
   });
 
   test("rejects invalid interval", () => {
-    const err = validateWorkspace({ path: "/tmp/test", interval: "xyz", lastRun: null });
+    const err = validateWorkspace({
+      path: "/tmp/test",
+      interval: "xyz",
+      lastRun: null,
+    });
     expect(err).toContain("invalid interval");
   });
 
   test("rejects invalid cron expression", () => {
-    const err = validateWorkspace({ path: "/tmp/test", cron: "not a cron", lastRun: null });
+    const err = validateWorkspace({
+      path: "/tmp/test",
+      cron: "not a cron",
+      lastRun: null,
+    });
     expect(err).toContain("invalid cron");
   });
 
   test("rejects tz without cron", () => {
-    const err = validateWorkspace({ path: "/tmp/test", interval: "30m", tz: "UTC", lastRun: null });
+    const err = validateWorkspace({
+      path: "/tmp/test",
+      interval: "30m",
+      tz: "UTC",
+      lastRun: null,
+    });
     expect(err).toContain("tz");
   });
 
   test("rejects invalid timezone", () => {
-    const err = validateWorkspace({ path: "/tmp/test", cron: "0 9 * * *", tz: "Mars/Olympus", lastRun: null });
+    const err = validateWorkspace({
+      path: "/tmp/test",
+      cron: "0 9 * * *",
+      tz: "Mars/Olympus",
+      lastRun: null,
+    });
     expect(err).toContain("invalid timezone");
   });
 
@@ -225,10 +293,22 @@ describe("validateResolvedConfig", () => {
   });
 
   test("accepts resolved config with interval", () => {
-    expect(validateResolvedConfig({ path: "/tmp/test", interval: "30m", lastRun: null })).toBeNull();
+    expect(
+      validateResolvedConfig({
+        path: "/tmp/test",
+        interval: "30m",
+        lastRun: null,
+      }),
+    ).toBeNull();
   });
 
   test("accepts resolved config with cron", () => {
-    expect(validateResolvedConfig({ path: "/tmp/test", cron: "0 9 * * *", lastRun: null })).toBeNull();
+    expect(
+      validateResolvedConfig({
+        path: "/tmp/test",
+        cron: "0 9 * * *",
+        lastRun: null,
+      }),
+    ).toBeNull();
   });
 });

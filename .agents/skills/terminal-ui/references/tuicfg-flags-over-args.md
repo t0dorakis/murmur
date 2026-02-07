@@ -17,7 +17,7 @@ mycli deploy prod main true 5
 ```
 
 ```typescript
-const [environment, branch, force, retries] = process.argv.slice(2)
+const [environment, branch, force, retries] = process.argv.slice(2);
 // Fragile, hard to remember order, no self-documentation
 ```
 
@@ -30,18 +30,18 @@ mycli deploy --retries 5 --env prod --force --branch main
 ```
 
 ```typescript
-import { parseArgs } from 'util'
+import { parseArgs } from "util";
 
 const { values } = parseArgs({
   options: {
-    env: { type: 'string', short: 'e', default: 'staging' },
-    branch: { type: 'string', short: 'b', default: 'main' },
-    force: { type: 'boolean', short: 'f', default: false },
-    retries: { type: 'string', short: 'r', default: '3' }
-  }
-})
+    env: { type: "string", short: "e", default: "staging" },
+    branch: { type: "string", short: "b", default: "main" },
+    force: { type: "boolean", short: "f", default: false },
+    retries: { type: "string", short: "r", default: "3" },
+  },
+});
 
-const { env, branch, force, retries } = values
+const { env, branch, force, retries } = values;
 ```
 
 **When positional arguments ARE appropriate:**
@@ -54,12 +54,12 @@ const { env, branch, force, retries } = values
 const { positionals } = parseArgs({
   allowPositionals: true,
   options: {
-    output: { type: 'string', short: 'o' },
-    watch: { type: 'boolean', short: 'w' }
-  }
-})
+    output: { type: "string", short: "o" },
+    watch: { type: "boolean", short: "w" },
+  },
+});
 
-const inputFile = positionals[0]  // Primary target
+const inputFile = positionals[0]; // Primary target
 ```
 
 **Standard flag conventions:**
@@ -67,15 +67,15 @@ const inputFile = positionals[0]  // Primary target
 ```typescript
 const { values } = parseArgs({
   options: {
-    help: { type: 'boolean', short: 'h' },      // -h, --help
-    version: { type: 'boolean', short: 'v' },   // -v, --version
-    verbose: { type: 'boolean', short: 'V' },   // -V, --verbose
-    quiet: { type: 'boolean', short: 'q' },     // -q, --quiet
-    force: { type: 'boolean', short: 'f' },     // -f, --force
-    output: { type: 'string', short: 'o' },     // -o, --output
-    config: { type: 'string', short: 'c' }      // -c, --config
-  }
-})
+    help: { type: "boolean", short: "h" }, // -h, --help
+    version: { type: "boolean", short: "v" }, // -v, --version
+    verbose: { type: "boolean", short: "V" }, // -V, --verbose
+    quiet: { type: "boolean", short: "q" }, // -q, --quiet
+    force: { type: "boolean", short: "f" }, // -f, --force
+    output: { type: "string", short: "o" }, // -o, --output
+    config: { type: "string", short: "c" }, // -c, --config
+  },
+});
 ```
 
 Reference: [clig.dev - Arguments and flags](https://clig.dev/#arguments-and-flags)

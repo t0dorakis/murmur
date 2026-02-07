@@ -41,8 +41,15 @@ export function parseFrontmatter(raw: string): FrontmatterResult {
 
 /** String fields that map directly from frontmatter to WorkspaceConfig. */
 const STRING_FIELDS = [
-  "name", "description", "interval", "cron", "tz",
-  "timeout", "agent", "model", "session",
+  "name",
+  "description",
+  "interval",
+  "cron",
+  "tz",
+  "timeout",
+  "agent",
+  "model",
+  "session",
 ] as const;
 
 /**

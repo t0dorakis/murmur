@@ -28,177 +28,194 @@ For new Effect users, start with these foundational patterns in order:
 ## Pattern Categories
 
 ### Core Concepts (55 patterns)
+
 Fundamentals: generators, pipes, dependencies, data types.
 See: [references/core-concepts.md](references/core-concepts.md)
 
 ### Error Management (19 patterns)
+
 Typed errors, recovery with catchTag/catchAll, retries, structured logging.
 See: [references/error-management.md](references/error-management.md)
 
 ### Concurrency (24 patterns)
+
 Fibers, parallel execution, Deferred, Semaphore, Queue, PubSub, Ref.
 See: [references/concurrency.md](references/concurrency.md)
 
 ### Streams (18 patterns)
+
 Process data sequences: map, filter, merge, backpressure, sinks.
 See: [references/streams.md](references/streams.md)
 
 ### Schema (77 patterns)
+
 Validation: primitives, objects, arrays, unions, transformations, async validation.
 See: [references/schema.md](references/schema.md)
 
 ### Domain Modeling (15 patterns)
+
 Branded types, tagged errors, Option for missing values, Schema contracts.
 See: [references/domain-modeling.md](references/domain-modeling.md)
 
 ### Building APIs (13 patterns)
+
 HTTP servers, middleware, authentication, validation, OpenAPI.
 See: [references/building-apis.md](references/building-apis.md)
 
 ### Data Pipelines (14 patterns)
+
 Stream processing, pagination, batching, fan-out, backpressure.
 See: [references/data-pipelines.md](references/data-pipelines.md)
 
 ### Resource Management (8 patterns)
+
 acquireRelease, Scope, Layer composition, pooling, timeouts.
 See: [references/resource-management.md](references/resource-management.md)
 
 ### HTTP Requests (10 patterns)
+
 HTTP client, timeouts, caching, response parsing, retries.
 See: [references/http-requests.md](references/http-requests.md)
 
 ### Testing (10 patterns)
+
 Unit testing, service mocking, property-based testing, streams.
 See: [references/testing.md](references/testing.md)
 
 ### Observability (13 patterns)
+
 Logging, metrics, tracing, spans, OpenTelemetry, Prometheus.
 See: [references/observability.md](references/observability.md)
 
 ### Scheduling (6 patterns)
+
 Fixed intervals, cron, debounce/throttle, retry chains, circuit breakers.
 See: [references/scheduling.md](references/scheduling.md)
 
 ### Platform (8 patterns)
+
 Filesystem, terminal I/O, command execution, environment variables.
 See: [references/platform.md](references/platform.md)
 
 ## Common Tasks
 
 ### Create an Effect
+
 ```typescript
 // From a value
-const succeed = Effect.succeed(42)
+const succeed = Effect.succeed(42);
 
 // From a failure
-const fail = Effect.fail(new Error("oops"))
+const fail = Effect.fail(new Error("oops"));
 
 // From sync code that might throw
-const trySync = Effect.try(() => JSON.parse(data))
+const trySync = Effect.try(() => JSON.parse(data));
 
 // From a Promise
-const tryPromise = Effect.tryPromise(() => fetch(url))
+const tryPromise = Effect.tryPromise(() => fetch(url));
 
 // Sequential code with generators
 const program = Effect.gen(function* () {
-  const a = yield* getA()
-  const b = yield* getB(a)
-  return a + b
-})
+  const a = yield* getA();
+  const b = yield* getB(a);
+  return a + b;
+});
 ```
 
 ### Handle Errors
+
 ```typescript
 // Catch specific tagged error
-effect.pipe(
-  Effect.catchTag("NotFound", (e) => Effect.succeed(defaultValue))
-)
+effect.pipe(Effect.catchTag("NotFound", (e) => Effect.succeed(defaultValue)));
 
 // Catch multiple tagged errors
 effect.pipe(
   Effect.catchTags({
     NotFound: () => Effect.succeed(null),
-    NetworkError: (e) => Effect.retry(effect, Schedule.exponential("1 second"))
-  })
-)
+    NetworkError: (e) => Effect.retry(effect, Schedule.exponential("1 second")),
+  }),
+);
 
 // Catch all errors
-effect.pipe(
-  Effect.catchAll((error) => Effect.succeed(fallback))
-)
+effect.pipe(Effect.catchAll((error) => Effect.succeed(fallback)));
 ```
 
 ### Define Typed Errors
+
 ```typescript
-import { Data } from "effect"
+import { Data } from "effect";
 
 class NotFoundError extends Data.TaggedError("NotFound")<{
-  readonly id: string
+  readonly id: string;
 }> {}
 
 class ValidationError extends Data.TaggedError("ValidationError")<{
-  readonly field: string
-  readonly message: string
+  readonly field: string;
+  readonly message: string;
 }> {}
 ```
 
 ### Create a Service
+
 ```typescript
 class UserService extends Effect.Service<UserService>()("UserService", {
   effect: Effect.gen(function* () {
-    const db = yield* Database
+    const db = yield* Database;
     return {
       findById: (id: string) => db.query(`SELECT * FROM users WHERE id = ?`, [id]),
-      create: (user: User) => db.insert("users", user)
-    }
-  })
+      create: (user: User) => db.insert("users", user),
+    };
+  }),
 }) {}
 
 // Provide via Layer
 const program = Effect.gen(function* () {
-  const users = yield* UserService
-  return yield* users.findById("123")
-})
+  const users = yield* UserService;
+  return yield* users.findById("123");
+});
 
-Effect.runPromise(program.pipe(Effect.provide(UserService.Default)))
+Effect.runPromise(program.pipe(Effect.provide(UserService.Default)));
 ```
 
 ### Validate with Schema
+
 ```typescript
-import { Schema } from "effect"
+import { Schema } from "effect";
 
 const User = Schema.Struct({
   id: Schema.String,
   email: Schema.String.pipe(Schema.pattern(/@/)),
-  age: Schema.Number.pipe(Schema.int(), Schema.positive())
-})
+  age: Schema.Number.pipe(Schema.int(), Schema.positive()),
+});
 
 // Decode unknown data
-const parseUser = Schema.decodeUnknown(User)
-const result = Effect.runSync(parseUser({ id: "1", email: "a@b.com", age: 25 }))
+const parseUser = Schema.decodeUnknown(User);
+const result = Effect.runSync(parseUser({ id: "1", email: "a@b.com", age: 25 }));
 ```
 
 ### Run Effects in Parallel
+
 ```typescript
 // All in parallel
-const results = yield* Effect.all([effectA, effectB, effectC], { concurrency: "unbounded" })
+const results = yield * Effect.all([effectA, effectB, effectC], { concurrency: "unbounded" });
 
 // With concurrency limit
-const results = yield* Effect.forEach(items, processItem, { concurrency: 10 })
+const results = yield * Effect.forEach(items, processItem, { concurrency: 10 });
 
 // Race for first success
-const fastest = yield* Effect.race(effectA, effectB)
+const fastest = yield * Effect.race(effectA, effectB);
 ```
 
 ### Use Streams
+
 ```typescript
-import { Stream } from "effect"
+import { Stream } from "effect";
 
 const pipeline = Stream.fromIterable([1, 2, 3, 4, 5]).pipe(
   Stream.filter((n) => n % 2 === 0),
   Stream.map((n) => n * 2),
-  Stream.runCollect
-)
+  Stream.runCollect,
+);
 // Chunk(4, 8)
 ```
 

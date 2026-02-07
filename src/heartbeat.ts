@@ -3,13 +3,7 @@ import { debug } from "./debug.ts";
 import { getDataDir, ensureDataDir } from "./config.ts";
 import { parseFrontmatter, type FrontmatterResult } from "./frontmatter.ts";
 import { getAdapter } from "./agents/index.ts";
-import type {
-  ConversationTurn,
-  DaemonEvent,
-  LogEntry,
-  Outcome,
-  WorkspaceConfig,
-} from "./types.ts";
+import type { ConversationTurn, DaemonEvent, LogEntry, Outcome, WorkspaceConfig } from "./types.ts";
 
 export type HeartbeatOptions = {
   quiet?: boolean;
@@ -75,10 +69,7 @@ function createErrorEntry(
 }
 
 /** Save the full conversation JSON to ~/.murmur/last-beat-{workspace}.json */
-async function saveConversationLog(
-  workspace: string,
-  turns: ConversationTurn[],
-): Promise<string> {
+async function saveConversationLog(workspace: string, turns: ConversationTurn[]): Promise<string> {
   ensureDataDir();
   const slug = basename(workspace).replace(/[^a-zA-Z0-9_-]/g, "_");
   const filePath = join(getDataDir(), `last-beat-${slug}.json`);
@@ -140,10 +131,18 @@ export async function runHeartbeat(
         ? undefined
         : {
             onToolCall: (toolCall) => {
-              emit?.({ type: "heartbeat:tool-call", workspace: ws.path, toolCall });
+              emit?.({
+                type: "heartbeat:tool-call",
+                workspace: ws.path,
+                toolCall,
+              });
             },
             onText: (text) => {
-              emit?.({ type: "heartbeat:stdout", workspace: ws.path, chunk: text });
+              emit?.({
+                type: "heartbeat:stdout",
+                workspace: ws.path,
+                chunk: text,
+              });
             },
           },
     );
@@ -158,10 +157,17 @@ export async function runHeartbeat(
   if (numTurns != null) debug(`[heartbeat] Num turns: ${numTurns}`);
 
   const outcome = classify(resultText, exitCode);
-  debug(`[heartbeat] Outcome: ${outcome} (exit=${exitCode}, contains HEARTBEAT_OK=${resultText.includes("HEARTBEAT_OK")})`);
+  debug(
+    `[heartbeat] Outcome: ${outcome} (exit=${exitCode}, contains HEARTBEAT_OK=${resultText.includes("HEARTBEAT_OK")})`,
+  );
   debug(`[heartbeat] Duration: ${result.durationMs}ms`);
 
-  const entry: LogEntry = { ts, workspace: ws.path, outcome, durationMs: result.durationMs };
+  const entry: LogEntry = {
+    ts,
+    workspace: ws.path,
+    outcome,
+    durationMs: result.durationMs,
+  };
 
   if (outcome === "attention") {
     entry.summary = resultText.slice(0, 200);
@@ -176,7 +182,9 @@ export async function runHeartbeat(
     try {
       await saveConversationLog(ws.path, turns);
     } catch (err) {
-      debug(`[heartbeat] Warning: failed to save conversation log: ${err instanceof Error ? err.message : String(err)}`);
+      debug(
+        `[heartbeat] Warning: failed to save conversation log: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
   }
 

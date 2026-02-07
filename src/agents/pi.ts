@@ -1,11 +1,7 @@
 import { debug } from "../debug.ts";
 import { isCommandAvailable, getCommandVersion } from "./cli-utils.ts";
 import { resolveTimeoutMs } from "./constants.ts";
-import type {
-  AgentAdapter,
-  AgentExecutionResult,
-  AgentStreamCallbacks,
-} from "./adapter.ts";
+import type { AgentAdapter, AgentExecutionResult, AgentStreamCallbacks } from "./adapter.ts";
 import type { WorkspaceConfig, ConversationTurn, PiConfig } from "../types.ts";
 
 /**
@@ -18,15 +14,11 @@ function validatePiConfig(workspace: WorkspaceConfig): asserts workspace is PiCo
   }
 
   if (workspace.model && typeof workspace.model !== "string") {
-    throw new Error(
-      `model must be a string, got: ${typeof workspace.model}`,
-    );
+    throw new Error(`model must be a string, got: ${typeof workspace.model}`);
   }
 
   if (workspace.session && typeof workspace.session !== "string") {
-    throw new Error(
-      `session must be a string, got: ${typeof workspace.session}`,
-    );
+    throw new Error(`session must be a string, got: ${typeof workspace.session}`);
   }
 }
 
@@ -112,14 +104,18 @@ export class PiAdapter implements AgentAdapter {
             try {
               callbacks.onText(chunk);
             } catch (callbackErr) {
-              debug(`[pi] onText callback error: ${callbackErr instanceof Error ? callbackErr.message : String(callbackErr)}`);
+              debug(
+                `[pi] onText callback error: ${callbackErr instanceof Error ? callbackErr.message : String(callbackErr)}`,
+              );
               // Continue processing stream despite callback failure
             }
           }
         }
       } catch (readErr) {
         // Log read errors but still return accumulated stdout
-        debug(`[pi] Stream read error: ${readErr instanceof Error ? readErr.message : String(readErr)}`);
+        debug(
+          `[pi] Stream read error: ${readErr instanceof Error ? readErr.message : String(readErr)}`,
+        );
         // Don't rethrow - let the function return partial output
       } finally {
         reader.releaseLock();
@@ -142,11 +138,13 @@ export class PiAdapter implements AgentAdapter {
 
     // Parse pi output to create conversation turn
     // Pi doesn't provide structured turn data, so we create a simplified single turn
-    const turns: ConversationTurn[] = [{
-      role: "result",
-      text: finalStdout.trim(),
-      durationMs,
-    }];
+    const turns: ConversationTurn[] = [
+      {
+        role: "result",
+        text: finalStdout.trim(),
+        durationMs,
+      },
+    ];
 
     return {
       resultText: finalStdout.trim(),

@@ -1,6 +1,18 @@
 import { writeFileSync } from "node:fs";
 import { basename } from "node:path";
-import { setDataDir, ensureDataDir, isDue, nextRunAt, parseInterval, readConfig, updateLastRun, validateResolvedConfig, getPidPath, getSocketPath, cleanupRuntimeFiles } from "./config.ts";
+import {
+  setDataDir,
+  ensureDataDir,
+  isDue,
+  nextRunAt,
+  parseInterval,
+  readConfig,
+  updateLastRun,
+  validateResolvedConfig,
+  getPidPath,
+  getSocketPath,
+  cleanupRuntimeFiles,
+} from "./config.ts";
 import { debug, enableDebug } from "./debug.ts";
 import { createEventBus, type EventBus } from "./events.ts";
 import { resolveWorkspaceConfig } from "./frontmatter.ts";
@@ -15,7 +27,7 @@ export function buildWorkspaceStatuses(resolved: WorkspaceConfig[]): WorkspaceSt
     name: ws.name ?? basename(ws.path),
     description: ws.description,
     schedule: ws.interval ?? ws.cron ?? "(none)",
-    scheduleType: ws.cron ? "cron" as const : "interval" as const,
+    scheduleType: ws.cron ? ("cron" as const) : ("interval" as const),
     nextRunAt: nextRunAt(ws),
     lastOutcome: null,
     lastRunAt: ws.lastRun ? new Date(ws.lastRun).getTime() : null,
@@ -35,8 +47,14 @@ export function startDaemon(tickMs: number): DaemonHandle {
 
   const loopDone = (async () => {
     await Promise.resolve(); // yield so callers can subscribe before first events
-    debug(`Daemon ready (PID ${process.pid}, ${initialConfig.workspaces.length} workspace(s), tick=${tickMs}ms)`);
-    bus.emit({ type: "daemon:ready", pid: process.pid, workspaceCount: initialConfig.workspaces.length });
+    debug(
+      `Daemon ready (PID ${process.pid}, ${initialConfig.workspaces.length} workspace(s), tick=${tickMs}ms)`,
+    );
+    bus.emit({
+      type: "daemon:ready",
+      pid: process.pid,
+      workspaceCount: initialConfig.workspaces.length,
+    });
 
     while (running) {
       try {
@@ -55,7 +73,10 @@ export function startDaemon(tickMs: number): DaemonHandle {
           resolved.push(r);
         }
 
-        bus.emit({ type: "tick", workspaces: buildWorkspaceStatuses(resolved) });
+        bus.emit({
+          type: "tick",
+          workspaces: buildWorkspaceStatuses(resolved),
+        });
 
         for (const ws of resolved) {
           if (!running) break;

@@ -86,9 +86,7 @@ const RESTRICTION_PATTERN =
 
 beforeAll(() => {
   if (!existsSync(MURMUR_BIN)) {
-    throw new Error(
-      `Compiled binary not found at ${MURMUR_BIN}. Run "bun run build" first.`,
-    );
+    throw new Error(`Compiled binary not found at ${MURMUR_BIN}. Run "bun run build" first.`);
   }
   testDataDir = mkdtempSync(join(tmpdir(), "murmur-perm-e2e-data-"));
 });
@@ -173,8 +171,7 @@ Then respond with HEARTBEAT_OK.
     //   1. The heartbeat outcome was "ok" (Claude responded with HEARTBEAT_OK)
     //   2. The marker file was created in the workspace
     const combined = result.stdout + result.stderr;
-    const outcomeOk =
-      combined.includes("OK") || combined.includes("ATTENTION");
+    const outcomeOk = combined.includes("OK") || combined.includes("ATTENTION");
     expect(outcomeOk).toBe(true);
 
     // The marker file should have been created by the echo command.
@@ -203,9 +200,7 @@ Say HEARTBEAT_OK. Do not run any commands.
 
     // The debug log should contain the full spawned command line.
     const debugLog = readDebugLog();
-    const spawnLine = debugLog
-      .split("\n")
-      .find((l) => l.includes("Spawning:"));
+    const spawnLine = debugLog.split("\n").find((l) => l.includes("Spawning:"));
     expect(spawnLine).toBeDefined();
 
     // Every entry in the default deny-list should appear in the spawn command.
@@ -265,10 +260,7 @@ If it does exist, respond with ATTENTION: marker file found.
     expect(existsSync(logFile)).toBe(true);
 
     const logContent = readFileSync(logFile, "utf-8");
-    const lastEntry = logContent
-      .trim()
-      .split("\n")
-      .pop();
+    const lastEntry = logContent.trim().split("\n").pop();
     expect(lastEntry).toBeDefined();
 
     const entry = JSON.parse(lastEntry!);

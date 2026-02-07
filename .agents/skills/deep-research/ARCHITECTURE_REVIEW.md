@@ -19,14 +19,14 @@
 
 ### vs. AnkitClassicVision/Claude-Code-Deep-Research
 
-| Feature | Their Approach | Our Approach | Winner |
-|---------|---------------|--------------|--------|
-| **Phases** | 7 (Scope→Plan→Retrieve→Triangulate→Draft→Critique→Package) | 8 (adds REFINE after Critique) | **Ours** (gap filling) |
-| **Validation** | Not documented | Automated 8-check system | **Ours** |
-| **Failure Handling** | Not documented | Explicit stop rules + error gates | **Ours** |
-| **Graph-of-Thoughts** | Yes, subagent spawning | Yes, parallel agents | **Tie** |
-| **Credibility Scoring** | Basic triangulation | 0-100 quantitative system | **Ours** |
-| **State Management** | Not documented | JSON serialization, recoverable | **Ours** |
+| Feature                 | Their Approach                                             | Our Approach                      | Winner                 |
+| ----------------------- | ---------------------------------------------------------- | --------------------------------- | ---------------------- |
+| **Phases**              | 7 (Scope→Plan→Retrieve→Triangulate→Draft→Critique→Package) | 8 (adds REFINE after Critique)    | **Ours** (gap filling) |
+| **Validation**          | Not documented                                             | Automated 8-check system          | **Ours**               |
+| **Failure Handling**    | Not documented                                             | Explicit stop rules + error gates | **Ours**               |
+| **Graph-of-Thoughts**   | Yes, subagent spawning                                     | Yes, parallel agents              | **Tie**                |
+| **Credibility Scoring** | Basic triangulation                                        | 0-100 quantitative system         | **Ours**               |
+| **State Management**    | Not documented                                             | JSON serialization, recoverable   | **Ours**               |
 
 **Verdict:** Our implementation is MORE ROBUST with superior validation and failure handling.
 
@@ -37,27 +37,32 @@
 ### From Official Documentation & Community Research
 
 ✅ **PASS: Frontmatter Format**
+
 - Proper YAML with `name:` and `description:`
 - Description includes triggers and exclusions
 
 ✅ **PASS: Self-Contained Structure**
+
 - All resources in single directory
 - Progressive disclosure via references
 - No external dependencies (stdlib only)
 
 ⚠️ **WARNING: SKILL.md Length**
+
 - Current: 343 lines
 - Best practice recommendation: 100-200 lines
 - Official Anthropic: "No strict maximum" for complex skills with scripts
 - **Assessment:** ACCEPTABLE given complexity, but could optimize
 
 ✅ **PASS: Context Management**
+
 - Static-first architecture for caching (>1024 tokens)
 - Explicit cache boundary markers
 - Progressive loading (not full inline)
 - "Loss in the middle" avoidance
 
 ✅ **PASS: Plan-First Approach**
+
 - Decision tree at top of SKILL.md
 - Mode selection before execution
 - Phase-by-phase instructions
@@ -71,35 +76,42 @@
 #### 3.1 System Design Issues
 
 **ISSUE: No referee for correctness validation**
+
 - ✅ **MITIGATED:** We have automated validator with 8 checks
 - ✅ **MITIGATED:** Human review required after 2 validation failures
 
 **ISSUE: Poor termination conditions**
+
 - ⚠️ **PARTIAL:** Our modes define phase counts but no explicit timeout enforcement
 - **RECOMMENDATION:** Add max time limits per mode in SKILL.md
 
 **ISSUE: Memory gaps (agents don't retain context)**
+
 - ✅ **MITIGATED:** ResearchState with JSON serialization
 - ✅ **MITIGATED:** State saved after each phase
 
 #### 3.2 Inter-Agent Misalignment
 
 **ISSUE: Agents work at cross-purposes**
+
 - ✅ **MITIGATED:** Single orchestration flow, no conflicting subagents
 - ✅ **MITIGATED:** Clear phase boundaries and handoffs
 
 **ISSUE: Communication failures between agents**
+
 - ✅ **MITIGATED:** Centralized ResearchState, not distributed agents
 - Note: We use Task tool for parallel retrieval, not autonomous multi-agent
 
 #### 3.3 Task Verification Problems
 
 **ISSUE: Incomplete results go unchecked**
+
 - ✅ **MITIGATED:** Validator checks all required sections
 - ✅ **MITIGATED:** 3+ source triangulation enforced
 - ✅ **MITIGATED:** Credibility scoring (average must be >60/100)
 
 **ISSUE: Iteration loops and cognitive deadlocks**
+
 - ✅ **MITIGATED:** Max 2 validation fix attempts, then escalate to user
 - ⚠️ **PARTIAL:** No explicit iteration limit for REFINE phase
 - **RECOMMENDATION:** Add max iterations to REFINE phase
@@ -125,23 +137,27 @@ Delivery
 ```
 
 #### SPOF #1: Decision Tree Misclassification
+
 **Risk:** Skill invoked for simple lookups, wastes time
 **Mitigation:** ✅ Explicit "Do NOT use" in description
 **Status:** LOW RISK
 
 #### SPOF #2: Validator Bugs
+
 **Risk:** Broken validation lets bad reports through
 **Mitigation:** ✅ Test fixtures (valid/invalid reports tested)
 **Evidence:** Test report passed ALL 8 CHECKS
 **Status:** LOW RISK (well-tested)
 
 #### SPOF #3: Filesystem Failures
+
 **Risk:** Research completes but file write fails
 **Mitigation:** ⚠️ No retry logic for file operations
 **Recommendation:** Add try-except with retry for file writes
 **Status:** MEDIUM RISK
 
 #### SPOF #4: Web Search API Unavailable
+
 **Risk:** Cannot retrieve sources, research fails
 **Mitigation:** ❌ No fallback mechanism
 **Recommendation:** Graceful degradation message to user
@@ -150,11 +166,13 @@ Delivery
 ### 4.2 DEPENDENCY ANALYSIS
 
 **External Dependencies:**
+
 1. WebSearch tool (Claude Code built-in) ← Cannot control
 2. Filesystem write access ← Usually reliable
 3. Python 3.x interpreter ← Standard
 
 **Internal Dependencies:**
+
 1. validate_report.py ← Tested ✅
 2. source_evaluator.py ← Logic-based, no external calls ✅
 3. citation_manager.py ← String manipulation only ✅
@@ -172,18 +190,21 @@ Delivery
 
 **Minimal (3 phases):**
 Scope → Retrieve → Package
+
 - ❌ No verification
 - ❌ No synthesis
 - ❌ No quality control
 
 **Standard (6 phases):**
 Scope → Plan → Retrieve → Triangulate → Synthesize → Package
+
 - ✅ Verification
 - ✅ Synthesis
 - ⚠️ No critique/refinement
 
 **Our Approach (8 phases):**
 Scope → Plan → Retrieve → Triangulate → Synthesize → Critique → Refine → Package
+
 - ✅ Verification
 - ✅ Synthesis
 - ✅ Red-team critique
@@ -195,18 +216,21 @@ AnkitClassicVision has 7 phases (no separate REFINE)
 #### Analysis
 
 **REFINE Phase:**
+
 - Purpose: Address gaps identified in CRITIQUE
 - Cost: 2-5 additional minutes
 - Benefit: Completeness, addresses weaknesses before delivery
 - **Verdict:** JUSTIFIED for deep/ultradeep modes, COULD SKIP in quick/standard
 
 **RECOMMENDATION:** Make REFINE phase conditional:
+
 - Quick mode: Skip
 - Standard mode: Skip (stay at 6 phases)
 - Deep mode: Include
 - UltraDeep mode: Include + iterate
 
 **Potential Savings:**
+
 - Standard mode: 5-10 min → 4-8 min (faster than competitor's 7 phases)
 - Still beat OpenAI (5-30 min) and Gemini (2-5 min but lower quality)
 
@@ -235,6 +259,7 @@ AnkitClassicVision has 7 phases (no separate REFINE)
 **After:** 4 enforcement points with concrete examples
 
 **Example transformation enforced:**
+
 - ❌ "significantly improved outcomes"
 - ✅ "reduced mortality 23% (p<0.01)"
 
@@ -245,20 +270,25 @@ AnkitClassicVision has 7 phases (no separate REFINE)
 ### 7.1 Low Source Availability (<10 sources)
 
 **Current Handling:**
+
 - ✅ Validator flags warning if <10 sources
 - ✅ SKILL.md says "document if fewer"
 - ⚠️ No automatic stop if 0-5 sources found
 
 **RECOMMENDATION:** Add hard stop at <5 sources:
+
 ```markdown
 **Stop immediately if:**
+
 - <5 sources after exhaustive search → Report limitation, ask user
 ```
+
 **Status:** Already present in SKILL.md line 207 ✅
 
 ### 7.2 Contradictory Sources
 
 **Current Handling:**
+
 - ✅ TRIANGULATE phase cross-references
 - ✅ Flag contradictions explicitly
 - ✅ Source credibility scoring helps prioritize
@@ -268,6 +298,7 @@ AnkitClassicVision has 7 phases (no separate REFINE)
 ### 7.3 Time Pressure (User Wants Quick Result)
 
 **Current Handling:**
+
 - ✅ Quick mode: 2-5 min with 3 phases
 - ✅ Mode selection at start
 
@@ -276,6 +307,7 @@ AnkitClassicVision has 7 phases (no separate REFINE)
 ### 7.4 Technical Topic with Limited Public Sources
 
 **Current Handling:**
+
 - ⚠️ No specialized academic database access
 - ⚠️ Relies entirely on WebSearch tool
 
@@ -290,16 +322,19 @@ AnkitClassicVision has 7 phases (no separate REFINE)
 ### 8.1 Validator Test Coverage
 
 **Test Fixtures:**
+
 - ✅ `valid_report.md` - passes all checks
 - ✅ `invalid_report.md` - triggers specific failures
 
 **Test Execution:**
+
 ```bash
 python scripts/validate_report.py --report tests/fixtures/valid_report.md
 # Result: ALL 8 CHECKS PASSED ✅
 ```
 
 **Real-World Test:**
+
 ```bash
 python scripts/validate_report.py --report ../../research_output/senolytics_clinical_trials_test.md
 # Result: ALL 8 CHECKS PASSED ✅
@@ -307,6 +342,7 @@ python scripts/validate_report.py --report ../../research_output/senolytics_clin
 ```
 
 **Coverage:**
+
 1. ✅ Executive summary length (50-250 words)
 2. ✅ Required sections present
 3. ✅ Citations formatted [1], [2], [3]
@@ -321,6 +357,7 @@ python scripts/validate_report.py --report ../../research_output/senolytics_clin
 ### 8.2 Edge Case: What if Validator Itself Fails?
 
 **Current Handling:**
+
 ```python
 except Exception as e:
     print(f"❌ ERROR: Cannot read report: {e}")
@@ -337,18 +374,19 @@ except Exception as e:
 
 ### Speed Comparison
 
-| Implementation | Time | Phases | Quality |
-|----------------|------|--------|---------|
-| Claude Desktop | <1 min | Unknown | Low (no citations) |
-| Gemini Deep Research | 2-5 min | Unknown | Medium |
-| OpenAI Deep Research | 5-30 min | Unknown | High |
-| AnkitClassicVision | Unknown | 7 | Unknown (no validation) |
-| **Ours (Quick)** | **2-5 min** | **3** | **Medium** |
-| **Ours (Standard)** | **5-10 min** | **6** | **High** |
-| **Ours (Deep)** | **10-20 min** | **8** | **Highest** |
-| **Ours (UltraDeep)** | **20-45 min** | **8+** | **Highest** |
+| Implementation       | Time          | Phases  | Quality                 |
+| -------------------- | ------------- | ------- | ----------------------- |
+| Claude Desktop       | <1 min        | Unknown | Low (no citations)      |
+| Gemini Deep Research | 2-5 min       | Unknown | Medium                  |
+| OpenAI Deep Research | 5-30 min      | Unknown | High                    |
+| AnkitClassicVision   | Unknown       | 7       | Unknown (no validation) |
+| **Ours (Quick)**     | **2-5 min**   | **3**   | **Medium**              |
+| **Ours (Standard)**  | **5-10 min**  | **6**   | **High**                |
+| **Ours (Deep)**      | **10-20 min** | **8**   | **Highest**             |
+| **Ours (UltraDeep)** | **20-45 min** | **8+**  | **Highest**             |
 
 **Positioning:**
+
 - Quick mode: Competitive with Gemini (2-5 min)
 - Standard mode: Faster than OpenAI (5-10 vs 5-30)
 - Deep mode: Unmatched quality, reasonable time
@@ -359,11 +397,13 @@ except Exception as e:
 ## 10. RECOMMENDATIONS SUMMARY
 
 ### CRITICAL (0)
+
 None identified. System is production-ready.
 
 ### HIGH PRIORITY (2)
 
 **1. Add Filesystem Retry Logic**
+
 ```python
 # In report writing
 max_retries = 3
@@ -379,6 +419,7 @@ for attempt in range(max_retries):
 
 **2. Conditional REFINE Phase**
 Update SKILL.md and research_engine.py:
+
 ```python
 def get_phases_for_mode(mode: ResearchMode) -> List[ResearchPhase]:
     if mode == ResearchMode.QUICK:
@@ -393,8 +434,10 @@ def get_phases_for_mode(mode: ResearchMode) -> List[ResearchPhase]:
 ### MEDIUM PRIORITY (3)
 
 **3. Add Explicit Timeout Enforcement**
+
 ```markdown
 **Time Limits:**
+
 - Quick mode: 5 min max
 - Standard mode: 12 min max
 - Deep mode: 25 min max
@@ -402,16 +445,20 @@ def get_phases_for_mode(mode: ResearchMode) -> List[ResearchPhase]:
 ```
 
 **4. Add WebSearch Failure Graceful Degradation**
+
 ```markdown
 **If WebSearch unavailable:**
+
 - Notify user immediately
 - Ask if they want to proceed with limited sources
 - Document limitation prominently in report
 ```
 
 **5. Add REFINE Phase Iteration Limit**
+
 ```markdown
 **REFINE Phase:**
+
 - Max 2 iterations
 - If gaps remain after 2 iterations, document in limitations section
 ```
@@ -419,6 +466,7 @@ def get_phases_for_mode(mode: ResearchMode) -> List[ResearchPhase]:
 ### LOW PRIORITY (1)
 
 **6. Future Enhancement: Academic Database Access**
+
 - Consider MCP server for PubMed, PubChem, ArXiv
 - Would match K-Dense-AI/claude-scientific-skills capability
 - Not blocking for current use cases
@@ -430,6 +478,7 @@ def get_phases_for_mode(mode: ResearchMode) -> List[ResearchPhase]:
 ### Architecture Soundness: ✅ EXCELLENT
 
 **Strengths:**
+
 1. Superior validation infrastructure vs competitors
 2. Robust state management with recovery
 3. Well-tested with fixtures and real-world data
@@ -440,6 +489,7 @@ def get_phases_for_mode(mode: ResearchMode) -> List[ResearchPhase]:
 8. Progressive disclosure for efficiency
 
 **Weaknesses:**
+
 1. No filesystem retry logic (easy fix)
 2. REFINE phase not conditional by mode (optimization opportunity)
 3. No explicit timeout enforcement (nice-to-have)
@@ -457,6 +507,7 @@ The system is production-ready with minor optimizations available. Zero critical
 ## 12. COMPARISON TO ORIGINAL REQUIREMENTS
 
 ### User's Request:
+
 > "Can you create a skill that does a high level if not better version of that [Claude Desktop deep research] -- it can use python scrips and libraries, don't hesitate to inspire yourself with github repo. Once done deploy globally so i can use in any instance of claude code."
 
 ### Delivered:
@@ -488,7 +539,8 @@ The 2 high-priority optimizations (filesystem retry, conditional REFINE) would e
 
 **Overall Grade: A (95/100)**
 
-*Deductions:*
+_Deductions:_
+
 - -3 for missing filesystem retry logic
 - -2 for non-conditional REFINE phase
 

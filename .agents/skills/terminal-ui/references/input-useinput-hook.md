@@ -57,6 +57,7 @@ function App() {
 ```
 
 **Benefits:**
+
 - Automatic raw mode management
 - Parsed modifier keys (ctrl, meta, shift)
 - Arrow keys and special keys detected

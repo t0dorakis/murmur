@@ -23,10 +23,10 @@ export const cyan = `${ESC}36m`;
 
 // Tool icons for verbose display
 export const toolIcons = {
-  pending: "◇",    // Tool started, waiting for result
-  complete: "◆",   // Tool completed successfully
-  running: "⟳",    // Tool currently running
-  error: "✗",      // Tool failed
+  pending: "◇", // Tool started, waiting for result
+  complete: "◆", // Tool completed successfully
+  running: "⟳", // Tool currently running
+  error: "✗", // Tool failed
 } as const;
 
 // Composites

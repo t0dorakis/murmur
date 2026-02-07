@@ -103,7 +103,10 @@ describe("mergeWorkspaceConfig", () => {
   };
 
   test("frontmatter overrides config.json values", () => {
-    const merged = mergeWorkspaceConfig(baseWs, { interval: "30m", name: "My Beat" });
+    const merged = mergeWorkspaceConfig(baseWs, {
+      interval: "30m",
+      name: "My Beat",
+    });
     expect(merged.interval).toBe("30m");
     expect(merged.name).toBe("My Beat");
     expect(merged.path).toBe("/test");

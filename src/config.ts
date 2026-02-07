@@ -94,7 +94,8 @@ export function validateResolvedConfig(ws: WorkspaceConfig): string | null {
 
   const hasInterval = typeof ws.interval === "string" && ws.interval.length > 0;
   const hasCron = typeof ws.cron === "string" && ws.cron.length > 0;
-  if (!hasInterval && !hasCron) return `missing "interval" or "cron" (set in HEARTBEAT.md frontmatter or config.json)`;
+  if (!hasInterval && !hasCron)
+    return `missing "interval" or "cron" (set in HEARTBEAT.md frontmatter or config.json)`;
 
   return null;
 }
@@ -119,7 +120,9 @@ export function readConfig(): Config {
     }
     debug(`Config loaded: ${valid.length} workspace(s) from ${configPath}`);
     for (const ws of valid) {
-      const schedule = ws.interval ? `interval=${ws.interval}` : `cron="${ws.cron}"${ws.tz ? ` tz=${ws.tz}` : ""}`;
+      const schedule = ws.interval
+        ? `interval=${ws.interval}`
+        : `cron="${ws.cron}"${ws.tz ? ` tz=${ws.tz}` : ""}`;
       debug(`  Workspace: ${ws.path} (${schedule}, lastRun=${ws.lastRun ?? "never"})`);
     }
     return { workspaces: valid };
@@ -186,7 +189,9 @@ function parseLastRun(ws: WorkspaceConfig): number | null {
   if (!ws.lastRun) return null;
   const t = new Date(ws.lastRun).getTime();
   if (Number.isNaN(t)) {
-    console.error(`Invalid lastRun timestamp for ${ws.path}: "${ws.lastRun}". Treating as never run.`);
+    console.error(
+      `Invalid lastRun timestamp for ${ws.path}: "${ws.lastRun}". Treating as never run.`,
+    );
     return null;
   }
   return t;

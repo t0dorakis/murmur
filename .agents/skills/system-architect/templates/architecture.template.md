@@ -25,19 +25,24 @@
 ## 1. System Overview
 
 ### Purpose
+
 {Brief description of what the system does and its primary purpose}
 
 ### Scope
+
 **In Scope:**
+
 - {Feature/capability 1}
 - {Feature/capability 2}
 - {Feature/capability 3}
 
 **Out of Scope:**
+
 - {Explicitly excluded feature 1}
 - {Explicitly excluded feature 2}
 
 ### Architectural Drivers
+
 Key requirements that heavily influence architectural decisions:
 
 1. **{NFR-ID}: {NFR Name}** - {Description and impact on architecture}
@@ -45,6 +50,7 @@ Key requirements that heavily influence architectural decisions:
 3. **{NFR-ID}: {NFR Name}** - {Description and impact on architecture}
 
 ### Stakeholders
+
 - **Users:** {Description of end users}
 - **Developers:** {Team size and structure}
 - **Operations:** {Operations team or DevOps approach}
@@ -55,19 +61,24 @@ Key requirements that heavily influence architectural decisions:
 ## 2. Architecture Pattern
 
 ### Selected Pattern
+
 **Pattern:** {Monolith | Modular Monolith | Microservices | Serverless | Layered}
 
 ### Pattern Justification
+
 **Why this pattern:**
+
 - {Reason 1 - e.g., Team size of 5 developers fits modular monolith}
 - {Reason 2 - e.g., Level 2 project complexity}
 - {Reason 3 - e.g., Need module independence but simple deployment}
 
 **Alternatives considered:**
+
 - **{Alternative 1}:** Rejected because {reason}
 - **{Alternative 2}:** Rejected because {reason}
 
 ### Pattern Application
+
 {Describe how the pattern is applied in this specific system}
 
 ---
@@ -115,22 +126,27 @@ Key requirements that heavily influence architectural decisions:
 **Responsibility:** {Single sentence describing what this component does}
 
 **Interfaces Provided:**
+
 - `{endpoint/method 1}` - {Description}
 - `{endpoint/method 2}` - {Description}
 
 **Interfaces Required:**
+
 - `{dependency 1}` - {What it needs from other components}
 - `{dependency 2}` - {What it needs from other components}
 
 **Data Owned:**
+
 - {Entity 1}
 - {Entity 2}
 
 **Key Operations:**
+
 1. {Operation 1} - {Description}
 2. {Operation 2} - {Description}
 
 **NFRs Addressed:**
+
 - {NFR-ID}: {How this component addresses it}
 
 ---
@@ -185,6 +201,7 @@ Key requirements that heavily influence architectural decisions:
 **Purpose:** {What this entity represents}
 
 **Attributes:**
+
 - `id` (UUID, PK) - Unique identifier
 - `{attribute_1}` ({type}) - {Description}
 - `{attribute_2}` ({type}) - {Description}
@@ -192,13 +209,16 @@ Key requirements that heavily influence architectural decisions:
 - `updated_at` (Timestamp) - Last modification time
 
 **Relationships:**
+
 - {Relationship to Entity 2} - {Description}
 
 **Indexes:**
+
 - Primary key on `id`
 - Index on `{frequently_queried_field}`
 
 **Constraints:**
+
 - {Constraint 1}
 - {Constraint 2}
 
@@ -223,6 +243,7 @@ Key requirements that heavily influence architectural decisions:
 ## 5. API Specifications
 
 ### API Design Approach
+
 **Protocol:** {REST | GraphQL | gRPC}
 **Authentication:** {JWT | OAuth2 | API Keys}
 **Versioning:** {Versioning strategy}
@@ -238,6 +259,7 @@ Key requirements that heavily influence architectural decisions:
 **Authentication:** {Required | Optional | None}
 
 **Request:**
+
 ```json
 {
   "field1": "string",
@@ -249,6 +271,7 @@ Key requirements that heavily influence architectural decisions:
 ```
 
 **Response (200 OK):**
+
 ```json
 {
   "status": "success",
@@ -261,12 +284,14 @@ Key requirements that heavily influence architectural decisions:
 ```
 
 **Error Responses:**
+
 - `400 Bad Request` - {When and why}
 - `401 Unauthorized` - {When and why}
 - `404 Not Found` - {When and why}
 - `500 Internal Server Error` - {When and why}
 
 **NFRs:**
+
 - Response time target: {<200ms}
 - Rate limit: {100 requests/minute per user}
 
@@ -277,15 +302,19 @@ Key requirements that heavily influence architectural decisions:
 ### API Security
 
 **Authentication:**
+
 - {Method and implementation}
 
 **Authorization:**
+
 - {RBAC/ABAC approach}
 
 **Rate Limiting:**
+
 - {Strategy and limits}
 
 **Input Validation:**
+
 - {Validation approach}
 
 ---
@@ -294,14 +323,14 @@ Key requirements that heavily influence architectural decisions:
 
 ### NFR Coverage Matrix
 
-| NFR ID | Category | Requirement | Architectural Decision | Status |
-|--------|----------|-------------|----------------------|--------|
-| NFR-001 | Performance | <200ms API response | Redis caching, database indexing, CDN for static assets | ✓ Addressed |
-| NFR-002 | Scalability | Support 10,000 concurrent users | Horizontal scaling, stateless design, load balancer | ✓ Addressed |
-| NFR-003 | Security | PCI DSS compliance | Payment gateway integration, no card storage, encryption | ✓ Addressed |
-| NFR-004 | Availability | 99.9% uptime | Multi-AZ deployment, auto-failover, health checks | ✓ Addressed |
-| NFR-005 | Reliability | <0.1% error rate | Circuit breakers, retry logic, graceful degradation | ✓ Addressed |
-| {NFR-ID} | {Category} | {Requirement} | {Decision} | {Status} |
+| NFR ID   | Category     | Requirement                     | Architectural Decision                                   | Status      |
+| -------- | ------------ | ------------------------------- | -------------------------------------------------------- | ----------- |
+| NFR-001  | Performance  | <200ms API response             | Redis caching, database indexing, CDN for static assets  | ✓ Addressed |
+| NFR-002  | Scalability  | Support 10,000 concurrent users | Horizontal scaling, stateless design, load balancer      | ✓ Addressed |
+| NFR-003  | Security     | PCI DSS compliance              | Payment gateway integration, no card storage, encryption | ✓ Addressed |
+| NFR-004  | Availability | 99.9% uptime                    | Multi-AZ deployment, auto-failover, health checks        | ✓ Addressed |
+| NFR-005  | Reliability  | <0.1% error rate                | Circuit breakers, retry logic, graceful degradation      | ✓ Addressed |
+| {NFR-ID} | {Category}   | {Requirement}                   | {Decision}                                               | {Status}    |
 
 ### Detailed NFR Implementations
 
@@ -310,6 +339,7 @@ Key requirements that heavily influence architectural decisions:
 **Requirement:** API response time <200ms for 95th percentile
 
 **Architectural Decisions:**
+
 1. **Caching Strategy:**
    - Application-level: Redis for frequently accessed data (user sessions, product catalog)
    - Database-level: Query result caching
@@ -341,14 +371,17 @@ Key requirements that heavily influence architectural decisions:
 **Version:** {18.x}
 
 **Rationale:**
+
 - {Reason 1 - e.g., Team expertise}
 - {Reason 2 - e.g., Rich ecosystem}
 - {Reason 3 - e.g., Performance characteristics}
 
 **Alternatives Considered:**
+
 - {Alternative}: {Why not chosen}
 
 **Key Libraries:**
+
 - {Library 1} - {Purpose}
 - {Library 2} - {Purpose}
 
@@ -360,14 +393,17 @@ Key requirements that heavily influence architectural decisions:
 **Version:** {20.x LTS}
 
 **Rationale:**
+
 - {Reason 1}
 - {Reason 2}
 - {Reason 3}
 
 **Alternatives Considered:**
+
 - {Alternative}: {Why not chosen}
 
 **Key Libraries:**
+
 - {Library 1} - {Purpose}
 - {Library 2} - {Purpose}
 
@@ -379,14 +415,17 @@ Key requirements that heavily influence architectural decisions:
 **Version:** {15.x}
 
 **Rationale:**
+
 - {Reason 1 - e.g., ACID compliance requirements}
 - {Reason 2 - e.g., JSON support for flexible schemas}
 - {Reason 3 - e.g., Proven scalability}
 
 **Alternatives Considered:**
+
 - {Alternative}: {Why not chosen}
 
 **Cache:** {Redis | Memcached}
+
 - {Purpose and usage pattern}
 
 ---
@@ -397,10 +436,12 @@ Key requirements that heavily influence architectural decisions:
 **Region(s):** {us-east-1, us-west-2}
 
 **Rationale:**
+
 - {Reason 1}
 - {Reason 2}
 
 **Services Used:**
+
 - **Compute:** {EC2 | App Service | Compute Engine}
 - **Database:** {RDS | Azure SQL | Cloud SQL}
 - **Cache:** {ElastiCache | Azure Cache | Memorystore}
@@ -428,6 +469,7 @@ Key requirements that heavily influence architectural decisions:
 **Decision:** {What was decided}
 
 **Options Considered:**
+
 1. **Option A:** {Description}
    - Pros: {Benefits}
    - Cons: {Drawbacks}
@@ -440,6 +482,7 @@ Key requirements that heavily influence architectural decisions:
 {Why this option was chosen - reference requirements, constraints, team capabilities}
 
 **Trade-offs Accepted:**
+
 - **Benefit:** {What we gain}
 - **Cost:** {What we give up}
 - **Mitigation:** {How we minimize the cost}
@@ -454,6 +497,7 @@ Key requirements that heavily influence architectural decisions:
 **Decision:** Use Modular Monolith
 
 **Options Considered:**
+
 1. **Modular Monolith:**
    - Pros: Simple deployment, lower ops complexity, easier testing, good module boundaries
    - Cons: Scales as one unit, potential coupling, all or nothing deployment
@@ -463,17 +507,20 @@ Key requirements that heavily influence architectural decisions:
    - Cons: High operational complexity, network latency, distributed data challenges, requires DevOps maturity
 
 **Selection Rationale:**
+
 - Team size (5 developers) doesn't justify microservices complexity
 - Level 2 project complexity fits modular monolith
 - Can evolve to microservices later if needed with good module boundaries
 - Operations team not yet ready for microservices management
 
 **Trade-offs Accepted:**
+
 - **Benefit:** Development and deployment simplicity, faster time to market
 - **Cost:** All components scale together, cannot use different technologies per service
 - **Mitigation:** Design clear module boundaries that could become service boundaries later
 
 **Revisit Conditions:**
+
 - Team grows beyond 10 developers
 - Individual modules need different scaling characteristics
 - Operations team gains container orchestration expertise
@@ -536,6 +583,7 @@ Key requirements that heavily influence architectural decisions:
 **Deployment Method:** {Blue-Green | Rolling | Canary}
 
 **Process:**
+
 1. {Step 1}
 2. {Step 2}
 3. {Step 3}
@@ -545,11 +593,13 @@ Key requirements that heavily influence architectural decisions:
 ### Scaling Strategy
 
 **Horizontal Scaling:**
+
 - Auto-scaling group: min 2, max 10 instances
 - Scale up: CPU > 70% for 5 minutes
 - Scale down: CPU < 30% for 10 minutes
 
 **Database Scaling:**
+
 - Read replicas for read-heavy queries
 - Vertical scaling path defined
 - Sharding strategy if needed
@@ -561,14 +611,17 @@ Key requirements that heavily influence architectural decisions:
 ### Anticipated Changes
 
 **Near Term (3-6 months):**
+
 - {Change 1 and how architecture supports it}
 - {Change 2 and how architecture supports it}
 
 **Medium Term (6-12 months):**
+
 - {Change 1 and preparation needed}
 - {Change 2 and preparation needed}
 
 **Long Term (12+ months):**
+
 - {Change 1 and evolution path}
 - {Change 2 and evolution path}
 
@@ -577,11 +630,13 @@ Key requirements that heavily influence architectural decisions:
 **Current Capacity:** {10,000 concurrent users}
 
 **Scale to 50,000 users:**
+
 - Add read replicas
 - Increase cache capacity
 - Horizontal scaling of app servers
 
 **Scale to 500,000 users:**
+
 - Consider database sharding
 - Multi-region deployment
 - Evaluate CDN expansion
@@ -590,10 +645,12 @@ Key requirements that heavily influence architectural decisions:
 ### Technology Evolution
 
 **Potential Updates:**
+
 - {Technology 1}: {When and why to upgrade}
 - {Technology 2}: {When and why to upgrade}
 
 **Migration Paths:**
+
 - {Potential migration 1}: {Conditions and approach}
 - {Potential migration 2}: {Conditions and approach}
 
@@ -603,8 +660,8 @@ Key requirements that heavily influence architectural decisions:
 
 ### Glossary
 
-| Term | Definition |
-|------|------------|
+| Term     | Definition   |
+| -------- | ------------ |
 | {Term 1} | {Definition} |
 | {Term 2} | {Definition} |
 
@@ -616,9 +673,9 @@ Key requirements that heavily influence architectural decisions:
 
 ### Document History
 
-| Version | Date | Author | Changes |
-|---------|------|--------|---------|
-| 1.0 | {DATE} | System Architect | Initial architecture document |
+| Version | Date   | Author           | Changes                       |
+| ------- | ------ | ---------------- | ----------------------------- |
+| 1.0     | {DATE} | System Architect | Initial architecture document |
 
 ---
 

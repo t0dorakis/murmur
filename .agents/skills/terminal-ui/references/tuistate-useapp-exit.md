@@ -80,6 +80,7 @@ async function main() {
 ```
 
 **Benefits:**
+
 - Terminal state is properly restored
 - React cleanup functions are called
 - Exit code can be controlled

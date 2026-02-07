@@ -12,20 +12,20 @@ Use `@clack/core` to create custom prompts with full control over rendering and 
 **Incorrect (hardcoded string concatenation):**
 
 ```typescript
-import * as readline from 'readline'
+import * as readline from "readline";
 
 async function getEmail(): Promise<string> {
   const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout
-  })
+    output: process.stdout,
+  });
 
   return new Promise((resolve) => {
-    rl.question('Enter your email: ', (answer) => {
-      rl.close()
-      resolve(answer)
-    })
-  })
+    rl.question("Enter your email: ", (answer) => {
+      rl.close();
+      resolve(answer);
+    });
+  });
   // No validation, no cursor handling, no state management
   // No visual feedback for errors or cancellation
 }
@@ -34,44 +34,45 @@ async function getEmail(): Promise<string> {
 **Correct (custom prompt with @clack/core):**
 
 ```typescript
-import { TextPrompt, isCancel } from '@clack/core'
-import color from 'picocolors'
+import { TextPrompt, isCancel } from "@clack/core";
+import color from "picocolors";
 
 const emailPrompt = new TextPrompt({
   validate: (value) => {
-    if (!value) return 'Email is required'
-    if (!value.includes('@')) return 'Must be a valid email'
+    if (!value) return "Email is required";
+    if (!value.includes("@")) return "Must be a valid email";
   },
 
   render() {
-    const title = `${color.cyan('?')} ${color.bold('Enter your email')}:`
-    const input = this.valueWithCursor || color.dim('user@example.com')
+    const title = `${color.cyan("?")} ${color.bold("Enter your email")}:`;
+    const input = this.valueWithCursor || color.dim("user@example.com");
 
     switch (this.state) {
-      case 'error':
-        return `${title}\n${color.yellow(input)}\n${color.red(`✖ ${this.error}`)}`
+      case "error":
+        return `${title}\n${color.yellow(input)}\n${color.red(`✖ ${this.error}`)}`;
 
-      case 'submit':
-        return `${title} ${color.green(this.value)}`
+      case "submit":
+        return `${title} ${color.green(this.value)}`;
 
-      case 'cancel':
-        return `${title} ${color.strikethrough(color.dim(this.value || ''))}`
+      case "cancel":
+        return `${title} ${color.strikethrough(color.dim(this.value || ""))}`;
 
       default:
-        return `${title}\n${color.cyan(input)}`
+        return `${title}\n${color.cyan(input)}`;
     }
-  }
-})
+  },
+});
 
-const email = await emailPrompt.prompt()
+const email = await emailPrompt.prompt();
 
 if (isCancel(email)) {
-  console.log('Cancelled')
-  process.exit(0)
+  console.log("Cancelled");
+  process.exit(0);
 }
 ```
 
 **When to use custom prompts:**
+
 - Autocomplete/fuzzy search inputs
 - Date/time pickers
 - Multi-step wizards with custom navigation

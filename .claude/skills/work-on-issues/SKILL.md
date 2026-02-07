@@ -22,6 +22,7 @@ gh issue list --label "triaged" --state open --json number,title,labels,body,com
 ```
 
 Skip any issue that:
+
 - Does **not** have the `triaged` label (another agent handles triage)
 - Already has `in-progress` label
 - Has `duplicate` or `wontfix` or `auto-dismissed` label
@@ -30,19 +31,19 @@ Skip any issue that:
 
 Rank by **priority descending, then size ascending**:
 
-| Priority       | Weight |
-|----------------|--------|
+| Priority          | Weight |
+| ----------------- | ------ |
 | `priority:must`   | 3      |
 | `priority:should` | 2      |
 | `priority:could`  | 1      |
 
-| Size       | Weight |
-|------------|--------|
-| `size:xs`  | 1      |
-| `size:s`   | 2      |
-| `size:m`   | 3      |
-| `size:l`   | 4      |
-| `size:xl`  | 5      |
+| Size      | Weight |
+| --------- | ------ |
+| `size:xs` | 1      |
+| `size:s`  | 2      |
+| `size:m`  | 3      |
+| `size:l`  | 4      |
+| `size:xl` | 5      |
 
 **Score = priority_weight × 10 − size_weight**. Pick the highest score. On tie, pick the lowest issue number (oldest).
 
@@ -68,6 +69,7 @@ gh issue edit <NUMBER> --add-label "in-progress"
 ### Step 5 — Plan the implementation
 
 Think through:
+
 - What files need to change and why
 - How to keep changes clean, readable, and minimal (Boy Scout Rule)
 - Whether `/effect-ts-patterns` guidance applies
@@ -116,6 +118,7 @@ git push -u origin issue-<NUMBER>-<slug>
 ```
 
 Create PR referencing the issue:
+
 ```bash
 gh pr create --title "<type>(scope): <description>" --body "Closes #<NUMBER>
 
@@ -129,6 +132,7 @@ gh pr create --title "<type>(scope): <description>" --body "Closes #<NUMBER>
 ### Step 11 — Clean up on failure
 
 If any step fails irrecoverably:
+
 1. Remove `in-progress` label: `gh issue edit <NUMBER> --remove-label "in-progress"`
 2. Add a comment explaining what went wrong: `gh issue comment <NUMBER> --body "<explanation>"`
 3. Remove the worktree: `git worktree remove ../murmur-issue-<NUMBER>`

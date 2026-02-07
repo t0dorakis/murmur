@@ -69,17 +69,18 @@ function ConfirmDialog({
 **With Clack prompts:**
 
 ```typescript
-import * as p from '@clack/prompts'
+import * as p from "@clack/prompts";
 
-const result = await p.confirm({ message: 'Continue?' })
+const result = await p.confirm({ message: "Continue?" });
 
 if (p.isCancel(result)) {
-  p.cancel('Operation cancelled.')
-  process.exit(0)  // Clean exit
+  p.cancel("Operation cancelled.");
+  process.exit(0); // Clean exit
 }
 ```
 
 **Benefits:**
+
 - Users never feel trapped
 - Consistent cancellation behavior across the application
 - Clear indication of how to exit

@@ -31,6 +31,7 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, TodoWrite, WebSearch
 ## When to Use This Skill
 
 Activate this skill when you need to:
+
 - Design system architecture for a new project
 - Select technology stacks with justification
 - Define system components and their interactions
@@ -46,6 +47,7 @@ Activate this skill when you need to:
 **Trigger:** User requests architecture design or mentions system design, tech stack
 
 **Steps:**
+
 1. Load requirements document (PRD or tech-spec)
 2. Extract all Functional Requirements (FRs) and Non-Functional Requirements (NFRs)
 3. Identify architectural drivers (NFRs that heavily influence design)
@@ -64,6 +66,7 @@ Activate this skill when you need to:
 **Trigger:** User requests architecture validation or review
 
 **Steps:**
+
 1. Load existing architecture document
 2. Load requirements document (PRD or tech-spec)
 3. Run validation checks:
@@ -83,6 +86,7 @@ Activate this skill when you need to:
 **Trigger:** User requests NFR checklist or coverage analysis
 
 **Steps:**
+
 1. Run NFR checklist script to identify all NFR categories
 2. Review architecture document for NFR coverage
 3. Generate coverage matrix showing addressed vs. missing NFRs
@@ -95,6 +99,7 @@ Activate this skill when you need to:
 Choose patterns based on project complexity and requirements:
 
 ### Application Architecture
+
 - **Monolith** - Simple, single deployable unit (Level 0-1 projects)
 - **Modular Monolith** - Organized modules with clear boundaries (Level 2 projects)
 - **Microservices** - Independent services with APIs (Level 3-4 projects)
@@ -102,12 +107,14 @@ Choose patterns based on project complexity and requirements:
 - **Layered** - Traditional separation (presentation, business, data)
 
 ### Data Architecture
+
 - **CRUD** - Simple create/read/update/delete (most apps)
 - **CQRS** - Separate read/write models (read-heavy workloads)
 - **Event Sourcing** - Event log as source of truth (audit requirements)
 - **Data Lake** - Centralized analytics storage (big data)
 
 ### Integration Patterns
+
 - **REST APIs** - Synchronous, resource-oriented (standard choice)
 - **GraphQL** - Flexible queries, single endpoint (complex UIs)
 - **Message Queues** - Asynchronous, decoupled (background jobs)
@@ -119,25 +126,27 @@ See [REFERENCE.md](REFERENCE.md) for detailed pattern descriptions and selection
 
 Systematically address each NFR category with specific architectural decisions:
 
-| NFR Category | Architecture Decisions |
-|--------------|----------------------|
-| **Performance** | Caching strategy, CDN, database indexing, load balancing |
-| **Scalability** | Horizontal scaling, stateless design, database sharding |
-| **Security** | Auth/authz model, encryption (transit/rest), secret management |
-| **Reliability** | Redundancy, failover, circuit breakers, retry logic |
-| **Maintainability** | Module boundaries, testing strategy, documentation |
-| **Availability** | Multi-region, backup/restore, monitoring/alerting |
+| NFR Category        | Architecture Decisions                                         |
+| ------------------- | -------------------------------------------------------------- |
+| **Performance**     | Caching strategy, CDN, database indexing, load balancing       |
+| **Scalability**     | Horizontal scaling, stateless design, database sharding        |
+| **Security**        | Auth/authz model, encryption (transit/rest), secret management |
+| **Reliability**     | Redundancy, failover, circuit breakers, retry logic            |
+| **Maintainability** | Module boundaries, testing strategy, documentation             |
+| **Availability**    | Multi-region, backup/restore, monitoring/alerting              |
 
 See [resources/nfr-mapping.md](resources/nfr-mapping.md) for complete mapping reference.
 
 ## Design Approach
 
 ### Think in Layers
+
 - Clear separation of concerns
 - Loose coupling between layers
 - High cohesion within layers
 
 ### Consider Trade-offs
+
 - Performance vs. cost
 - Simplicity vs. flexibility
 - Speed vs. reliability
@@ -145,6 +154,7 @@ See [resources/nfr-mapping.md](resources/nfr-mapping.md) for complete mapping re
 - Document why trade-offs are acceptable
 
 ### Design for Change
+
 - Identify likely changes
 - Make those areas pluggable
 - Don't abstract everything (YAGNI principle)
@@ -167,15 +177,19 @@ Use the template at [templates/architecture.template.md](templates/architecture.
 ## Available Scripts
 
 ### NFR Checklist
+
 ```bash
 bash scripts/nfr-checklist.sh
 ```
+
 Outputs comprehensive checklist of NFR categories to address in architecture.
 
 ### Validate Architecture
+
 ```bash
 bash scripts/validate-architecture.sh docs/architecture-myproject-2025-12-09.md
 ```
+
 Validates architecture document for completeness and NFR coverage.
 
 ## Subagent Strategy
@@ -183,33 +197,37 @@ Validates architecture document for completeness and NFR coverage.
 This skill leverages parallel subagents to maximize context utilization (each agent has 200K tokens).
 
 ### Requirements Analysis Workflow
+
 **Pattern:** Fan-Out Research
 **Agents:** 2 parallel agents
 
-| Agent | Task | Output |
-|-------|------|--------|
-| Agent 1 | Extract and analyze all Functional Requirements | bmad/outputs/fr-analysis.md |
+| Agent   | Task                                                | Output                       |
+| ------- | --------------------------------------------------- | ---------------------------- |
+| Agent 1 | Extract and analyze all Functional Requirements     | bmad/outputs/fr-analysis.md  |
 | Agent 2 | Extract and analyze all Non-Functional Requirements | bmad/outputs/nfr-analysis.md |
 
 **Coordination:**
+
 1. Load PRD or tech-spec from docs directory
 2. Launch parallel agents to analyze FR and NFR independently
 3. Main context identifies architectural drivers from NFR analysis
 4. Synthesize into architectural requirements document
 
 ### Component Design Workflow
+
 **Pattern:** Component Parallel Design
 **Agents:** N parallel agents (one per major component)
 
-| Agent | Task | Output |
-|-------|------|--------|
+| Agent   | Task                                          | Output                         |
+| ------- | --------------------------------------------- | ------------------------------ |
 | Agent 1 | Design Authentication/Authorization component | bmad/outputs/component-auth.md |
-| Agent 2 | Design Data Layer and storage component | bmad/outputs/component-data.md |
-| Agent 3 | Design API Layer component | bmad/outputs/component-api.md |
-| Agent 4 | Design Frontend/UI component | bmad/outputs/component-ui.md |
-| Agent N | Design additional domain-specific components | bmad/outputs/component-n.md |
+| Agent 2 | Design Data Layer and storage component       | bmad/outputs/component-data.md |
+| Agent 3 | Design API Layer component                    | bmad/outputs/component-api.md  |
+| Agent 4 | Design Frontend/UI component                  | bmad/outputs/component-ui.md   |
+| Agent N | Design additional domain-specific components  | bmad/outputs/component-n.md    |
 
 **Coordination:**
+
 1. Identify major system components from requirements (4-8 typical)
 2. Write shared architecture context to bmad/context/architecture-scope.md
 3. Launch parallel agents, each designing one component
@@ -218,19 +236,21 @@ This skill leverages parallel subagents to maximize context utilization (each ag
 6. Generate complete architecture document with all sections
 
 ### NFR Mapping Workflow
+
 **Pattern:** Parallel Section Generation
 **Agents:** 6 parallel agents (one per NFR category)
 
-| Agent | Task | Output |
-|-------|------|--------|
-| Agent 1 | Map Performance NFRs to architectural decisions | bmad/outputs/nfr-performance.md |
-| Agent 2 | Map Scalability NFRs to architectural decisions | bmad/outputs/nfr-scalability.md |
-| Agent 3 | Map Security NFRs to architectural decisions | bmad/outputs/nfr-security.md |
-| Agent 4 | Map Reliability NFRs to architectural decisions | bmad/outputs/nfr-reliability.md |
+| Agent   | Task                                                | Output                              |
+| ------- | --------------------------------------------------- | ----------------------------------- |
+| Agent 1 | Map Performance NFRs to architectural decisions     | bmad/outputs/nfr-performance.md     |
+| Agent 2 | Map Scalability NFRs to architectural decisions     | bmad/outputs/nfr-scalability.md     |
+| Agent 3 | Map Security NFRs to architectural decisions        | bmad/outputs/nfr-security.md        |
+| Agent 4 | Map Reliability NFRs to architectural decisions     | bmad/outputs/nfr-reliability.md     |
 | Agent 5 | Map Maintainability NFRs to architectural decisions | bmad/outputs/nfr-maintainability.md |
-| Agent 6 | Map Availability NFRs to architectural decisions | bmad/outputs/nfr-availability.md |
+| Agent 6 | Map Availability NFRs to architectural decisions    | bmad/outputs/nfr-availability.md    |
 
 **Coordination:**
+
 1. Extract all NFRs grouped by category
 2. Write NFRs and component designs to bmad/context/nfr-mapping-context.md
 3. Launch parallel agents for each NFR category
@@ -238,6 +258,7 @@ This skill leverages parallel subagents to maximize context utilization (each ag
 5. Main context assembles complete NFR mapping table
 
 ### Example Subagent Prompt
+
 ```
 Task: Design API Layer component for e-commerce system
 Context: Read bmad/context/architecture-scope.md for requirements and scope
@@ -328,10 +349,12 @@ Recommended next step: Review architecture document and validate with stakeholde
 ## Integration with Other Skills
 
 **Works After:**
+
 - Product Manager - Receives PRD or tech-spec as input
 - UX Designer - Collaborates on interface architecture
 
 **Works Before:**
+
 - Scrum Master - Hands off architecture for sprint planning
 - Developer - Provides technical blueprint for implementation
 

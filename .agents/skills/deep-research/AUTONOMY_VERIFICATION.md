@@ -20,6 +20,7 @@
 ## 1. SKILL DISCOVERY VERIFICATION
 
 ### Location Check
+
 ```
 ~/.claude/skills/deep-research/
 └── SKILL.md (with valid YAML frontmatter)
@@ -28,6 +29,7 @@
 **Status:** ✅ DISCOVERED
 
 ### Frontmatter Validation
+
 ```yaml
 ---
 name: deep-research
@@ -47,39 +49,48 @@ description: Conduct enterprise-grade research with multi-source synthesis, cita
 ### Before Optimization (Issues Identified)
 
 **ISSUE #1: Clarify Section Too Aggressive**
+
 ```markdown
 **When to ask:**
+
 - Question ambiguous or vague
 - Scope unclear (too broad/narrow)
 - Mode unspecified for complex topics
 - Time constraints critical
 ```
+
 **Problem:** Could cause Claude to stop and ask questions too frequently, breaking autonomous flow.
 
 **ISSUE #2: Preview Section Ambiguous**
+
 ```markdown
 **Preview scope if:**
+
 - Mode is deep/ultradeep
 - Topic highly specialized
 - User requests preview
 ```
+
 **Problem:** Unclear if this means "wait for approval" or just "announce plan and proceed".
 
 ### After Optimization (Fixed)
 
 **FIX #1: Autonomy-First Clarify**
+
 ```markdown
 ### 1. Clarify (Rarely Needed - Prefer Autonomy)
 
 **DEFAULT: Proceed autonomously. Make reasonable assumptions based on query context.**
 
 **ONLY ask if CRITICALLY ambiguous:**
+
 - Query is genuinely incomprehensible (e.g., "research the thing")
 - Contradictory requirements (e.g., "quick 50-source ultradeep analysis")
 
 **When in doubt: PROCEED with standard mode. User can redirect if needed.**
 
 **Good autonomous assumptions:**
+
 - Technical query → Assume technical audience
 - Comparison query → Assume balanced perspective needed
 - Trend query → Assume recent 1-2 years unless specified
@@ -87,14 +98,17 @@ description: Conduct enterprise-grade research with multi-source synthesis, cita
 ```
 
 **FIX #2: Clear Announcement (No Blocking)**
+
 ```markdown
 **Announce plan (then proceed immediately):**
+
 - Briefly state: selected mode, estimated time, number of sources
 - Example: "Starting standard mode research (5-10 min, 15-30 sources)"
 - NO need to wait for approval - proceed directly to execution
 ```
 
 **FIX #3: Explicit Autonomy Principle**
+
 ```markdown
 **AUTONOMY PRINCIPLE:** This skill operates independently. Proceed with reasonable assumptions. Only stop for critical errors or genuinely incomprehensible queries.
 ```
@@ -182,6 +196,7 @@ DONE (Total user interactions: 0 ✅)
 **Result:** ✅ No input() calls found
 
 **Scripts Verified:**
+
 - ✅ `research_engine.py` (578 lines) - No interactive prompts
 - ✅ `validate_report.py` (293 lines) - No interactive prompts
 - ✅ `source_evaluator.py` (292 lines) - No interactive prompts
@@ -200,15 +215,16 @@ DONE (Total user interactions: 0 ✅)
 
 ### Default Behavior Matrix
 
-| User Query | Auto-Selected Mode | Time | Sources | User Input Needed? |
-|------------|-------------------|------|---------|-------------------|
-| "deep research X" | Standard | 5-10 min | 15-30 | ❌ No |
-| "quick overview of X" | Quick | 2-5 min | 10-15 | ❌ No |
-| "comprehensive analysis X" | Standard | 5-10 min | 15-30 | ❌ No |
-| "compare X vs Y" | Standard | 5-10 min | 15-30 | ❌ No |
-| "research the thing" (ambiguous) | Ask clarification | N/A | N/A | ✅ Yes (justified) |
+| User Query                       | Auto-Selected Mode | Time     | Sources | User Input Needed? |
+| -------------------------------- | ------------------ | -------- | ------- | ------------------ |
+| "deep research X"                | Standard           | 5-10 min | 15-30   | ❌ No              |
+| "quick overview of X"            | Quick              | 2-5 min  | 10-15   | ❌ No              |
+| "comprehensive analysis X"       | Standard           | 5-10 min | 15-30   | ❌ No              |
+| "compare X vs Y"                 | Standard           | 5-10 min | 15-30   | ❌ No              |
+| "research the thing" (ambiguous) | Ask clarification  | N/A      | N/A     | ✅ Yes (justified) |
 
 **Autonomous Decision Logic:**
+
 - Clear query → Standard mode (DEFAULT)
 - "quick" keyword → Quick mode
 - "comprehensive" keyword → Standard mode
@@ -267,6 +283,7 @@ The skill automatically activates when user says:
 ### Static vs Dynamic Content
 
 **Static Content (Cached after first use):**
+
 - Core system instructions
 - Decision trees
 - Workflow definitions
@@ -275,11 +292,13 @@ The skill automatically activates when user says:
 - Error handling
 
 **Dynamic Content (Runtime only):**
+
 - User query
 - Retrieved sources
 - Generated analysis
 
 **Benefit for Autonomy:**
+
 - First invocation: Full processing
 - Subsequent invocations: 85% faster (cached static content)
 - No external dependencies
@@ -289,23 +308,23 @@ The skill automatically activates when user says:
 
 ## 9. INDEPENDENCE CHECKLIST
 
-| Requirement | Status | Evidence |
-|-------------|--------|----------|
-| **Valid YAML frontmatter** | ✅ Pass | Python YAML parser validates |
-| **Skill discoverable by Claude Code** | ✅ Pass | Located in `~/.claude/skills/` |
-| **Clear trigger keywords** | ✅ Pass | 5+ triggers in description |
-| **Clear exclusion criteria** | ✅ Pass | "Do NOT use for..." specified |
-| **Autonomy principle stated** | ✅ Pass | "Operates independently" explicit |
-| **Default behavior: proceed** | ✅ Pass | "When in doubt: PROCEED" |
-| **No unnecessary clarification** | ✅ Pass | "Rarely Needed - Prefer Autonomy" |
-| **No approval waiting** | ✅ Pass | "NO need to wait for approval" |
-| **No interactive prompts in scripts** | ✅ Pass | `grep` confirms no input() |
-| **Python stdlib only (no setup)** | ✅ Pass | requirements.txt empty |
-| **All scripts compile** | ✅ Pass | `py_compile` succeeds |
-| **Error handling graceful** | ✅ Pass | Retry logic, clear error messages |
-| **Output path predetermined** | ✅ Pass | `~/.claude/research_output/` |
-| **Validation automated** | ✅ Pass | 8 checks, no manual review |
-| **Mode selection autonomous** | ✅ Pass | Standard as default |
+| Requirement                           | Status  | Evidence                          |
+| ------------------------------------- | ------- | --------------------------------- |
+| **Valid YAML frontmatter**            | ✅ Pass | Python YAML parser validates      |
+| **Skill discoverable by Claude Code** | ✅ Pass | Located in `~/.claude/skills/`    |
+| **Clear trigger keywords**            | ✅ Pass | 5+ triggers in description        |
+| **Clear exclusion criteria**          | ✅ Pass | "Do NOT use for..." specified     |
+| **Autonomy principle stated**         | ✅ Pass | "Operates independently" explicit |
+| **Default behavior: proceed**         | ✅ Pass | "When in doubt: PROCEED"          |
+| **No unnecessary clarification**      | ✅ Pass | "Rarely Needed - Prefer Autonomy" |
+| **No approval waiting**               | ✅ Pass | "NO need to wait for approval"    |
+| **No interactive prompts in scripts** | ✅ Pass | `grep` confirms no input()        |
+| **Python stdlib only (no setup)**     | ✅ Pass | requirements.txt empty            |
+| **All scripts compile**               | ✅ Pass | `py_compile` succeeds             |
+| **Error handling graceful**           | ✅ Pass | Retry logic, clear error messages |
+| **Output path predetermined**         | ✅ Pass | `~/.claude/research_output/`      |
+| **Validation automated**              | ✅ Pass | 8 checks, no manual review        |
+| **Mode selection autonomous**         | ✅ Pass | Standard as default               |
 
 **Total:** 15/15 checks passed ✅
 
@@ -313,13 +332,13 @@ The skill automatically activates when user says:
 
 ## 10. COMPARISON: Before vs After Optimization
 
-| Aspect | Before | After | Improvement |
-|--------|--------|-------|-------------|
-| **Clarify frequency** | "When to ask" (ambiguous conditions) | "Rarely needed" (explicit autonomy) | ✅ 90% fewer stops |
-| **Preview behavior** | "Preview scope if..." (unclear) | "Announce and proceed" (clear) | ✅ No blocking |
-| **Autonomy principle** | Implicit | Explicit ("operates independently") | ✅ Clear guidance |
-| **Default action** | Unclear | "PROCEED with standard mode" | ✅ Removes ambiguity |
-| **User interaction** | 2-3 stops possible | 0-1 stops (errors only) | ✅ 90% reduction |
+| Aspect                 | Before                               | After                               | Improvement          |
+| ---------------------- | ------------------------------------ | ----------------------------------- | -------------------- |
+| **Clarify frequency**  | "When to ask" (ambiguous conditions) | "Rarely needed" (explicit autonomy) | ✅ 90% fewer stops   |
+| **Preview behavior**   | "Preview scope if..." (unclear)      | "Announce and proceed" (clear)      | ✅ No blocking       |
+| **Autonomy principle** | Implicit                             | Explicit ("operates independently") | ✅ Clear guidance    |
+| **Default action**     | Unclear                              | "PROCEED with standard mode"        | ✅ Removes ambiguity |
+| **User interaction**   | 2-3 stops possible                   | 0-1 stops (errors only)             | ✅ 90% reduction     |
 
 ---
 
@@ -330,6 +349,7 @@ The skill automatically activates when user says:
 **User:** "research the thing"
 
 **Behavior:**
+
 1. Skill recognizes query is incomprehensible
 2. Asks: "What topic should I research?"
 3. User clarifies: "quantum computing"
@@ -350,6 +370,7 @@ The skill automatically activates when user says:
 **User:** "deep research on CRISPR gene editing 2024-2025"
 
 **Behavior:**
+
 1. Skill activates
 2. Announces: "Starting standard mode research (5-10 min, 15-30 sources)"
 3. Executes all 6 phases
@@ -367,6 +388,7 @@ The skill automatically activates when user says:
 **Test Query:** "comprehensive analysis of senolytics clinical trials"
 
 **Expected Behavior:**
+
 1. ✅ Skill activates (trigger: "comprehensive analysis")
 2. ✅ Announces plan without waiting
 3. ✅ Executes standard mode (6 phases)
@@ -378,6 +400,7 @@ The skill automatically activates when user says:
 9. ✅ Delivers executive summary
 
 **Actual Result (from previous test):**
+
 - Report: 2,356 words ✅
 - Sources: 15 citations ✅
 - Validation: ALL 8 CHECKS PASSED ✅
@@ -394,6 +417,7 @@ The skill automatically activates when user says:
 **Commit:** e4cd081
 
 **Next Steps:**
+
 - Commit autonomy optimizations
 - Push to GitHub
 - Verify consistency

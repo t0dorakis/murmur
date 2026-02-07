@@ -44,14 +44,11 @@ const STATUS_FILE_CONTENT = "all clear\n";
 
 /** Spawn the murmur binary with the shared --data-dir and --debug flags. */
 async function murmur(...args: string[]) {
-  const proc = Bun.spawn(
-    [MURMUR_BIN, "--data-dir", testDataDir, "--debug", ...args],
-    {
-      stdout: "pipe",
-      stderr: "pipe",
-      timeout: 120_000,
-    },
-  );
+  const proc = Bun.spawn([MURMUR_BIN, "--data-dir", testDataDir, "--debug", ...args], {
+    stdout: "pipe",
+    stderr: "pipe",
+    timeout: 120_000,
+  });
 
   const exitCode = await proc.exited;
   const stdout = await new Response(proc.stdout).text();
@@ -77,9 +74,7 @@ function dumpDebugLog() {
 beforeAll(async () => {
   // Ensure the compiled binary exists
   if (!existsSync(MURMUR_BIN)) {
-    throw new Error(
-      `Compiled binary not found at ${MURMUR_BIN}. Run "bun run build" first.`,
-    );
+    throw new Error(`Compiled binary not found at ${MURMUR_BIN}. Run "bun run build" first.`);
   }
 
   // Create an isolated data directory
@@ -144,9 +139,7 @@ describe("murmur beat (default verbose) e2e", () => {
     expect(turns.length).toBeGreaterThanOrEqual(1);
 
     // At least one turn should be from the assistant
-    const assistantTurn = turns.find(
-      (t: { role: string }) => t.role === "assistant",
-    );
+    const assistantTurn = turns.find((t: { role: string }) => t.role === "assistant");
     expect(assistantTurn).toBeDefined();
   }, 120_000);
 

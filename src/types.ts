@@ -69,7 +69,13 @@ export type ToolCall = {
 /** A single turn in the agent conversation. */
 export type ConversationTurn =
   | { role: "assistant"; text?: string; toolCalls?: ToolCall[] }
-  | { role: "result"; text: string; costUsd?: number; durationMs?: number; numTurns?: number };
+  | {
+      role: "result";
+      text: string;
+      costUsd?: number;
+      durationMs?: number;
+      numTurns?: number;
+    };
 
 export type LogEntry = {
   ts: string;

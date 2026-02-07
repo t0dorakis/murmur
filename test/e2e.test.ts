@@ -77,9 +77,16 @@ async function testDaemonLifecycle(
   const jokesBefore = jokeCount();
 
   const configFile = join(testDataDir, "config.json");
-  writeFileSync(configFile, JSON.stringify({
-    workspaces: [{ path: EXAMPLE_DIR, lastRun: null, ...workspaceConfig }],
-  }, null, 2));
+  writeFileSync(
+    configFile,
+    JSON.stringify(
+      {
+        workspaces: [{ path: EXAMPLE_DIR, lastRun: null, ...workspaceConfig }],
+      },
+      null,
+      2,
+    ),
+  );
 
   // Start daemon in background
   const startResult = await murmur("start", "--detach", "--tick", "5s");
@@ -143,13 +150,22 @@ describe("e2e", () => {
 
     // Create config with pi agent
     const configFile = join(testDataDir, "config.json");
-    writeFileSync(configFile, JSON.stringify({
-      workspaces: [{
-        path: EXAMPLE_DIR,
-        agent: "pi",
-        lastRun: null,
-      }],
-    }, null, 2));
+    writeFileSync(
+      configFile,
+      JSON.stringify(
+        {
+          workspaces: [
+            {
+              path: EXAMPLE_DIR,
+              agent: "pi",
+              lastRun: null,
+            },
+          ],
+        },
+        null,
+        2,
+      ),
+    );
 
     const result = await murmur("beat", EXAMPLE_DIR);
     expect(result.exitCode).toBe(0);
@@ -182,10 +198,7 @@ describe("e2e", () => {
   }, 60_000);
 
   test("daemon lifecycle with cron: start, scheduled beat, stop", async () => {
-    await testDaemonLifecycle(
-      { cron: "* * * * *" },
-      (stdout) => expect(stdout).toContain("cron"),
-    );
+    await testDaemonLifecycle({ cron: "* * * * *" }, (stdout) => expect(stdout).toContain("cron"));
   }, 60_000);
 
   test("daemon lifecycle with pi agent", async () => {

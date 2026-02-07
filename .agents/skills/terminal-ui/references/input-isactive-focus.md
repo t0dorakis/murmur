@@ -78,6 +78,7 @@ function App() {
 ```
 
 **Benefits:**
+
 - Only the focused component receives keyboard events
 - Clear visual indication of which component is active
 - Prevents input from being duplicated across components

@@ -86,9 +86,9 @@ Comprehensive developer experience guide for building TypeScript terminal user i
 
 This document was compiled from individual reference files. For detailed editing or extension:
 
-| File | Description |
-|------|-------------|
-| [references/_sections.md](references/_sections.md) | Category definitions and impact ordering |
-| [assets/templates/_template.md](assets/templates/_template.md) | Template for creating new rules |
-| [SKILL.md](SKILL.md) | Quick reference entry point |
-| [metadata.json](metadata.json) | Version and reference URLs |
+| File                                                            | Description                              |
+| --------------------------------------------------------------- | ---------------------------------------- |
+| [references/\_sections.md](references/_sections.md)             | Category definitions and impact ordering |
+| [assets/templates/\_template.md](assets/templates/_template.md) | Template for creating new rules          |
+| [SKILL.md](SKILL.md)                                            | Quick reference entry point              |
+| [metadata.json](metadata.json)                                  | Version and reference URLs               |

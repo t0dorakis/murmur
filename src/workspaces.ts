@@ -19,7 +19,9 @@ export function listWorkspaces(): void {
     if (resolved.description) console.log(`    Description: ${resolved.description}`);
     const schedule = resolved.cron
       ? `cron ${resolved.cron}${resolved.tz ? ` (${resolved.tz})` : ""}`
-      : resolved.interval ? `every ${resolved.interval}` : "(none)";
+      : resolved.interval
+        ? `every ${resolved.interval}`
+        : "(none)";
     console.log(`    Schedule: ${schedule}`);
     if (resolved.timeout) console.log(`    Timeout: ${resolved.timeout}`);
     console.log(`    Last run: ${ws.lastRun ?? "never"}`);

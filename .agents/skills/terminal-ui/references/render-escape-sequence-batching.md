@@ -14,14 +14,14 @@ Build content using semantic representations (segments with styles) and convert 
 ```typescript
 function formatLine(text: string, isError: boolean): string {
   if (isError) {
-    return `\x1b[31m${text}\x1b[0m`  // Red + reset
+    return `\x1b[31m${text}\x1b[0m`; // Red + reset
   }
-  return `\x1b[32m${text}\x1b[0m`  // Green + reset
+  return `\x1b[32m${text}\x1b[0m`; // Green + reset
 }
 
 function render(lines: string[]) {
   // Each line already has escape codes - hard to optimize
-  return lines.map(line => formatLine(line, line.startsWith('ERR'))).join('\n')
+  return lines.map((line) => formatLine(line, line.startsWith("ERR"))).join("\n");
 }
 ```
 
@@ -29,31 +29,30 @@ function render(lines: string[]) {
 
 ```typescript
 interface Segment {
-  text: string
-  style: 'error' | 'success' | 'default'
+  text: string;
+  style: "error" | "success" | "default";
 }
 
 function buildSegments(lines: string[]): Segment[] {
-  return lines.map(line => ({
+  return lines.map((line) => ({
     text: line,
-    style: line.startsWith('ERR') ? 'error' : 'success'
-  }))
+    style: line.startsWith("ERR") ? "error" : "success",
+  }));
 }
 
 function toAnsi(segments: Segment[]): string {
-  const styles = { error: '\x1b[31m', success: '\x1b[32m', default: '' }
+  const styles = { error: "\x1b[31m", success: "\x1b[32m", default: "" };
 
-  return segments
-    .map(seg => `${styles[seg.style]}${seg.text}\x1b[0m`)
-    .join('\n')
+  return segments.map((seg) => `${styles[seg.style]}${seg.text}\x1b[0m`).join("\n");
 }
 
 // Build semantic model, convert at final output
-const segments = buildSegments(lines)
-process.stdout.write(toAnsi(segments))
+const segments = buildSegments(lines);
+process.stdout.write(toAnsi(segments));
 ```
 
 **Benefits:**
+
 - Semantic model enables optimizations like combining adjacent same-style segments
 - Easier to implement partial updates by comparing segment arrays
 - Style changes don't require string manipulation

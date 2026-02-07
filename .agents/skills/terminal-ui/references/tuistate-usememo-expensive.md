@@ -63,28 +63,27 @@ function FileTree({ files }: { files: FileNode[] }) {
 
 ```typescript
 // Formatting expensive data
-const tableRows = useMemo(() =>
-  data.map(row => formatRow(row, columns)),
-  [data, columns]
-)
+const tableRows = useMemo(() => data.map((row) => formatRow(row, columns)), [data, columns]);
 
 // Aggregating statistics
-const stats = useMemo(() => ({
-  total: items.length,
-  completed: items.filter(i => i.done).length,
-  avgDuration: items.reduce((sum, i) => sum + i.duration, 0) / items.length
-}), [items])
+const stats = useMemo(
+  () => ({
+    total: items.length,
+    completed: items.filter((i) => i.done).length,
+    avgDuration: items.reduce((sum, i) => sum + i.duration, 0) / items.length,
+  }),
+  [items],
+);
 
 // Searching/filtering large datasets
-const searchResults = useMemo(() =>
-  haystack.filter(item =>
-    item.toLowerCase().includes(needle.toLowerCase())
-  ),
-  [haystack, needle]
-)
+const searchResults = useMemo(
+  () => haystack.filter((item) => item.toLowerCase().includes(needle.toLowerCase())),
+  [haystack, needle],
+);
 ```
 
 **When NOT to use this pattern:**
+
 - For trivial computations (the overhead of memoization exceeds savings)
 - When values change on every render anyway
 
