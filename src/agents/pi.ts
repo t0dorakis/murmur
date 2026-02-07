@@ -152,12 +152,9 @@ export class PiAdapter implements AgentAdapter {
 
     const stderrPromise = new Response(proc.stderr).text();
 
-    // Await process exit in parallel with streams to prevent race conditions
-    const [finalStdout, stderr, exitCode] = await Promise.all([
-      stdoutPromise,
-      stderrPromise,
-      proc.exited,
-    ]);
+    // Wait for streams to complete first, then get exit code
+    const [finalStdout, stderr] = await Promise.all([stdoutPromise, stderrPromise]);
+    const exitCode = await proc.exited;
     const durationMs = Date.now() - start;
 
     debug(`[pi] Exit code: ${exitCode}`);
