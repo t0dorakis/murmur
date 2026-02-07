@@ -13,31 +13,34 @@ import type { WorkspaceConfig, ConversationTurn, PiConfig } from "../types.ts";
  * @throws Error if validation fails
  */
 function validatePiConfig(workspace: WorkspaceConfig): asserts workspace is PiConfig {
-  // Type narrow to PiConfig
-  const piWorkspace = workspace as PiConfig;
+  // Runtime check to narrow the discriminated union
+  if (workspace.agent !== "pi") {
+    throw new Error(`Expected agent 'pi', got: ${workspace.agent ?? "claude-code"}`);
+  }
 
-  if (piWorkspace.piExtensions) {
-    if (!Array.isArray(piWorkspace.piExtensions)) {
+  // Now TypeScript knows workspace.agent === "pi", so workspace is PiConfig
+  if (workspace.piExtensions) {
+    if (!Array.isArray(workspace.piExtensions)) {
       throw new Error(
-        `piExtensions must be an array, got: ${typeof piWorkspace.piExtensions}`,
+        `piExtensions must be an array, got: ${typeof workspace.piExtensions}`,
       );
     }
-    for (const ext of piWorkspace.piExtensions) {
+    for (const ext of workspace.piExtensions) {
       if (typeof ext !== "string" || !ext.trim()) {
         throw new Error(`piExtension must be a non-empty string, got: ${ext}`);
       }
     }
   }
 
-  if (piWorkspace.piModel && typeof piWorkspace.piModel !== "string") {
+  if (workspace.piModel && typeof workspace.piModel !== "string") {
     throw new Error(
-      `piModel must be a string, got: ${typeof piWorkspace.piModel}`,
+      `piModel must be a string, got: ${typeof workspace.piModel}`,
     );
   }
 
-  if (piWorkspace.piSession && typeof piWorkspace.piSession !== "string") {
+  if (workspace.piSession && typeof workspace.piSession !== "string") {
     throw new Error(
-      `piSession must be a string, got: ${typeof piWorkspace.piSession}`,
+      `piSession must be a string, got: ${typeof workspace.piSession}`,
     );
   }
 }
@@ -126,10 +129,20 @@ export class PiAdapter implements AgentAdapter {
           stdout += chunk;
 
           // Call onText callback with each chunk for real-time streaming
+          // Protect against callback errors - don't let them break the stream
           if (callbacks?.onText && chunk) {
-            callbacks.onText(chunk);
+            try {
+              callbacks.onText(chunk);
+            } catch (callbackErr) {
+              debug(`[pi] onText callback error: ${callbackErr instanceof Error ? callbackErr.message : String(callbackErr)}`);
+              // Continue processing stream despite callback failure
+            }
           }
         }
+      } catch (readErr) {
+        // Log read errors but still return accumulated stdout
+        debug(`[pi] Stream read error: ${readErr instanceof Error ? readErr.message : String(readErr)}`);
+        // Don't rethrow - let the function return partial output
       } finally {
         reader.releaseLock();
       }
@@ -139,8 +152,12 @@ export class PiAdapter implements AgentAdapter {
 
     const stderrPromise = new Response(proc.stderr).text();
 
-    const [finalStdout, stderr] = await Promise.all([stdoutPromise, stderrPromise]);
-    const exitCode = await proc.exited;
+    // Await process exit in parallel with streams to prevent race conditions
+    const [finalStdout, stderr, exitCode] = await Promise.all([
+      stdoutPromise,
+      stderrPromise,
+      proc.exited,
+    ]);
     const durationMs = Date.now() - start;
 
     debug(`[pi] Exit code: ${exitCode}`);
@@ -148,22 +165,13 @@ export class PiAdapter implements AgentAdapter {
     debug(`[pi] Stderr: ${stderr.trim() || "(empty)"}`);
     debug(`[pi] Duration: ${durationMs}ms`);
 
-    // Parse pi output to approximate conversation turns
-    // Pi doesn't provide structured turn data, so we create a simplified version
-    const turns: ConversationTurn[] = [];
-
-    if (finalStdout.trim()) {
-      turns.push({
-        role: "assistant",
-        text: finalStdout.trim(),
-      });
-    }
-
-    turns.push({
+    // Parse pi output to create conversation turn
+    // Pi doesn't provide structured turn data, so we create a simplified single turn
+    const turns: ConversationTurn[] = [{
       role: "result",
       text: finalStdout.trim(),
       durationMs,
-    });
+    }];
 
     return {
       resultText: finalStdout.trim(),
