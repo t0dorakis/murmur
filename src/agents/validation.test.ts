@@ -80,13 +80,16 @@ describe("Pi Agent Config Validation", () => {
       lastRun: null,
     } as WorkspaceConfig;
 
-    // This will fail to spawn pi, but validation should pass
-    // We're just checking that validation doesn't throw
+    // This will fail to spawn pi (command likely not available), but validation should pass
     try {
       await adapter.execute("HEARTBEAT_OK", workspace);
+      // If execution somehow succeeded, that's also fine (validation passed)
     } catch (err) {
-      // Expected to fail at spawn, not validation
-      expect(err).toBeTruthy();
+      // Should fail at spawn (ENOENT, command not found), not at validation
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      expect(errorMsg).toMatch(/spawn|ENOENT|command not found|pi/i);
+      // Explicitly ensure it's NOT a validation error
+      expect(errorMsg).not.toMatch(/must be an array|must be a string|non-empty string/);
     }
   });
 });

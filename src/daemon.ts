@@ -103,7 +103,7 @@ export function runDaemonMain(opts: { dataDir?: string; tick?: string; debug?: b
   const initialConfig = readConfig();
   const handle = startDaemon(tickMs);
 
-  let socketServer;
+  let socketServer: ReturnType<typeof startSocketServer>;
   try {
     socketServer = startSocketServer(handle.bus, getSocketPath(), initialConfig.workspaces.length);
   } catch (err: any) {

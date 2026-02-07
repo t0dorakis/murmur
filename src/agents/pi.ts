@@ -23,6 +23,40 @@ export type PiConfig = {
 };
 
 /**
+ * Validates Pi-specific configuration fields.
+ * @throws Error if validation fails
+ */
+function validatePiConfig(workspace: WorkspaceConfig): void {
+  // Type narrow to access pi-specific fields
+  const ws = workspace as any;
+
+  if (ws.piExtensions) {
+    if (!Array.isArray(ws.piExtensions)) {
+      throw new Error(
+        `piExtensions must be an array, got: ${typeof ws.piExtensions}`,
+      );
+    }
+    for (const ext of ws.piExtensions) {
+      if (typeof ext !== "string" || !ext.trim()) {
+        throw new Error(`piExtension must be a non-empty string, got: ${ext}`);
+      }
+    }
+  }
+
+  if (ws.piModel && typeof ws.piModel !== "string") {
+    throw new Error(
+      `piModel must be a string, got: ${typeof ws.piModel}`,
+    );
+  }
+
+  if (ws.piSession && typeof ws.piSession !== "string") {
+    throw new Error(
+      `piSession must be a string, got: ${typeof ws.piSession}`,
+    );
+  }
+}
+
+/**
  * Agent adapter for pi-mono (minimal coding agent by @badlogic).
  *
  * Supports:
@@ -46,49 +80,29 @@ export class PiAdapter implements AgentAdapter {
     const start = Date.now();
 
     // Validate pi-specific config
-    if (workspace.piExtensions) {
-      if (!Array.isArray(workspace.piExtensions)) {
-        throw new Error(
-          `piExtensions must be an array, got: ${typeof workspace.piExtensions}`,
-        );
-      }
-      for (const ext of workspace.piExtensions) {
-        if (typeof ext !== "string" || !ext.trim()) {
-          throw new Error(`piExtension must be a non-empty string, got: ${ext}`);
-        }
-      }
-    }
+    validatePiConfig(workspace);
 
-    if (workspace.piModel && typeof workspace.piModel !== "string") {
-      throw new Error(
-        `piModel must be a string, got: ${typeof workspace.piModel}`,
-      );
-    }
-
-    if (workspace.piSession && typeof workspace.piSession !== "string") {
-      throw new Error(
-        `piSession must be a string, got: ${typeof workspace.piSession}`,
-      );
-    }
+    // Type narrow to access pi-specific fields
+    const ws = workspace as any;
 
     const piArgs = ["pi", "--mode=print"];
 
     // Add extensions
-    if (workspace.piExtensions && workspace.piExtensions.length > 0) {
-      for (const ext of workspace.piExtensions) {
+    if (ws.piExtensions && ws.piExtensions.length > 0) {
+      for (const ext of ws.piExtensions) {
         piArgs.push("--extension", ext);
       }
     }
 
     // Add session for context reuse
-    if (workspace.piSession) {
-      piArgs.push("--session", workspace.piSession);
+    if (ws.piSession) {
+      piArgs.push("--session", ws.piSession);
       piArgs.push("--reuse"); // Reuse session context
     }
 
     // Add model selection
-    if (workspace.piModel) {
-      piArgs.push("--model", workspace.piModel);
+    if (ws.piModel) {
+      piArgs.push("--model", ws.piModel);
     }
 
     // Add max turns

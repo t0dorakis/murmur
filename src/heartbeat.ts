@@ -48,6 +48,25 @@ export function promptPreview(prompt: string): string {
   return lines.slice(0, 3).join(" ").slice(0, 120);
 }
 
+/** Helper to create error LogEntry and emit event */
+function createErrorEntry(
+  ts: string,
+  workspace: string,
+  start: number,
+  error: unknown,
+  emit?: (event: DaemonEvent) => void,
+): LogEntry {
+  const entry: LogEntry = {
+    ts,
+    workspace,
+    outcome: "error",
+    durationMs: Date.now() - start,
+    error: error instanceof Error ? error.message : String(error),
+  };
+  emit?.({ type: "heartbeat:done", workspace, entry });
+  return entry;
+}
+
 /** Save the full conversation JSON to ~/.murmur/last-beat-{workspace}.json */
 async function saveConversationLog(
   workspace: string,
@@ -57,7 +76,7 @@ async function saveConversationLog(
   const slug = basename(workspace).replace(/[^a-zA-Z0-9_-]/g, "_");
   const filePath = join(getDataDir(), `last-beat-${slug}.json`);
   await Bun.write(filePath, JSON.stringify(turns, null, 2) + "\n");
-  debug(`Saved conversation log to ${filePath}`);
+  debug(`[heartbeat] Saved conversation log to ${filePath}`);
   return filePath;
 }
 
@@ -70,22 +89,14 @@ export async function runHeartbeat(
   const start = Date.now();
   const quiet = options?.quiet ?? false;
 
-  debug(`Heartbeat: ${ws.path} (quiet=${quiet})`);
+  debug(`[heartbeat] Starting: ${ws.path} (quiet=${quiet})`);
 
   let prompt: string;
   try {
     prompt = await buildPrompt(ws);
-    debug(`HEARTBEAT.md: ${prompt.split("\n").length} lines`);
+    debug(`[heartbeat] HEARTBEAT.md: ${prompt.split("\n").length} lines`);
   } catch (err) {
-    const entry: LogEntry = {
-      ts,
-      workspace: ws.path,
-      outcome: "error",
-      durationMs: Date.now() - start,
-      error: err instanceof Error ? err.message : String(err),
-    };
-    emit?.({ type: "heartbeat:done", workspace: ws.path, entry });
-    return entry;
+    return createErrorEntry(ts, ws.path, start, err, emit);
   }
 
   emit?.({
@@ -96,35 +107,20 @@ export async function runHeartbeat(
 
   // Get the appropriate agent adapter
   const agentName = ws.agent ?? "claude-code";
-  debug(`Using agent: ${agentName}`);
+  debug(`[heartbeat] Using agent: ${agentName}`);
 
   let adapter;
   try {
     adapter = getAdapter(agentName);
   } catch (err) {
-    const entry: LogEntry = {
-      ts,
-      workspace: ws.path,
-      outcome: "error",
-      durationMs: Date.now() - start,
-      error: err instanceof Error ? err.message : String(err),
-    };
-    emit?.({ type: "heartbeat:done", workspace: ws.path, entry });
-    return entry;
+    return createErrorEntry(ts, ws.path, start, err, emit);
   }
 
   // Check if the agent CLI is available before attempting execution
   const available = await adapter.isAvailable();
   if (!available) {
-    const entry: LogEntry = {
-      ts,
-      workspace: ws.path,
-      outcome: "error",
-      durationMs: Date.now() - start,
-      error: `Agent '${agentName}' CLI is not available. Please install it or check your PATH.`,
-    };
-    emit?.({ type: "heartbeat:done", workspace: ws.path, entry });
-    return entry;
+    const error = `Agent '${agentName}' CLI is not available. Please install it or check your PATH.`;
+    return createErrorEntry(ts, ws.path, start, error, emit);
   }
 
   // Execute agent with callbacks (unless in quiet mode)
@@ -145,26 +141,18 @@ export async function runHeartbeat(
           },
     );
   } catch (err) {
-    const entry: LogEntry = {
-      ts,
-      workspace: ws.path,
-      outcome: "error",
-      durationMs: Date.now() - start,
-      error: err instanceof Error ? err.message : String(err),
-    };
-    emit?.({ type: "heartbeat:done", workspace: ws.path, entry });
-    return entry;
+    return createErrorEntry(ts, ws.path, start, err, emit);
   }
 
   const { resultText, exitCode, stderr, turns, costUsd, numTurns } = result;
 
-  debug(`Agent turns: ${turns?.length ?? 0}`);
-  if (costUsd != null) debug(`Cost: $${costUsd.toFixed(6)}`);
-  if (numTurns != null) debug(`Agent turns: ${numTurns}`);
+  debug(`[heartbeat] Agent turns: ${turns?.length ?? 0}`);
+  if (costUsd != null) debug(`[heartbeat] Cost: $${costUsd.toFixed(6)}`);
+  if (numTurns != null) debug(`[heartbeat] Num turns: ${numTurns}`);
 
   const outcome = classify(resultText, exitCode);
-  debug(`Outcome: ${outcome} (exit=${exitCode}, contains HEARTBEAT_OK=${resultText.includes("HEARTBEAT_OK")})`);
-  debug(`Duration: ${result.durationMs}ms`);
+  debug(`[heartbeat] Outcome: ${outcome} (exit=${exitCode}, contains HEARTBEAT_OK=${resultText.includes("HEARTBEAT_OK")})`);
+  debug(`[heartbeat] Duration: ${result.durationMs}ms`);
 
   const entry: LogEntry = { ts, workspace: ws.path, outcome, durationMs: result.durationMs };
 
@@ -181,7 +169,7 @@ export async function runHeartbeat(
     try {
       await saveConversationLog(ws.path, turns);
     } catch (err) {
-      debug(`Warning: failed to save conversation log: ${err instanceof Error ? err.message : String(err)}`);
+      debug(`[heartbeat] Warning: failed to save conversation log: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
