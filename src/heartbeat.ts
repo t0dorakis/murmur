@@ -1,19 +1,14 @@
 import { basename, join } from "node:path";
 import { debug } from "./debug.ts";
 import { getDataDir, ensureDataDir } from "./config.ts";
-import { buildDisallowedToolsArgs } from "./permissions.ts";
-import { runParseStream, type StreamParseResult } from "./stream-parser.ts";
+import { getAdapter } from "./agents/index.ts";
 import type {
   ConversationTurn,
   DaemonEvent,
   LogEntry,
   Outcome,
-  ToolCall,
   WorkspaceConfig,
 } from "./types.ts";
-
-/** Default max turns when not specified in workspace config. */
-const DEFAULT_MAX_TURNS = 99;
 
 export type HeartbeatOptions = {
   quiet?: boolean;
@@ -53,6 +48,25 @@ export function promptPreview(prompt: string): string {
   return lines.slice(0, 3).join(" ").slice(0, 120);
 }
 
+/** Helper to create error LogEntry and emit event */
+function createErrorEntry(
+  ts: string,
+  workspace: string,
+  start: number,
+  error: unknown,
+  emit?: (event: DaemonEvent) => void,
+): LogEntry {
+  const entry: LogEntry = {
+    ts,
+    workspace,
+    outcome: "error",
+    durationMs: Date.now() - start,
+    error: error instanceof Error ? error.message : String(error),
+  };
+  emit?.({ type: "heartbeat:done", workspace, entry });
+  return entry;
+}
+
 /** Save the full conversation JSON to ~/.murmur/last-beat-{workspace}.json */
 async function saveConversationLog(
   workspace: string,
@@ -62,7 +76,7 @@ async function saveConversationLog(
   const slug = basename(workspace).replace(/[^a-zA-Z0-9_-]/g, "_");
   const filePath = join(getDataDir(), `last-beat-${slug}.json`);
   await Bun.write(filePath, JSON.stringify(turns, null, 2) + "\n");
-  debug(`Saved conversation log to ${filePath}`);
+  debug(`[heartbeat] Saved conversation log to ${filePath}`);
   return filePath;
 }
 
@@ -75,22 +89,14 @@ export async function runHeartbeat(
   const start = Date.now();
   const quiet = options?.quiet ?? false;
 
-  debug(`Heartbeat: ${ws.path} (quiet=${quiet})`);
+  debug(`[heartbeat] Starting: ${ws.path} (quiet=${quiet})`);
 
   let prompt: string;
   try {
     prompt = await buildPrompt(ws);
-    debug(`HEARTBEAT.md: ${prompt.split("\n").length} lines`);
+    debug(`[heartbeat] HEARTBEAT.md: ${prompt.split("\n").length} lines`);
   } catch (err) {
-    const entry: LogEntry = {
-      ts,
-      workspace: ws.path,
-      outcome: "error",
-      durationMs: Date.now() - start,
-      error: err instanceof Error ? err.message : String(err),
-    };
-    emit?.({ type: "heartbeat:done", workspace: ws.path, entry });
-    return entry;
+    return createErrorEntry(ts, ws.path, start, err, emit);
   }
 
   emit?.({
@@ -99,72 +105,56 @@ export async function runHeartbeat(
     promptPreview: promptPreview(prompt),
   });
 
-  const disallowedTools = buildDisallowedToolsArgs(ws.permissions);
-  // Always use stream-json to capture tool calls and reasoning
-  const claudeArgs = [
-    "claude",
-    "--print",
-    "--dangerously-skip-permissions",
-    ...disallowedTools,
-    "--max-turns",
-    String(ws.maxTurns ?? DEFAULT_MAX_TURNS),
-    "--verbose",
-    "--output-format",
-    "stream-json",
-  ];
+  // Get the appropriate agent adapter
+  const agentName = ws.agent ?? "claude-code";
+  debug(`[heartbeat] Using agent: ${agentName}`);
 
-  debug(`Spawning: ${claudeArgs.join(" ")} (cwd: ${ws.path})`);
+  let adapter;
+  try {
+    adapter = getAdapter(agentName);
+  } catch (err) {
+    return createErrorEntry(ts, ws.path, start, err, emit);
+  }
 
-  const proc = Bun.spawn(claudeArgs, {
-    cwd: ws.path,
-    stdin: new Blob([prompt]),
-    stdout: "pipe",
-    stderr: "pipe",
-    timeout: 300_000,
-  });
+  // Check if the agent CLI is available before attempting execution
+  const available = await adapter.isAvailable();
+  if (!available) {
+    const error = `Agent '${agentName}' CLI is not available. Please install it or check your PATH.`;
+    return createErrorEntry(ts, ws.path, start, error, emit);
+  }
 
-  if (!proc.stdout) throw new Error("Spawned process stdout is not piped");
-  const stream = proc.stdout as ReadableStream<Uint8Array>;
+  // Execute agent with callbacks (unless in quiet mode)
+  let result;
+  try {
+    result = await adapter.execute(
+      prompt,
+      ws,
+      quiet
+        ? undefined
+        : {
+            onToolCall: (toolCall) => {
+              emit?.({ type: "heartbeat:tool-call", workspace: ws.path, toolCall });
+            },
+            onText: (text) => {
+              emit?.({ type: "heartbeat:stdout", workspace: ws.path, chunk: text });
+            },
+          },
+    );
+  } catch (err) {
+    return createErrorEntry(ts, ws.path, start, err, emit);
+  }
 
-  // Tee stream: one for parsing, one for raw collection (debug logging)
-  const [parseStream, rawStream] = stream.tee();
+  const { resultText, exitCode, stderr, turns, costUsd, numTurns } = result;
 
-  let stdout = "";
-  const rawPromise = new Response(rawStream).text().then((text) => {
-    stdout = text;
-  });
-
-  // Parse stream; emit events unless in quiet mode
-  const parsed = await runParseStream(parseStream, quiet ? undefined : {
-    onToolCall: (toolCall: ToolCall) => {
-      emit?.({ type: "heartbeat:tool-call", workspace: ws.path, toolCall });
-    },
-    onText: (text: string) => {
-      emit?.({ type: "heartbeat:stdout", workspace: ws.path, chunk: text });
-    },
-  });
-
-  await rawPromise;
-  const resultText = parsed.resultText;
-  const turns = parsed.turns;
-  debug(`Parsed ${turns.length} conversation turns`);
-  if (parsed.costUsd != null) debug(`Cost: $${parsed.costUsd.toFixed(6)}`);
-  if (parsed.numTurns != null) debug(`Agent turns: ${parsed.numTurns}`);
-  debug(`Stream JSON (first 500 chars): ${stdout.slice(0, 500)}`);
-
-  const exitCode = await proc.exited;
-  const stderr = await new Response(proc.stderr).text();
-  const durationMs = Date.now() - start;
-
-  debug(`Claude exit code: ${exitCode}`);
-  debug(`Claude stderr: ${stderr.trim() || "(empty)"}`);
-
+  debug(`[heartbeat] Agent turns: ${turns?.length ?? 0}`);
+  if (costUsd != null) debug(`[heartbeat] Cost: $${costUsd.toFixed(6)}`);
+  if (numTurns != null) debug(`[heartbeat] Num turns: ${numTurns}`);
 
   const outcome = classify(resultText, exitCode);
-  debug(`Outcome: ${outcome} (exit=${exitCode}, contains HEARTBEAT_OK=${resultText.includes("HEARTBEAT_OK")})`);
-  debug(`Duration: ${durationMs}ms`);
+  debug(`[heartbeat] Outcome: ${outcome} (exit=${exitCode}, contains HEARTBEAT_OK=${resultText.includes("HEARTBEAT_OK")})`);
+  debug(`[heartbeat] Duration: ${result.durationMs}ms`);
 
-  const entry: LogEntry = { ts, workspace: ws.path, outcome, durationMs };
+  const entry: LogEntry = { ts, workspace: ws.path, outcome, durationMs: result.durationMs };
 
   if (outcome === "attention") {
     entry.summary = resultText.slice(0, 200);
@@ -179,7 +169,7 @@ export async function runHeartbeat(
     try {
       await saveConversationLog(ws.path, turns);
     } catch (err) {
-      debug(`Warning: failed to save conversation log: ${err instanceof Error ? err.message : String(err)}`);
+      debug(`[heartbeat] Warning: failed to save conversation log: ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
