@@ -116,6 +116,20 @@ Update competitor-last.md with current state.
 If nothing new or nothing worth proposing, HEARTBEAT_OK.
 ```
 
+## Execution Model
+
+Each heartbeat is a fresh Claude CLI invocation. There is no conversation history or memory between runs — Claude starts from scratch every time.
+
+This is intentional: it prevents context bloat, keeps behavior predictable, and means a single bad run can't corrupt future ones.
+
+**To persist state between heartbeats, use files.** Claude can read and write files in the workspace directory. Common patterns:
+
+- **Track processed items** — write seen IDs to `.heartbeat-state.json` so you don't re-process them
+- **Detect changes** — save the previous state to a file and diff against the current state on the next run
+- **Accumulate results** — append to a log file or markdown document across runs
+
+The price monitor and competitor watch examples above both demonstrate this pattern.
+
 ## Config
 
 `~/.murmur/config.json` — workspaces and their schedules.

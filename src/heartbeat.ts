@@ -26,6 +26,8 @@ export async function buildPrompt(ws: WorkspaceConfig): Promise<string> {
 WORKSPACE: ${ws.path}
 TIME: ${new Date().toISOString()}
 
+This is a fresh session. You have no memory of previous runs. To persist state between heartbeats, read/write files in the workspace.
+
 ---
 ${contents}
 ---
