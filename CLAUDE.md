@@ -1,3 +1,30 @@
+# Murmur
+
+Minimal cron daemon for Claude Code. Schedules recurring AI sessions via HEARTBEAT.md prompt files — each tick spawns a fresh Claude session with full tool access. The daemon only schedules and logs; all integration logic lives in the heartbeat prompt.
+
+## Key Files
+
+| File | Role |
+|------|------|
+| `src/cli.ts` | CLI entry point (start, stop, status, beat, init, watch) |
+| `src/daemon.ts` | Core scheduling loop; spawns heartbeats on tick |
+| `src/heartbeat.ts` | Single heartbeat execution; reads HEARTBEAT.md, calls agent, classifies result |
+| `src/config.ts` | Config management (~/.murmur/config.json) |
+| `src/frontmatter.ts` | YAML frontmatter parser; merges HEARTBEAT.md metadata with config |
+| `src/types.ts` | Shared type definitions |
+| `src/agents/adapter.ts` | Abstract agent interface + registry |
+| `src/agents/claude-code.ts` | Claude Code CLI adapter |
+| `src/agents/pi.ts` | Pi agent adapter |
+| `src/tui.ts` | Terminal UI for real-time daemon monitoring |
+| `src/socket.ts` | Unix socket server for TUI ↔ daemon communication |
+| `.agents/skills/heartbeat-cron/SKILL.md` | Heartbeat creation skill (see below) |
+
+## Heartbeat-Cron Skill
+
+The skill at `.agents/skills/heartbeat-cron/` is a first-class citizen — it's the primary onboarding interface for creating heartbeats. **When the murmur API changes (frontmatter fields, CLI commands, config format, response protocol), update the skill immediately.** Key files to keep in sync:
+- `.agents/skills/heartbeat-cron/SKILL.md` — main skill definition
+- `.agents/skills/heartbeat-cron/references/examples.md` — example heartbeats
+
 # Bun
 
 Default to using Bun instead of Node.js.
