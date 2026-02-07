@@ -110,44 +110,63 @@ export class PiAdapter implements AgentAdapter {
     if (!proc.stdout) throw new Error("Spawned process stdout is not piped");
 
     // Pi outputs plain text, not stream-json
-    // We'll collect the output and parse it for HEARTBEAT_OK/ATTENTION markers
-    const stdoutPromise = new Response(proc.stdout).text();
+    // Stream stdout progressively for better TUI experience
+    let stdout = "";
+
+    const stdoutPromise = (async () => {
+      const decoder = new TextDecoder();
+      const reader = proc.stdout!.getReader();
+
+      try {
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          const chunk = decoder.decode(value, { stream: true });
+          stdout += chunk;
+
+          // Call onText callback with each chunk for real-time streaming
+          if (callbacks?.onText && chunk) {
+            callbacks.onText(chunk);
+          }
+        }
+      } finally {
+        reader.releaseLock();
+      }
+
+      return stdout;
+    })();
+
     const stderrPromise = new Response(proc.stderr).text();
 
-    const [stdout, stderr] = await Promise.all([stdoutPromise, stderrPromise]);
+    const [finalStdout, stderr] = await Promise.all([stdoutPromise, stderrPromise]);
     const exitCode = await proc.exited;
     const durationMs = Date.now() - start;
 
     debug(`[pi] Exit code: ${exitCode}`);
-    debug(`[pi] Stdout (first 500 chars): ${stdout.slice(0, 500)}`);
+    debug(`[pi] Stdout (first 500 chars): ${finalStdout.slice(0, 500)}`);
     debug(`[pi] Stderr: ${stderr.trim() || "(empty)"}`);
     debug(`[pi] Duration: ${durationMs}ms`);
-
-    // Stream callbacks (if provided)
-    // Since we're collecting output after completion, we can only callback with final text
-    if (callbacks?.onText) {
-      callbacks.onText(stdout);
-    }
 
     // Parse pi output to approximate conversation turns
     // Pi doesn't provide structured turn data, so we create a simplified version
     const turns: ConversationTurn[] = [];
 
-    if (stdout.trim()) {
+    if (finalStdout.trim()) {
       turns.push({
         role: "assistant",
-        text: stdout.trim(),
+        text: finalStdout.trim(),
       });
     }
 
     turns.push({
       role: "result",
-      text: stdout.trim(),
+      text: finalStdout.trim(),
       durationMs,
     });
 
     return {
-      resultText: stdout.trim(),
+      resultText: finalStdout.trim(),
       exitCode,
       stderr,
       turns,
