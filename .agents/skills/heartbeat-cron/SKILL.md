@@ -66,7 +66,7 @@ Before diving into details, check whether the user's goal needs tools beyond wha
 
 **Browser tools** — Many valuable heartbeats need to interact with real websites (checking prices, monitoring pages, logging into portals). Claude's built-in `WebFetch` works for simple static pages, but sites with JavaScript rendering, login flows, or anti-bot measures need a real browser:
 - [agent-browser](https://github.com/vercel-labs/agent-browser) — Headless browser CLI for AI agents. Works with Claude Code out of the box.
-- [pi-browser](https://github.com/badlogic/pi-mono) — Browser extension for pi. Use with `"agent": "pi"` and `"piExtensions": ["@mariozechner/pi-browser"]`.
+- [pi-browser](https://github.com/badlogic/pi-mono) — Browser extension for pi. Use with `agent: pi`.
 
 **Other tools** — Search the web for: `"{user's goal}" CLI tool` or `"{user's goal}" MCP server` or check [skills.sh](https://skills.sh) for community skills. Examples:
 - Calendar access → Google Calendar MCP or pi-google-calendar extension

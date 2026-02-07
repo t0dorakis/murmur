@@ -1,7 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { setDataDir, getDataDir, ensureDataDir, readConfig, writeConfig, getConfigPath, getPidPath, getSocketPath, parseInterval, cleanupRuntimeFiles } from "./config.ts";
+import { setDataDir, getDataDir, ensureDataDir, readConfig, writeConfig, getConfigPath, getPidPath, getSocketPath, parseInterval, validateResolvedConfig, cleanupRuntimeFiles } from "./config.ts";
 import { enableDebug, getDebugLogPath } from "./debug.ts";
 import { startDaemon, runDaemonMain } from "./daemon.ts";
 import { resolveWorkspaceConfig } from "./frontmatter.ts";
@@ -382,6 +382,11 @@ async function init(path: string, opts?: { interval?: string; cron?: string; tim
     try { parseInterval(opts.timeout); }
     catch { console.error(`Invalid timeout: "${opts.timeout}". Use e.g. "15m", "1h".`); process.exit(1); }
   }
+  if (opts?.cron) {
+    // Validate by constructing a minimal workspace config
+    const cronErr = validateResolvedConfig({ path: ".", cron: opts.cron, lastRun: null });
+    if (cronErr) { console.error(`Invalid cron: "${opts.cron}".`); process.exit(1); }
+  }
 
   const resolved = resolve(path);
   const heartbeatFile = join(resolved, "HEARTBEAT.md");
@@ -484,6 +489,7 @@ if (daemon) {
       case "clear": {
         const cleared = await clearWorkspaces();
         process.exit(cleared ? 0 : 1);
+        break;
       }
       default:
         console.error(subcommand ? `Unknown subcommand: ${subcommand}` : "Missing subcommand");
