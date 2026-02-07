@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeAll, beforeEach, afterAll } from "bun:test";
-import { mkdtempSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { PID_FILENAME } from "../src/config.ts";
@@ -7,11 +7,37 @@ import { DEBUG_LOG_FILENAME } from "../src/debug.ts";
 
 const REPO_DIR = join(import.meta.dir, "..");
 const MURMUR_BIN = join(REPO_DIR, "murmur");
-const EXAMPLE_DIR = join(REPO_DIR, "example");
-const JOKES_FILE = join(EXAMPLE_DIR, "jokes.txt");
+
+const PROMPT_BODY = `Add a new penguin joke to \`jokes.txt\` in this directory. One joke per heartbeat.
+If the file doesn't exist, create it. Append to the end, don't overwrite existing jokes.
+Number each joke sequentially.
+
+Then respond with \`HEARTBEAT_OK\`.
+`;
+
 const SEED_JOKE = "Why don't penguins fly? They can't afford plane tickets.\n";
 
 let testDataDir: string;
+let testId = 0;
+
+/** Create a temp workspace dir with HEARTBEAT.md and seed jokes.txt */
+function createWorkspace(frontmatter: Record<string, string | number>): string {
+  const wsDir = join(testDataDir, `ws-${testId++}`);
+  mkdirSync(wsDir, { recursive: true });
+
+  const fmLines = Object.entries(frontmatter).map(([k, v]) => `${k}: ${v}`);
+  const heartbeat = `---\n${fmLines.join("\n")}\n---\n\n${PROMPT_BODY}`;
+  writeFileSync(join(wsDir, "HEARTBEAT.md"), heartbeat);
+  writeFileSync(join(wsDir, "jokes.txt"), SEED_JOKE);
+
+  return wsDir;
+}
+
+function jokeCount(wsDir: string): number {
+  const jokesFile = join(wsDir, "jokes.txt");
+  if (!existsSync(jokesFile)) return 0;
+  return readFileSync(jokesFile, "utf-8").split("\n").filter(Boolean).length;
+}
 
 async function murmur(...args: string[]) {
   const proc = Bun.spawn([MURMUR_BIN, "--data-dir", testDataDir, "--debug", ...args], {
@@ -39,9 +65,15 @@ function dumpDebugLog() {
   }
 }
 
-function jokeCount(): number {
-  if (!existsSync(JOKES_FILE)) return 0;
-  return readFileSync(JOKES_FILE, "utf-8").split("\n").filter(Boolean).length;
+function killDaemonIfRunning() {
+  const pidFile = join(testDataDir, PID_FILENAME);
+  if (!existsSync(pidFile)) return;
+  try {
+    const pid = Number(readFileSync(pidFile, "utf-8").trim());
+    process.kill(pid, "SIGTERM");
+  } catch (err: any) {
+    if (err?.code !== "ESRCH") console.error(`cleanup: failed to kill daemon: ${err}`);
+  }
 }
 
 beforeAll(() => {
@@ -52,36 +84,26 @@ beforeAll(() => {
 });
 
 beforeEach(() => {
-  writeFileSync(JOKES_FILE, SEED_JOKE);
+  killDaemonIfRunning();
 });
 
 afterAll(() => {
-  // Kill daemon if still running
-  const pidFile = join(testDataDir, PID_FILENAME);
-  if (existsSync(pidFile)) {
-    try {
-      const pid = Number(readFileSync(pidFile, "utf-8").trim());
-      process.kill(pid, "SIGTERM");
-    } catch (err: any) {
-      if (err?.code !== "ESRCH") console.error(`afterAll: failed to kill daemon: ${err}`);
-    }
-  }
-  // Reset jokes file
-  writeFileSync(JOKES_FILE, SEED_JOKE);
+  killDaemonIfRunning();
 });
 
 async function testDaemonLifecycle(
-  workspaceConfig: Record<string, unknown>,
+  workspaceConfig: Record<string, string | number>,
   statusAssertions?: (stdout: string) => void,
 ) {
-  const jokesBefore = jokeCount();
+  const wsDir = createWorkspace(workspaceConfig);
+  const jokesBefore = jokeCount(wsDir);
 
   const configFile = join(testDataDir, "config.json");
   writeFileSync(
     configFile,
     JSON.stringify(
       {
-        workspaces: [{ path: EXAMPLE_DIR, lastRun: null, ...workspaceConfig }],
+        workspaces: [{ path: wsDir, lastRun: null }],
       },
       null,
       2,
@@ -112,7 +134,7 @@ async function testDaemonLifecycle(
   expect(config.workspaces[0].lastRun).not.toBeNull();
 
   // Claude did the work
-  expect(jokeCount()).toBeGreaterThan(jokesBefore);
+  expect(jokeCount(wsDir)).toBeGreaterThan(jokesBefore);
 
   // Stop daemon
   const stopResult = await murmur("stop");
@@ -128,9 +150,10 @@ async function testDaemonLifecycle(
 
 describe("e2e", () => {
   test("murmur beat fires a real heartbeat (claude-code)", async () => {
-    const jokesBefore = jokeCount();
+    const wsDir = createWorkspace({ agent: "claude-code", model: "haiku", maxTurns: 50 });
+    const jokesBefore = jokeCount(wsDir);
 
-    const result = await murmur("beat", EXAMPLE_DIR);
+    const result = await murmur("beat", wsDir);
     expect(result.exitCode).toBe(0);
 
     // Log file created with a valid entry
@@ -142,32 +165,14 @@ describe("e2e", () => {
     expect(logContent).not.toContain('"outcome":"error"');
 
     // Claude actually did the work
-    expect(jokeCount()).toBeGreaterThan(jokesBefore);
+    expect(jokeCount(wsDir)).toBeGreaterThan(jokesBefore);
   }, 60_000);
 
   test("murmur beat with pi agent", async () => {
-    const jokesBefore = jokeCount();
+    const wsDir = createWorkspace({ agent: "pi", maxTurns: 50 });
+    const jokesBefore = jokeCount(wsDir);
 
-    // Create config with pi agent
-    const configFile = join(testDataDir, "config.json");
-    writeFileSync(
-      configFile,
-      JSON.stringify(
-        {
-          workspaces: [
-            {
-              path: EXAMPLE_DIR,
-              agent: "pi",
-              lastRun: null,
-            },
-          ],
-        },
-        null,
-        2,
-      ),
-    );
-
-    const result = await murmur("beat", EXAMPLE_DIR);
+    const result = await murmur("beat", wsDir);
     expect(result.exitCode).toBe(0);
 
     // Log file created with a valid entry
@@ -179,7 +184,7 @@ describe("e2e", () => {
     expect(logContent).not.toContain('"outcome":"error"');
 
     // Pi actually did the work
-    expect(jokeCount()).toBeGreaterThan(jokesBefore);
+    expect(jokeCount(wsDir)).toBeGreaterThan(jokesBefore);
 
     // Verify pi agent was used in the log
     const lastLine = logContent.trim().split("\n").pop();
@@ -190,7 +195,7 @@ describe("e2e", () => {
   }, 60_000);
 
   test("daemon lifecycle: start, scheduled beat, stop", async () => {
-    await testDaemonLifecycle({ interval: "1s" });
+    await testDaemonLifecycle({ interval: "1s", agent: "claude-code", model: "haiku", maxTurns: 50 });
 
     // Status reports stopped after lifecycle completes
     const statusAfter = await murmur("status");
@@ -198,11 +203,14 @@ describe("e2e", () => {
   }, 60_000);
 
   test("daemon lifecycle with cron: start, scheduled beat, stop", async () => {
-    await testDaemonLifecycle({ cron: "* * * * *" }, (stdout) => expect(stdout).toContain("cron"));
+    await testDaemonLifecycle(
+      { cron: "* * * * *", agent: "claude-code", model: "haiku", maxTurns: 50 },
+      (stdout) => expect(stdout).toContain("cron"),
+    );
   }, 60_000);
 
   test("daemon lifecycle with pi agent", async () => {
-    await testDaemonLifecycle({ agent: "pi", interval: "1s" });
+    await testDaemonLifecycle({ agent: "pi", interval: "1s", maxTurns: 50 });
 
     // Status reports stopped after lifecycle completes
     const statusAfter = await murmur("status");
