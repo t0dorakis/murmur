@@ -6,29 +6,15 @@ import type {
   AgentExecutionResult,
   AgentStreamCallbacks,
 } from "./adapter.ts";
-import type { WorkspaceConfig, ConversationTurn } from "../types.ts";
-
-/**
- * Pi-specific configuration options.
- */
-export type PiConfig = {
-  /** Pi extensions to load (e.g., "@mariozechner/pi-browser") */
-  piExtensions?: string[];
-  /** Session ID for context reuse across heartbeats */
-  piSession?: string;
-  /** Model/provider to use (e.g., "anthropic/claude-sonnet-4.5") */
-  piModel?: string;
-  /** Max turns (pi uses --max-turns flag) */
-  maxTurns?: number;
-};
+import type { WorkspaceConfig, ConversationTurn, PiConfig } from "../types.ts";
 
 /**
  * Validates Pi-specific configuration fields.
  * @throws Error if validation fails
  */
-function validatePiConfig(workspace: WorkspaceConfig): void {
-  // Type narrow to access pi-specific fields
-  const piWorkspace = workspace as any;
+function validatePiConfig(workspace: WorkspaceConfig): asserts workspace is PiConfig {
+  // Type narrow to PiConfig
+  const piWorkspace = workspace as PiConfig;
 
   if (piWorkspace.piExtensions) {
     if (!Array.isArray(piWorkspace.piExtensions)) {
@@ -79,35 +65,32 @@ export class PiAdapter implements AgentAdapter {
   ): Promise<AgentExecutionResult> {
     const start = Date.now();
 
-    // Validate pi-specific config
+    // Validate pi-specific config (also narrows type to PiConfig)
     validatePiConfig(workspace);
-
-    // Type narrow to access pi-specific fields
-    const piWorkspace = workspace as any;
 
     const piArgs = ["pi", "--mode=print"];
 
     // Add extensions
-    if (piWorkspace.piExtensions && piWorkspace.piExtensions.length > 0) {
-      for (const ext of piWorkspace.piExtensions) {
+    if (workspace.piExtensions && workspace.piExtensions.length > 0) {
+      for (const ext of workspace.piExtensions) {
         piArgs.push("--extension", ext);
       }
     }
 
     // Add session for context reuse
-    if (piWorkspace.piSession) {
-      piArgs.push("--session", piWorkspace.piSession);
+    if (workspace.piSession) {
+      piArgs.push("--session", workspace.piSession);
       piArgs.push("--reuse"); // Reuse session context
     }
 
     // Add model selection
-    if (piWorkspace.piModel) {
-      piArgs.push("--model", piWorkspace.piModel);
+    if (workspace.piModel) {
+      piArgs.push("--model", workspace.piModel);
     }
 
     // Add max turns
-    if (piWorkspace.maxTurns) {
-      piArgs.push("--max-turns", String(piWorkspace.maxTurns));
+    if (workspace.maxTurns) {
+      piArgs.push("--max-turns", String(workspace.maxTurns));
     }
 
     // Add prompt as argument (pi accepts prompts via --prompt flag or stdin)

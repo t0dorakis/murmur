@@ -29,7 +29,7 @@ type ClaudeCodeConfig = BaseWorkspaceConfig & {
 /**
  * Pi agent-specific configuration.
  */
-type PiConfig = BaseWorkspaceConfig & {
+export type PiConfig = BaseWorkspaceConfig & {
   agent: "pi";
   piExtensions?: string[];
   piSession?: string;
