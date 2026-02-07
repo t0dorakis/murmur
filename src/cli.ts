@@ -330,7 +330,13 @@ function cliEmitter(event: DaemonEvent) {
   }
 }
 
-const HEARTBEAT_TEMPLATE = `# Heartbeat
+const HEARTBEAT_TEMPLATE = `<!--
+  Each heartbeat runs in a fresh Claude session with NO memory of previous runs.
+  To persist state between heartbeats, read/write files in this directory or use git.
+  Example: track processed item IDs in .heartbeat-state.json
+-->
+
+# Heartbeat
 
 What to do on each heartbeat. If nothing needs attention, respond with
 exactly \`HEARTBEAT_OK\`. Otherwise, start with \`ATTENTION:\` and a brief summary.
