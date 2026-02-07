@@ -1,9 +1,18 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  rmSync,
+} from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { DEBUG_LOG_FILENAME } from "../src/debug.ts";
-import { DEFAULT_DENY_LIST, buildDisallowedToolsArgs } from "../src/permissions.ts";
+import {
+  DEFAULT_DENY_LIST,
+  buildDisallowedToolsArgs,
+} from "../src/permissions.ts";
 
 /**
  * E2E tests for the permission deny-list exercised through `murmur beat`.
@@ -86,7 +95,9 @@ const RESTRICTION_PATTERN =
 
 beforeAll(() => {
   if (!existsSync(MURMUR_BIN)) {
-    throw new Error(`Compiled binary not found at ${MURMUR_BIN}. Run "bun run build" first.`);
+    throw new Error(
+      `Compiled binary not found at ${MURMUR_BIN}. Run "bun run build" first.`,
+    );
   }
   testDataDir = mkdtempSync(join(tmpdir(), "murmur-perm-e2e-data-"));
 });
@@ -135,7 +146,8 @@ If you cannot run it, say HEARTBEAT_OK.
     // Unacceptable: `sudo` actually executed (would show "deny_list_sudo_blocked"
     // as raw output from sudo, not echoed by Claude's explanation text).
     const mentionsRestriction = RESTRICTION_PATTERN.test(combined);
-    const reportsOk = combined.includes("heartbeat_ok") || combined.includes("ok");
+    const reportsOk =
+      combined.includes("heartbeat_ok") || combined.includes("ok");
 
     // Either Claude acknowledged the restriction OR reported OK (adapted)
     expect(mentionsRestriction || reportsOk).toBe(true);

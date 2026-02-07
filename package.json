@@ -9,7 +9,8 @@
   "scripts": {
     "build": "VERSION=$(bun -e 'console.log(JSON.stringify(require(\"./package.json\").version))') && bun build --compile --define \"__VERSION__=$VERSION\" src/cli.ts --outfile murmur",
     "release": "bash scripts/release.sh",
-    "test:e2e": "bun test test/e2e.test.ts",
+    "test": "bun test src/",
+    "test:e2e": "bun test e2e-tests/",
     "format": "oxfmt",
     "format:check": "oxfmt --check"
   },

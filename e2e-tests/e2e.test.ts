@@ -1,5 +1,18 @@
-import { describe, test, expect, beforeAll, beforeEach, afterAll } from "bun:test";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, existsSync } from "node:fs";
+import {
+  describe,
+  test,
+  expect,
+  beforeAll,
+  beforeEach,
+  afterAll,
+} from "bun:test";
+import {
+  mkdtempSync,
+  mkdirSync,
+  readFileSync,
+  writeFileSync,
+  existsSync,
+} from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { PID_FILENAME } from "../src/config.ts";
@@ -40,10 +53,13 @@ function jokeCount(wsDir: string): number {
 }
 
 async function murmur(...args: string[]) {
-  const proc = Bun.spawn([MURMUR_BIN, "--data-dir", testDataDir, "--debug", ...args], {
-    stdout: "pipe",
-    stderr: "pipe",
-  });
+  const proc = Bun.spawn(
+    [MURMUR_BIN, "--data-dir", testDataDir, "--debug", ...args],
+    {
+      stdout: "pipe",
+      stderr: "pipe",
+    },
+  );
   const exitCode = await proc.exited;
   const stdout = await new Response(proc.stdout).text();
   const stderr = await new Response(proc.stderr).text();
@@ -72,13 +88,16 @@ function killDaemonIfRunning() {
     const pid = Number(readFileSync(pidFile, "utf-8").trim());
     process.kill(pid, "SIGTERM");
   } catch (err: any) {
-    if (err?.code !== "ESRCH") console.error(`cleanup: failed to kill daemon: ${err}`);
+    if (err?.code !== "ESRCH")
+      console.error(`cleanup: failed to kill daemon: ${err}`);
   }
 }
 
 beforeAll(() => {
   if (!existsSync(MURMUR_BIN)) {
-    throw new Error(`Compiled binary not found at ${MURMUR_BIN}. Run "bun run build" first.`);
+    throw new Error(
+      `Compiled binary not found at ${MURMUR_BIN}. Run "bun run build" first.`,
+    );
   }
   testDataDir = mkdtempSync(join(tmpdir(), "murmur-e2e-"));
 });
@@ -127,7 +146,7 @@ async function testDaemonLifecycle(
   statusAssertions?.(statusResult.stdout);
 
   // Wait for daemon to tick and Claude to finish
-  await Bun.sleep(20_000);
+  await Bun.sleep(10_000);
 
   // Daemon fired a heartbeat — lastRun updated
   const config = JSON.parse(readFileSync(configFile, "utf-8"));
@@ -150,7 +169,11 @@ async function testDaemonLifecycle(
 
 describe("e2e", () => {
   test("murmur beat fires a real heartbeat (claude-code)", async () => {
-    const wsDir = createWorkspace({ agent: "claude-code", model: "haiku", maxTurns: 50 });
+    const wsDir = createWorkspace({
+      agent: "claude-code",
+      model: "haiku",
+      maxTurns: 50,
+    });
     const jokesBefore = jokeCount(wsDir);
 
     const result = await murmur("beat", wsDir);
@@ -195,7 +218,12 @@ describe("e2e", () => {
   }, 60_000);
 
   test("daemon lifecycle: start, scheduled beat, stop", async () => {
-    await testDaemonLifecycle({ interval: "1s", agent: "claude-code", model: "haiku", maxTurns: 50 });
+    await testDaemonLifecycle({
+      interval: "1s",
+      agent: "claude-code",
+      model: "haiku",
+      maxTurns: 50,
+    });
 
     // Status reports stopped after lifecycle completes
     const statusAfter = await murmur("status");

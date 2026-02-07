@@ -23,17 +23,14 @@ Default to using Bun instead of Node.js.
 ## Testing
 
 ```bash
-# Build binary (required before e2e tests)
+# Build binary
 bun run build
 
 # Unit tests only (fast, no binary needed)
-bun test
+bun run test
 
 # E2E tests (build binary before)
 bun run test:e2e
-
-# All tests
-bun test
 ```
 
 ## Frontend
