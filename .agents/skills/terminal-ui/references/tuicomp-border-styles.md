@@ -67,6 +67,7 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 ```
 
 **When NOT to use this pattern:**
+
 - For very constrained terminal widths where borders waste space
 - When targeting terminals with limited Unicode support (use `borderStyle="classic"`)
 

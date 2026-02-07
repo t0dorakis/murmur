@@ -12,11 +12,11 @@ After completing an operation, show users what to do next. Guide them through th
 **Incorrect (no guidance):**
 
 ```typescript
-import * as p from '@clack/prompts'
+import * as p from "@clack/prompts";
 
 async function createProject(name: string) {
-  await scaffoldProject(name)
-  p.outro('Done!')
+  await scaffoldProject(name);
+  p.outro("Done!");
   // User left wondering what to do next
 }
 ```
@@ -24,23 +24,17 @@ async function createProject(name: string) {
 **Correct (clear next steps):**
 
 ```typescript
-import * as p from '@clack/prompts'
-import color from 'picocolors'
+import * as p from "@clack/prompts";
+import color from "picocolors";
 
 async function createProject(name: string) {
-  await scaffoldProject(name)
+  await scaffoldProject(name);
 
-  const steps = [
-    `cd ${name}`,
-    'npm install',
-    'npm run dev'
-  ].join('\n')
+  const steps = [`cd ${name}`, "npm install", "npm run dev"].join("\n");
 
-  p.note(steps, 'Next steps')
+  p.note(steps, "Next steps");
 
-  p.outro(
-    `Problems? ${color.underline(color.cyan('https://docs.example.com/getting-started'))}`
-  )
+  p.outro(`Problems? ${color.underline(color.cyan("https://docs.example.com/getting-started"))}`);
 }
 ```
 
@@ -48,25 +42,25 @@ async function createProject(name: string) {
 
 ```typescript
 async function setupComplete(config: ProjectConfig) {
-  const steps: string[] = [`cd ${config.name}`]
+  const steps: string[] = [`cd ${config.name}`];
 
   if (!config.installedDeps) {
-    steps.push('npm install')
+    steps.push("npm install");
   }
 
   if (config.hasDatabase) {
-    steps.push('npm run db:setup')
+    steps.push("npm run db:setup");
   }
 
-  steps.push('npm run dev')
+  steps.push("npm run dev");
 
-  p.note(steps.join('\n'), 'Next steps')
+  p.note(steps.join("\n"), "Next steps");
 
   if (config.hasDatabase) {
-    p.log.info('Database setup requires Docker running')
+    p.log.info("Database setup requires Docker running");
   }
 
-  p.outro(`View docs: ${color.cyan('https://docs.example.com')}`)
+  p.outro(`View docs: ${color.cyan("https://docs.example.com")}`);
 }
 ```
 
@@ -75,14 +69,14 @@ async function setupComplete(config: ProjectConfig) {
 ```typescript
 function showCompletionHelp(command: string) {
   const helpMap: Record<string, string[]> = {
-    'init': ['Run `mycli dev` to start development', 'Edit config.json to customize'],
-    'build': ['Find output in ./dist', 'Run `mycli deploy` to publish'],
-    'deploy': ['View at https://your-app.example.com', 'Run `mycli logs` to monitor']
-  }
+    init: ["Run `mycli dev` to start development", "Edit config.json to customize"],
+    build: ["Find output in ./dist", "Run `mycli deploy` to publish"],
+    deploy: ["View at https://your-app.example.com", "Run `mycli logs` to monitor"],
+  };
 
-  const steps = helpMap[command]
+  const steps = helpMap[command];
   if (steps) {
-    p.note(steps.join('\n'), 'What now?')
+    p.note(steps.join("\n"), "What now?");
   }
 }
 ```

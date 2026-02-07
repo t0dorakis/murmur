@@ -1,23 +1,27 @@
 {
   "name": "murmur",
   "version": "0.2.1",
-  "module": "src/cli.ts",
-  "type": "module",
   "bin": {
     "murmur": "./src/cli.ts"
   },
+  "type": "module",
+  "module": "src/cli.ts",
   "scripts": {
     "build": "VERSION=$(bun -e 'console.log(JSON.stringify(require(\"./package.json\").version))') && bun build --compile --define \"__VERSION__=$VERSION\" src/cli.ts --outfile murmur",
     "release": "bash scripts/release.sh",
-    "test:e2e": "bun test test/e2e.test.ts"
-  },
-  "devDependencies": {
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
+    "test": "bun test src/",
+    "test:e2e": "bun test e2e-tests/",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check"
   },
   "dependencies": {
     "effect": "^3.19.15"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "oxfmt": "^0.28.0"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
   }
 }

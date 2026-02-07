@@ -16,7 +16,14 @@ afterEach(() => {
   rmSync(TEST_DIR, { recursive: true, force: true });
 });
 
-function writeTestConfig(workspaces: Array<{ path: string; interval?: string; cron?: string; lastRun: string | null }>) {
+function writeTestConfig(
+  workspaces: Array<{
+    path: string;
+    interval?: string;
+    cron?: string;
+    lastRun: string | null;
+  }>,
+) {
   writeFileSync(getConfigPath(), JSON.stringify({ workspaces }, null, 2));
 }
 
@@ -30,7 +37,11 @@ describe("listWorkspaces", () => {
   test("lists workspaces", () => {
     writeTestConfig([
       { path: "/test/path1", interval: "1h", lastRun: null },
-      { path: "/test/path2", cron: "0 9 * * *", lastRun: "2026-01-01T00:00:00Z" },
+      {
+        path: "/test/path2",
+        cron: "0 9 * * *",
+        lastRun: "2026-01-01T00:00:00Z",
+      },
     ]);
     listWorkspaces();
   });

@@ -15,18 +15,20 @@ Every heartbeat that produces output needs a destination. Common patterns:
 - **Ntfy push notification**: `curl -d "message" ntfy.sh/your-topic`
 - **ATTENTION response**: Murmur logs it — useful if the user checks `murmur status` or the TUI
 
-Remind the user: if they want to be *notified*, the heartbeat itself must do the notifying. Murmur won't forward anything.
+Remind the user: if they want to be _notified_, the heartbeat itself must do the notifying. Murmur won't forward anything.
 
 ---
 
 ## Code & Repos
 
 ### Auto-triage incoming issues
+
 ```markdown
 # Heartbeat
 
 Check for new GitHub issues on {org}/{repo} using `gh issue list --state open --json number,title,body,labels`.
 For any issue with no labels:
+
 - Read the title and body
 - Apply one of: `bug`, `feature`, `question`, `security`
 - Use `gh issue edit {number} --add-label {label}`
@@ -36,21 +38,27 @@ If any issue is labeled `security`, post to Slack:
 
 If no unlabeled issues, respond HEARTBEAT_OK.
 ```
+
 Interval: `30m`
 
 ### Stale PR nudge
+
 ```markdown
 # Heartbeat
 
 List open PRs on {org}/{repo} with `gh pr list --json number,title,author,createdAt,reviewRequests`.
 For any PR open > 48 hours with no reviews:
+
 - Post a comment: `gh pr comment {number} --body "Friendly nudge: this PR has been waiting for review."`
 - Send a Telegram message: `curl -s "https://api.telegram.org/bot{token}/sendMessage" -d "chat_id={id}&text=PR #{number} needs review: {title}"`
 
 If all PRs are reviewed or < 48h old, respond HEARTBEAT_OK.
 ```
+
 Interval: `12h`
+
 ### CI failure digest
+
 ```markdown
 # Heartbeat
 
@@ -58,15 +66,19 @@ Check the last 10 GitHub Actions runs: `gh run list --limit 10 --json status,con
 Collect any with conclusion=failure.
 
 If failures exist, write a summary to `ci-report.md` in this workspace:
+
 - Workflow name, branch, when it failed
 - Append to the file (don't overwrite previous entries), date-stamped.
 
 If all green, respond HEARTBEAT_OK.
 ```
+
 Interval: `1h`
+
 ## Research & Intelligence
 
 ### Hacker News scout
+
 ```markdown
 # Heartbeat
 
@@ -75,6 +87,7 @@ For each, fetch details: `curl -s https://hacker-news.firebaseio.com/v0/item/{id
 
 Filter for stories about: {topics}.
 If relevant stories exist, append them to `hn-digest.md` in this workspace:
+
 - Date header
 - Each story: title, URL, score, comment count
 - Sorted by score descending
@@ -84,12 +97,16 @@ Also post the top 3 to Slack:
 
 If nothing relevant, respond HEARTBEAT_OK.
 ```
+
 Interval: `6h`
+
 ### Competitor changelog tracker
+
 ```markdown
 # Heartbeat
 
 Fetch the changelog/release pages for:
+
 - `curl -s https://github.com/{competitor}/releases.atom`
 - `curl -s {competitor_changelog_url}`
 
@@ -98,8 +115,11 @@ If anything new, write a summary to `competitive-intel.md` in this workspace and
 
 If nothing new, respond HEARTBEAT_OK.
 ```
+
 Interval: `1d`
+
 ### Arxiv paper monitor
+
 ```markdown
 # Heartbeat
 
@@ -110,19 +130,24 @@ For each paper, extract title, authors, abstract, and link.
 Filter for papers relevant to: {research_focus}.
 
 If relevant papers found, append to `papers.md`:
+
 - Date header
 - Title, authors, one-sentence summary, link
 
 If nothing relevant, respond HEARTBEAT_OK.
 ```
+
 Interval: `1d`
+
 ## Ops & Infrastructure
 
 ### Endpoint canary
+
 ```markdown
 # Heartbeat
 
 Check these endpoints and record response status + latency:
+
 - `curl -s -o /dev/null -w "%{http_code} %{time_total}" {url_1}`
 - `curl -s -o /dev/null -w "%{http_code} %{time_total}" {url_2}`
 
@@ -133,12 +158,16 @@ Log every check to `uptime.csv` (timestamp, url, status, latency).
 
 If all healthy, respond HEARTBEAT_OK.
 ```
+
 Interval: `15m`
+
 ### Docker resource check
+
 ```markdown
 # Heartbeat
 
 Run `docker system df` and `docker ps --format '{{.Names}} {{.Status}}'`.
+
 - If disk usage > 80%, run `docker system prune -f` and log what was cleaned.
 - If any container is in "Restarting" or "Exited" state, report it.
 
@@ -146,51 +175,59 @@ Append results to `docker-health.log` in this workspace.
 
 If everything is healthy and disk < 80%, respond HEARTBEAT_OK.
 ```
+
 Interval: `6h`
+
 ## Personal & Creative
 
 ### Daily journal prompt
+
 ```markdown
 # Heartbeat
 
 Create today's journal entry file: `journal/{YYYY-MM-DD}.md`.
 Include:
+
 - A thoughtful writing prompt based on the current date, season, or recent world events
 - 3 reflection questions
 - A quote that fits the theme
 
 If today's file already exists, respond HEARTBEAT_OK.
 ```
+
 Interval: `1d`
+
 ### Repo activity digest
+
 ```markdown
 # Heartbeat
 
 For each repo in [{repo_list}]:
+
 - `gh api repos/{owner}/{repo}/events --jq '.[0:10]'`
 - Summarize: pushes, PRs opened/merged/closed, issues opened, releases
 
 Write a digest to `weekly-activity.md`:
+
 - One section per repo
 - Only include repos with activity
 - Overwrite the file each time (it's a rolling snapshot)
 
 If zero activity across all repos, respond HEARTBEAT_OK.
 ```
-Interval: `1d`
----
+
+## Interval: `1d`
 
 ## Choosing the Right Schedule
 
 Use **interval** for fixed-frequency checks. Use **cron** when you need specific times or weekday-only runs.
 
-| Use case | Interval | Cron alternative |
-|----------|----------|-----------------|
-| Critical uptime (endpoints, services) | `15m` | `*/15 * * * *` |
-| Active development (CI, tests, triage) | `30m` – `1h` | `*/30 9-18 * * 1-5` (work hours) |
-| Reviews & collaboration | `6h` – `12h` | `0 9,17 * * 1-5` (9am + 5pm weekdays) |
-| Research & intelligence | `6h` – `1d` | `0 8 * * *` (daily at 8am) |
-| Housekeeping (deps, cleanup, digests) | `1d` | `0 3 * * 0` (Sunday 3am) |
+| Use case                               | Interval     | Cron alternative                      |
+| -------------------------------------- | ------------ | ------------------------------------- |
+| Critical uptime (endpoints, services)  | `15m`        | `*/15 * * * *`                        |
+| Active development (CI, tests, triage) | `30m` – `1h` | `*/30 9-18 * * 1-5` (work hours)      |
+| Reviews & collaboration                | `6h` – `12h` | `0 9,17 * * 1-5` (9am + 5pm weekdays) |
+| Research & intelligence                | `6h` – `1d`  | `0 8 * * *` (daily at 8am)            |
+| Housekeeping (deps, cleanup, digests)  | `1d`         | `0 3 * * 0` (Sunday 3am)              |
 
 Cron workspaces support an optional `tz` field (e.g., `"America/New_York"`) — defaults to local system timezone.
-

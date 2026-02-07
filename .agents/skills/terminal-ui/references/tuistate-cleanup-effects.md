@@ -52,29 +52,29 @@ function Spinner() {
 ```typescript
 // Event listeners
 useEffect(() => {
-  const handler = () => handleResize()
-  process.stdout.on('resize', handler)
-  return () => process.stdout.off('resize', handler)
-}, [])
+  const handler = () => handleResize();
+  process.stdout.on("resize", handler);
+  return () => process.stdout.off("resize", handler);
+}, []);
 
 // Abort controller for fetch
 useEffect(() => {
-  const controller = new AbortController()
+  const controller = new AbortController();
 
   fetch(url, { signal: controller.signal })
     .then(setData)
-    .catch(err => {
-      if (err.name !== 'AbortError') setError(err)
-    })
+    .catch((err) => {
+      if (err.name !== "AbortError") setError(err);
+    });
 
-  return () => controller.abort()
-}, [url])
+  return () => controller.abort();
+}, [url]);
 
 // Subscriptions
 useEffect(() => {
-  const unsubscribe = eventEmitter.subscribe(handler)
-  return unsubscribe
-}, [])
+  const unsubscribe = eventEmitter.subscribe(handler);
+  return unsubscribe;
+}, []);
 ```
 
 Reference: [React Documentation - useEffect Cleanup](https://react.dev/reference/react/useEffect#connecting-to-an-external-system)

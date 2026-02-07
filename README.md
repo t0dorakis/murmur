@@ -29,6 +29,7 @@ brew install t0dorakis/murmur/murmur
 ```
 
 From source:
+
 ```bash
 git clone https://github.com/t0dorakis/murmur.git
 cd murmur && bun install && bun run build
@@ -86,21 +87,22 @@ Check for new issues...
 
 Frontmatter values override config.json. Config.json values are used as fallback. A HEARTBEAT.md without frontmatter works unchanged.
 
-| Frontmatter Field | Description |
-|-------------------|-------------|
-| `name` | Display name in TUI (falls back to `# heading`, then dirname) |
-| `description` | Description shown in TUI (falls back to content preview) |
-| `interval` | Run every N units: `15m`, `1h`, `6h`, `1d` |
-| `cron` | Cron expression (alternative to interval) |
-| `tz` | Timezone for cron |
-| `timeout` | Execution timeout: `15m`, `1h` (default: 5m) |
-| `maxTurns` | Cap agent iterations per heartbeat |
-| `agent` | Agent harness: `claude-code` (default), `pi` |
-| `model` | Model selection (e.g., `opus`, `anthropic/claude-sonnet-4.5`) |
-| `session` | Session ID for context reuse (pi agent) |
-| `permissions` | `skip` or deny list |
+| Frontmatter Field | Description                                                   |
+| ----------------- | ------------------------------------------------------------- |
+| `name`            | Display name in TUI (falls back to `# heading`, then dirname) |
+| `description`     | Description shown in TUI (falls back to content preview)      |
+| `interval`        | Run every N units: `15m`, `1h`, `6h`, `1d`                    |
+| `cron`            | Cron expression (alternative to interval)                     |
+| `tz`              | Timezone for cron                                             |
+| `timeout`         | Execution timeout: `15m`, `1h` (default: 5m)                  |
+| `maxTurns`        | Cap agent iterations per heartbeat                            |
+| `agent`           | Agent harness: `claude-code` (default), `pi`                  |
+| `model`           | Model selection (e.g., `opus`, `anthropic/claude-sonnet-4.5`) |
+| `session`         | Session ID for context reuse (pi agent)                       |
+| `permissions`     | `skip` only (deny lists require config.json)                  |
 
 **Response protocol:**
+
 - `HEARTBEAT_OK` — nothing to report (silent, just logged)
 - `ATTENTION: <summary>` — needs attention (surfaced in TUI)
 
@@ -109,6 +111,7 @@ But often your heartbeat handles delivery itself (write to a file, create an iss
 ### Examples
 
 **Research curation:**
+
 ```markdown
 Search arxiv for new papers on "autonomous AI agents" from the last 24 hours.
 For each relevant paper, extract: title, authors, key findings, and why it matters.
@@ -117,6 +120,7 @@ If nothing relevant, HEARTBEAT_OK.
 ```
 
 **GitHub digest:**
+
 ```markdown
 Check my GitHub notifications using `gh`.
 Filter out bot comments and CI noise.
@@ -125,6 +129,7 @@ If inbox zero, HEARTBEAT_OK.
 ```
 
 **Price monitor:**
+
 ```markdown
 Check the current price of the product at the URL below.
 
@@ -139,11 +144,13 @@ URL: https://store.steampowered.com/app/1245620/ELDEN_RING/
 ```
 
 **Competitor watch:**
+
 ```markdown
 Fetch the changelog from https://competitor.com/changelog.
 Compare against ~/tracking/competitor-last.md to find new features.
 
 For each new feature:
+
 - Consider: does this make sense for our product? Check our existing issues and roadmap in this repo.
 - Think about our users, our positioning, and whether this aligns with where we're headed.
 - Only if it genuinely adds value: create a GitHub issue with `gh issue create`, explaining the feature idea and your reasoning.
@@ -171,17 +178,17 @@ If nothing new or nothing worth proposing, HEARTBEAT_OK.
 }
 ```
 
-| Field | Description |
-|-------|-------------|
-| `path` | Absolute path to workspace (must contain `HEARTBEAT.md`) |
-| `interval` | Run every N units: `15m`, `1h`, `6h`, `1d` |
-| `cron` | Cron expression (alternative to interval): `0 9 * * 1-5` |
-| `tz` | Timezone for cron (default: system) |
-| `timeout` | Execution timeout: `15m`, `1h` (default: 5m) |
-| `maxTurns` | Cap agent iterations per heartbeat (default: unlimited) |
-| `agent` | Agent harness to use: `claude-code` (default), `pi`, etc. |
-| `model` | Model selection (agent-agnostic) |
-| `session` | Session ID for context reuse |
+| Field      | Description                                               |
+| ---------- | --------------------------------------------------------- |
+| `path`     | Absolute path to workspace (must contain `HEARTBEAT.md`)  |
+| `interval` | Run every N units: `15m`, `1h`, `6h`, `1d`                |
+| `cron`     | Cron expression (alternative to interval): `0 9 * * 1-5`  |
+| `tz`       | Timezone for cron (default: system)                       |
+| `timeout`  | Execution timeout: `15m`, `1h` (default: 5m)              |
+| `maxTurns` | Cap agent iterations per heartbeat (default: unlimited)   |
+| `agent`    | Agent harness to use: `claude-code` (default), `pi`, etc. |
+| `model`    | Model selection (agent-agnostic)                          |
+| `session`  | Session ID for context reuse                              |
 
 All config fields can also be set in HEARTBEAT.md frontmatter (takes precedence). Use `interval` or `cron`, not both.
 
@@ -190,6 +197,7 @@ All config fields can also be set in HEARTBEAT.md frontmatter (takes precedence)
 Murmur supports multiple AI agent harnesses, allowing you to choose the best tool for each heartbeat:
 
 **Claude Code (default):**
+
 ```markdown
 ---
 agent: claude-code
@@ -199,6 +207,7 @@ model: opus
 ```
 
 **Pi ([pi-mono](https://github.com/badlogic/pi-mono)):**
+
 ```markdown
 ---
 agent: pi
@@ -208,10 +217,10 @@ cron: 0 9 * * *
 ---
 ```
 
-| Agent | Description | Config Options |
-|-------|-------------|----------------|
+| Agent         | Description                        | Config Options                     |
+| ------------- | ---------------------------------- | ---------------------------------- |
 | `claude-code` | Anthropic's official CLI (default) | `maxTurns`, `permissions`, `model` |
-| `pi` | Minimal coding agent by @badlogic | `model`, `session` |
+| `pi`          | Minimal coding agent by @badlogic  | `model`, `session`                 |
 
 If `agent` is not specified, murmur defaults to `claude-code`.
 
@@ -225,7 +234,7 @@ Murmur runs your prompts. Everything else — API calls, webhooks, notifications
 - [`webhook-skills`](https://github.com/hookdeck/webhook-skills) — Patterns for Slack, Discord, GitHub webhooks with signature verification
 - [skills.sh](https://skills.sh) — Browse community skills for common integrations
 
-Need Slack notifications? Your heartbeat calls the webhook. Need to create GitHub issues? Use `gh`. The heartbeat *is* the integration.
+Need Slack notifications? Your heartbeat calls the webhook. Need to create GitHub issues? Use `gh`. The heartbeat _is_ the integration.
 
 ## Permissions
 
@@ -274,12 +283,14 @@ This is correct for heartbeat-style tasks: you want to check current state, not 
 If you're running murmur on an always-on machine (Mac Mini, Linux server), just disable sleep:
 
 **macOS:**
+
 ```bash
 # Never sleep (display can still sleep)
 sudo pmset -a sleep 0 displaysleep 10
 ```
 
 **Linux:**
+
 ```bash
 # Disable suspend
 sudo systemctl mask sleep.target suspend.target

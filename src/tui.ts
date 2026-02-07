@@ -1,9 +1,22 @@
 import { basename } from "node:path";
 import {
-  altScreenOn, altScreenOff, cursorHide, cursorShow, cursorHome,
-  clearLine, clearToEnd,
-  bold, dim, green, yellow, red, white,
-  styled, truncate, padRight, toolIcons,
+  altScreenOn,
+  altScreenOff,
+  cursorHide,
+  cursorShow,
+  cursorHome,
+  clearLine,
+  clearToEnd,
+  bold,
+  dim,
+  green,
+  yellow,
+  red,
+  white,
+  styled,
+  truncate,
+  padRight,
+  toolIcons,
 } from "./ansi.ts";
 import { createScreen, type Screen } from "./screen.ts";
 import { formatToolTarget, formatToolDuration } from "./tool-format.ts";
@@ -82,18 +95,25 @@ function workspaceDisplayName(path: string, workspaces: WorkspaceStatus[]): stri
 
 function outcomeIcon(outcome: Outcome | null): string {
   switch (outcome) {
-    case "ok": return styled("✓", green, dim);
-    case "attention": return styled("●", yellow);
-    case "error": return styled("✗", red);
-    default: return styled("—", dim);
+    case "ok":
+      return styled("✓", green, dim);
+    case "attention":
+      return styled("●", yellow);
+    case "error":
+      return styled("✗", red);
+    default:
+      return styled("—", dim);
   }
 }
 
 function outcomeLabel(outcome: Outcome): string {
   switch (outcome) {
-    case "ok": return styled("ok", green, dim);
-    case "attention": return styled("attention", yellow);
-    case "error": return styled("error", red);
+    case "ok":
+      return styled("ok", green, dim);
+    case "attention":
+      return styled("attention", yellow);
+    case "error":
+      return styled("error", red);
   }
 }
 
@@ -151,7 +171,9 @@ function renderWorkspaceRow(ws: WorkspaceStatus, active: boolean, termWidth: num
     lastCol = styled("—", dim);
   }
 
-  const nameStr = active ? styled(padRight(name, nameWidth), bold, white) : styled(padRight(name, nameWidth), white);
+  const nameStr = active
+    ? styled(padRight(name, nameWidth), bold, white)
+    : styled(padRight(name, nameWidth), white);
   return ` ${nameStr}  ${styled(schedule, dim)}  ${status}  ${lastCol}`;
 }
 
@@ -166,7 +188,9 @@ function renderActiveBeat(state: TuiState, termWidth: number, maxLines: number):
   const elapsed = formatDuration(Date.now() - startedAt);
 
   const lines: string[] = [];
-  lines.push(` ${styled("▶", bold, white)} ${styled(name, bold, white)}${" ".repeat(Math.max(1, termWidth - name.length - elapsed.length - 6))}${styled(elapsed, dim)}`);
+  lines.push(
+    ` ${styled("▶", bold, white)} ${styled(name, bold, white)}${" ".repeat(Math.max(1, termWidth - name.length - elapsed.length - 6))}${styled(elapsed, dim)}`,
+  );
 
   const wsStatus = state.workspaces.find((w) => w.path === workspace);
   const feedEntry = state.feed.findLast((f) => f.workspace === workspace);
@@ -200,18 +224,25 @@ function renderActiveBeat(state: TuiState, termWidth: number, maxLines: number):
 function renderFeedEntry(entry: FeedEntry, termWidth: number): string[] {
   const name = entry.name;
   const dur = entry.durationMs != null ? formatDuration(entry.durationMs) : "";
-  const tools = entry.toolCount > 0 ? styled(`${entry.toolCount} tool${entry.toolCount !== 1 ? "s" : ""}`, dim) : "";
+  const tools =
+    entry.toolCount > 0
+      ? styled(`${entry.toolCount} tool${entry.toolCount !== 1 ? "s" : ""}`, dim)
+      : "";
 
   if (entry.outcome === "ok") {
     const meta = [outcomeLabel("ok"), tools, styled(dur, dim)].filter(Boolean).join("  ");
-    return [` ${outcomeIcon("ok")} ${styled(name, dim)}${" ".repeat(Math.max(1, termWidth - name.length - meta.length - 8))}${meta}`];
+    return [
+      ` ${outcomeIcon("ok")} ${styled(name, dim)}${" ".repeat(Math.max(1, termWidth - name.length - meta.length - 8))}${meta}`,
+    ];
   }
 
   const icon = outcomeIcon(entry.outcome);
   const label = entry.outcome ? outcomeLabel(entry.outcome) : "";
   const lines: string[] = [];
   const meta = [label, tools, styled(dur, dim)].filter(Boolean).join("  ");
-  lines.push(` ${icon} ${styled(name, bold, white)}${" ".repeat(Math.max(1, termWidth - name.length - meta.length - 6))}${meta}`);
+  lines.push(
+    ` ${icon} ${styled(name, bold, white)}${" ".repeat(Math.max(1, termWidth - name.length - meta.length - 6))}${meta}`,
+  );
 
   const subtitle = entry.description ?? entry.promptPreview;
   if (subtitle) {
@@ -240,7 +271,12 @@ function reduceEvent(state: TuiState, event: DaemonEvent): boolean {
       return true;
 
     case "heartbeat:start": {
-      state.activeBeat = { workspace: event.workspace, output: "", startedAt: Date.now(), tools: [] };
+      state.activeBeat = {
+        workspace: event.workspace,
+        output: "",
+        startedAt: Date.now(),
+        tools: [],
+      };
       const name = workspaceDisplayName(event.workspace, state.workspaces);
       const wsStatus = state.workspaces.find((w) => w.path === event.workspace);
       state.feed.push({
@@ -269,22 +305,23 @@ function reduceEvent(state: TuiState, event: DaemonEvent): boolean {
       return true;
 
     case "heartbeat:done": {
-      const idx = state.feed.findLastIndex((f) => f.workspace === event.workspace && f.outcome === null);
+      const idx = state.feed.findLastIndex(
+        (f) => f.workspace === event.workspace && f.outcome === null,
+      );
       if (idx !== -1) {
         const feedEntry = state.feed[idx]!;
         feedEntry.outcome = event.entry.outcome;
         feedEntry.durationMs = event.entry.durationMs;
-        feedEntry.output = state.activeBeat?.workspace === event.workspace
-          ? state.activeBeat.output
-          : "";
-        feedEntry.toolCount = state.activeBeat?.workspace === event.workspace
-          ? state.activeBeat.tools.length
-          : 0;
+        feedEntry.output =
+          state.activeBeat?.workspace === event.workspace ? state.activeBeat.output : "";
+        feedEntry.toolCount =
+          state.activeBeat?.workspace === event.workspace ? state.activeBeat.tools.length : 0;
       }
       if (state.activeBeat?.workspace === event.workspace) {
         state.activeBeat = null;
       }
-      if (state.feed.length > MAX_FEED_ENTRIES) state.feed.splice(0, state.feed.length - MAX_FEED_ENTRIES);
+      if (state.feed.length > MAX_FEED_ENTRIES)
+        state.feed.splice(0, state.feed.length - MAX_FEED_ENTRIES);
       return true;
     }
 

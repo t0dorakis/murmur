@@ -3,6 +3,7 @@
 ## Problem
 
 E2E tests have three issues:
+
 1. Daemon lifecycle tests fail — `start` is called without `--detach`, so the foreground process hangs
 2. No meaningful output on failure — murmur's stdout/stderr and internal state are invisible
 3. Tests run against `bun src/cli.ts` instead of the compiled binary
@@ -64,6 +65,7 @@ New global flag `--debug` parsed in `parseGlobalArgs()` alongside `--data-dir`, 
 Exposes a `debug(message: string)` function. When `--debug` is active, appends timestamped lines to `<data-dir>/debug.log`. When inactive, it's a no-op.
 
 Example output:
+
 ```
 [2026-02-04T10:00:00.123Z] Config loaded: 1 workspace(s)
 [2026-02-04T10:00:00.124Z] Heartbeat: /Users/theo/repos/orchester/example

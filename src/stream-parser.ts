@@ -14,15 +14,31 @@ function truncateForLog(text: string, maxLen = 100): string {
 /** Raw content block from Claude's stream-json messages. */
 type ContentBlock =
   | { type: "text"; text: string }
-  | { type: "tool_use"; id: string; name: string; input: Record<string, unknown> }
-  | { type: "tool_result"; tool_use_id: string; content?: string | Array<{ type: string; text?: string }> };
+  | {
+      type: "tool_use";
+      id: string;
+      name: string;
+      input: Record<string, unknown>;
+    }
+  | {
+      type: "tool_result";
+      tool_use_id: string;
+      content?: string | Array<{ type: string; text?: string }>;
+    };
 
 /** Raw message envelope from stream-json. */
 type StreamMessage =
   | { type: "system"; subtype: "init"; session_id: string; tools?: unknown[] }
   | { type: "assistant"; message: { content: ContentBlock[] } }
   | { type: "user"; message: { content: ContentBlock[] } }
-  | { type: "result"; subtype: string; result?: string; total_cost_usd?: number; duration_ms?: number; num_turns?: number };
+  | {
+      type: "result";
+      subtype: string;
+      result?: string;
+      total_cost_usd?: number;
+      duration_ms?: number;
+      num_turns?: number;
+    };
 
 export type StreamParseResult = {
   resultText: string;
@@ -31,9 +47,7 @@ export type StreamParseResult = {
   numTurns?: number;
 };
 
-export type ParseEvent =
-  | { type: "tool-call"; toolCall: ToolCall }
-  | { type: "text"; text: string };
+export type ParseEvent = { type: "tool-call"; toolCall: ToolCall } | { type: "text"; text: string };
 
 type ParserState = {
   turns: ConversationTurn[];
@@ -49,10 +63,16 @@ const initialState: ParserState = {
   resultText: "",
 };
 
-function extractToolOutput(content: string | Array<{ type: string; text?: string }> | undefined): string | undefined {
+function extractToolOutput(
+  content: string | Array<{ type: string; text?: string }> | undefined,
+): string | undefined {
   if (typeof content === "string") return content;
   if (Array.isArray(content)) {
-    const texts = content.filter((b): b is { type: string; text: string } => b.type === "text" && typeof b.text === "string").map((b) => b.text);
+    const texts = content
+      .filter(
+        (b): b is { type: string; text: string } => b.type === "text" && typeof b.text === "string",
+      )
+      .map((b) => b.text);
     return texts.length > 0 ? texts.join("\n") : undefined;
   }
   return undefined;
@@ -60,7 +80,11 @@ function extractToolOutput(content: string | Array<{ type: string; text?: string
 
 function processMessage(state: ParserState, msg: StreamMessage): [ParserState, ParseEvent[]] {
   const events: ParseEvent[] = [];
-  const newState = { ...state, pendingTools: new Map(state.pendingTools), turns: [...state.turns] };
+  const newState = {
+    ...state,
+    pendingTools: new Map(state.pendingTools),
+    turns: [...state.turns],
+  };
 
   switch (msg.type) {
     case "assistant": {
@@ -72,7 +96,11 @@ function processMessage(state: ParserState, msg: StreamMessage): [ParserState, P
           textBlocks.push(block.text);
           events.push({ type: "text", text: block.text });
         } else if (block.type === "tool_use") {
-          newState.pendingTools.set(block.id, { name: block.name, input: block.input, startMs: Date.now() });
+          newState.pendingTools.set(block.id, {
+            name: block.name,
+            input: block.input,
+            startMs: Date.now(),
+          });
           toolCalls.push({ name: block.name, input: block.input });
         }
       }
@@ -144,7 +172,10 @@ function processMessage(state: ParserState, msg: StreamMessage): [ParserState, P
 export function createParseStream(readable: ReadableStream<Uint8Array>) {
   let finalState = initialState;
 
-  const eventStream = Stream.fromReadableStream(() => readable, (e) => e as Error).pipe(
+  const eventStream = Stream.fromReadableStream(
+    () => readable,
+    (e) => e as Error,
+  ).pipe(
     Stream.decodeText(),
     Stream.splitLines,
     Stream.filter((line) => line.trim().length > 0),
@@ -182,7 +213,10 @@ export function createParseStream(readable: ReadableStream<Uint8Array>) {
  */
 export function parseStreamJson(
   ndjson: string,
-  handlers?: { onToolCall?: (tc: ToolCall) => void; onText?: (text: string) => void },
+  handlers?: {
+    onToolCall?: (tc: ToolCall) => void;
+    onText?: (text: string) => void;
+  },
 ): StreamParseResult {
   const lines = ndjson.split("\n").filter((l) => l.trim());
   let state = initialState;

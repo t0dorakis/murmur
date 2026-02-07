@@ -10,6 +10,7 @@ Comprehensive developer experience guide for building TypeScript terminal user i
 ## When to Apply
 
 Reference these guidelines when:
+
 - Building CLI tools with interactive prompts using @clack/prompts
 - Creating React-based terminal UIs with Ink
 - Handling keyboard input and user interactions
@@ -18,16 +19,16 @@ Reference these guidelines when:
 
 ## Rule Categories by Priority
 
-| Priority | Category | Impact | Prefix |
-|----------|----------|--------|--------|
-| 1 | Rendering & Output | CRITICAL | `render-` |
-| 2 | Input & Keyboard | CRITICAL | `input-` |
-| 3 | Component Patterns | HIGH | `tuicomp-` |
-| 4 | State & Lifecycle | HIGH | `tuistate-` |
-| 5 | Prompt Design | MEDIUM-HIGH | `prompt-` |
-| 6 | UX & Feedback | MEDIUM | `ux-` |
-| 7 | Configuration & CLI | MEDIUM | `tuicfg-` |
-| 8 | Robustness & Compatibility | LOW-MEDIUM | `robust-` |
+| Priority | Category                   | Impact      | Prefix      |
+| -------- | -------------------------- | ----------- | ----------- |
+| 1        | Rendering & Output         | CRITICAL    | `render-`   |
+| 2        | Input & Keyboard           | CRITICAL    | `input-`    |
+| 3        | Component Patterns         | HIGH        | `tuicomp-`  |
+| 4        | State & Lifecycle          | HIGH        | `tuistate-` |
+| 5        | Prompt Design              | MEDIUM-HIGH | `prompt-`   |
+| 6        | UX & Feedback              | MEDIUM      | `ux-`       |
+| 7        | Configuration & CLI        | MEDIUM      | `tuicfg-`   |
+| 8        | Robustness & Compatibility | LOW-MEDIUM  | `robust-`   |
 
 ## Quick Reference
 

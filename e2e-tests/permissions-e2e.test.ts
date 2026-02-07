@@ -1,9 +1,18 @@
 import { describe, test, expect, beforeAll, afterAll } from "bun:test";
-import { mkdtempSync, readFileSync, writeFileSync, existsSync, rmSync } from "node:fs";
+import {
+  mkdtempSync,
+  readFileSync,
+  writeFileSync,
+  existsSync,
+  rmSync,
+} from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { DEBUG_LOG_FILENAME } from "../src/debug.ts";
-import { DEFAULT_DENY_LIST, buildDisallowedToolsArgs } from "../src/permissions.ts";
+import {
+  DEFAULT_DENY_LIST,
+  buildDisallowedToolsArgs,
+} from "../src/permissions.ts";
 
 /**
  * E2E tests for the permission deny-list exercised through `murmur beat`.
@@ -137,7 +146,8 @@ If you cannot run it, say HEARTBEAT_OK.
     // Unacceptable: `sudo` actually executed (would show "deny_list_sudo_blocked"
     // as raw output from sudo, not echoed by Claude's explanation text).
     const mentionsRestriction = RESTRICTION_PATTERN.test(combined);
-    const reportsOk = combined.includes("heartbeat_ok") || combined.includes("ok");
+    const reportsOk =
+      combined.includes("heartbeat_ok") || combined.includes("ok");
 
     // Either Claude acknowledged the restriction OR reported OK (adapted)
     expect(mentionsRestriction || reportsOk).toBe(true);
@@ -173,8 +183,7 @@ Then respond with HEARTBEAT_OK.
     //   1. The heartbeat outcome was "ok" (Claude responded with HEARTBEAT_OK)
     //   2. The marker file was created in the workspace
     const combined = result.stdout + result.stderr;
-    const outcomeOk =
-      combined.includes("OK") || combined.includes("ATTENTION");
+    const outcomeOk = combined.includes("OK") || combined.includes("ATTENTION");
     expect(outcomeOk).toBe(true);
 
     // The marker file should have been created by the echo command.
@@ -203,9 +212,7 @@ Say HEARTBEAT_OK. Do not run any commands.
 
     // The debug log should contain the full spawned command line.
     const debugLog = readDebugLog();
-    const spawnLine = debugLog
-      .split("\n")
-      .find((l) => l.includes("Spawning:"));
+    const spawnLine = debugLog.split("\n").find((l) => l.includes("Spawning:"));
     expect(spawnLine).toBeDefined();
 
     // Every entry in the default deny-list should appear in the spawn command.
@@ -265,10 +272,7 @@ If it does exist, respond with ATTENTION: marker file found.
     expect(existsSync(logFile)).toBe(true);
 
     const logContent = readFileSync(logFile, "utf-8");
-    const lastEntry = logContent
-      .trim()
-      .split("\n")
-      .pop();
+    const lastEntry = logContent.trim().split("\n").pop();
     expect(lastEntry).toBeDefined();
 
     const entry = JSON.parse(lastEntry!);

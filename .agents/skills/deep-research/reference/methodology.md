@@ -11,6 +11,7 @@ This document contains the detailed methodology for conducting deep research. Th
 **Objective:** Define research boundaries and success criteria
 
 **Activities:**
+
 1. Decompose the question into core components
 2. Identify stakeholder perspectives
 3. Define scope boundaries (what's in/out)
@@ -28,6 +29,7 @@ This document contains the detailed methodology for conducting deep research. Th
 **Objective:** Create an intelligent research roadmap
 
 **Activities:**
+
 1. Identify primary and secondary sources
 2. Map knowledge dependencies (what must be understood first)
 3. Create search query strategy with variants
@@ -69,12 +71,14 @@ Before launching searches, decompose the research question into 5-10 independent
 Choose ONE search approach per research session:
 
 **Option A: Use WebSearch (built-in, no MCP required)**
+
 - Standard web search with simple query string
 - Parameters: `query` (required)
 - Optional: `allowed_domains`, `blocked_domains`
 - Example: `WebSearch(query="quantum computing 2025")`
 
 **Option B: Use Exa MCP (if available, more powerful)**
+
 - Advanced semantic + keyword search
 - Tool name: `mcp__Exa__exa_search`
 - Parameters: `query` (required), `type` (auto/neural/keyword), `num_results`, `start_published_date`, `include_domains`
@@ -85,12 +89,14 @@ Choose ONE search approach per research session:
 **Step 2: Spawn parallel deep-dive agents**
 
 Use Task tool with general-purpose agents (3-5 agents) for:
+
 - Academic paper analysis (PDFs, detailed extraction)
 - Documentation deep dives (technical specs, API docs)
 - Repository analysis (code examples, implementations)
 - Specialized domain research (requires multi-step investigation)
 
 **Example parallel execution (using WebSearch):**
+
 ```
 [Single message with multiple tool calls]
 - WebSearch(query="quantum computing 2025 state of the art")
@@ -104,6 +110,7 @@ Use Task tool with general-purpose agents (3-5 agents) for:
 ```
 
 **Example parallel execution (using Exa MCP - if available):**
+
 ```
 [Single message with multiple tool calls]
 - mcp__Exa__exa_search(query="quantum computing state of the art", type="neural", num_results=10, start_published_date="2024-01-01")
@@ -116,6 +123,7 @@ Use Task tool with general-purpose agents (3-5 agents) for:
 **Step 3: Collect and organize results**
 
 As results arrive:
+
 1. Extract key passages with source metadata (title, URL, date, credibility)
 2. Track information gaps that emerge
 3. Follow promising tangents with additional targeted searches
@@ -127,12 +135,14 @@ As results arrive:
 **Adaptive completion based on quality threshold:**
 
 **Quality gate:** Proceed to Phase 4 when FIRST threshold reached:
+
 - **Quick mode:** 10+ sources with avg credibility >60/100 OR 2 minutes elapsed
 - **Standard mode:** 15+ sources with avg credibility >60/100 OR 5 minutes elapsed
 - **Deep mode:** 25+ sources with avg credibility >70/100 OR 10 minutes elapsed
 - **UltraDeep mode:** 30+ sources with avg credibility >75/100 OR 15 minutes elapsed
 
 **Continue background searches:**
+
 - If threshold reached early, continue remaining parallel searches in background
 - Additional sources used in Phase 5 (SYNTHESIZE) for depth and diversity
 - Allows fast progression without sacrificing thoroughness
@@ -140,17 +150,20 @@ As results arrive:
 ### Quality Standards
 
 **Source diversity requirements:**
+
 - Minimum 3 source types (academic, industry, news, technical docs)
 - Temporal diversity (mix of recent 2024-2025 + foundational older sources)
 - Perspective diversity (proponents + critics + neutral analysis)
 - Geographic diversity (not just US sources)
 
 **Credibility tracking:**
+
 - Score each source 0-100 using source_evaluator.py
 - Flag low-credibility sources (<40) for additional verification
 - Prioritize high-credibility sources (>80) for core claims
 
 **Techniques:**
+
 - Use WebSearch for current information (primary tool)
 - Use WebFetch for deep dives into specific sources (secondary)
 - Use Exa search (via WebSearch with type="neural") for semantic exploration
@@ -167,6 +180,7 @@ As results arrive:
 **Objective:** Validate information across multiple independent sources
 
 **Activities:**
+
 1. Identify claims requiring verification
 2. Cross-reference facts across 3+ sources
 3. Flag contradictions or uncertainties
@@ -175,6 +189,7 @@ As results arrive:
 6. Document verification status per claim
 
 **Quality Standards:**
+
 - Core claims must have 3+ independent sources
 - Flag any single-source information
 - Note recency of information
@@ -191,6 +206,7 @@ As results arrive:
 **Problem Solved:** Prevents "locked-in" research when evidence points to different conclusions or uncovers more important angles than initially planned.
 
 **When to Execute:**
+
 - **Standard/Deep/UltraDeep modes only** (Quick mode skips this)
 - After Phase 4 (TRIANGULATE) completes
 - Before Phase 5 (SYNTHESIZE)
@@ -226,6 +242,7 @@ As results arrive:
    - Adjust scope boundaries based on what's actually discoverable
 
    **Example adaptation:**
+
    ```
    Original outline:
    1. Introduction
@@ -258,6 +275,7 @@ As results arrive:
    - What additional research was conducted (if any)
 
 **Quality Standards:**
+
 - Adaptation must be evidence-driven (cite specific sources that prompted change)
 - No more than 50% outline restructuring (if more needed, scope was severely mis scoped)
 - Retain original research question core (don't drift into different topic entirely)
@@ -266,6 +284,7 @@ As results arrive:
 **Output:** Refined outline that accurately reflects evidence landscape, ready for synthesis
 
 **Anti-Pattern Warning:**
+
 - ❌ DON'T adapt outline based on speculation or "what would be interesting"
 - ❌ DON'T add sections without supporting evidence already in hand
 - ❌ DON'T completely abandon original research question
@@ -280,6 +299,7 @@ As results arrive:
 **Objective:** Connect insights and generate novel understanding
 
 **Activities:**
+
 1. Identify patterns across sources
 2. Map relationships between concepts
 3. Generate insights beyond source material
@@ -298,6 +318,7 @@ As results arrive:
 **Objective:** Rigorously evaluate research quality
 
 **Activities:**
+
 1. Review for logical consistency
 2. Check citation completeness
 3. Identify gaps or weaknesses
@@ -306,6 +327,7 @@ As results arrive:
 6. Test alternative interpretations
 
 **Red Team Questions:**
+
 - What's missing?
 - What could be wrong?
 - What alternative explanations exist?
@@ -321,6 +343,7 @@ As results arrive:
 **Objective:** Address gaps and strengthen weak areas
 
 **Activities:**
+
 1. Conduct additional research for gaps
 2. Strengthen weak arguments
 3. Add missing perspectives
@@ -337,6 +360,7 @@ As results arrive:
 **Objective:** Deliver professional, actionable research
 
 **Activities:**
+
 1. Structure report with clear hierarchy
 2. Write executive summary
 3. Develop detailed sections
@@ -353,6 +377,7 @@ As results arrive:
 ### Graph-of-Thoughts Reasoning
 
 Rather than linear thinking, branch into multiple reasoning paths:
+
 - Explore alternative framings in parallel
 - Pursue tangential leads that might be relevant
 - Merge insights from different branches
@@ -361,6 +386,7 @@ Rather than linear thinking, branch into multiple reasoning paths:
 ### Parallel Agent Deployment
 
 Use Task tool to spawn sub-agents for:
+
 - Parallel source retrieval
 - Independent verification paths
 - Competing hypothesis evaluation
@@ -369,6 +395,7 @@ Use Task tool to spawn sub-agents for:
 ### Adaptive Depth Control
 
 Automatically adjust research depth based on:
+
 - Information complexity
 - Source availability
 - Time constraints
@@ -377,6 +404,7 @@ Automatically adjust research depth based on:
 ### Citation Intelligence
 
 Smart citation management:
+
 - Track provenance of every claim
 - Link to original sources
 - Assess source credibility

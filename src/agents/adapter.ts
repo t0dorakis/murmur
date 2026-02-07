@@ -85,9 +85,7 @@ export function getAdapter(name: string): AgentAdapter {
   const adapter = adapters.get(name);
   if (!adapter) {
     const available = Array.from(adapters.keys()).join(", ");
-    throw new Error(
-      `Agent adapter "${name}" not found. Available: ${available}`,
-    );
+    throw new Error(`Agent adapter "${name}" not found. Available: ${available}`);
   }
   return adapter;
 }

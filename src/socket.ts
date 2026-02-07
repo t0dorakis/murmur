@@ -5,7 +5,11 @@ export type SocketServer = {
   stop(): void;
 };
 
-export function startSocketServer(bus: EventBus, socketPath: string, workspaceCount: number): SocketServer {
+export function startSocketServer(
+  bus: EventBus,
+  socketPath: string,
+  workspaceCount: number,
+): SocketServer {
   const clients = new Set<{ write(data: string): void }>();
   let lastTickEvent: DaemonEvent | null = null;
 
@@ -28,7 +32,11 @@ export function startSocketServer(bus: EventBus, socketPath: string, workspaceCo
     socket: {
       open(socket) {
         clients.add(socket);
-        const ready: DaemonEvent = { type: "daemon:ready", pid: process.pid, workspaceCount };
+        const ready: DaemonEvent = {
+          type: "daemon:ready",
+          pid: process.pid,
+          workspaceCount,
+        };
         try {
           socket.write(JSON.stringify(ready) + "\n");
           if (lastTickEvent) socket.write(JSON.stringify(lastTickEvent) + "\n");

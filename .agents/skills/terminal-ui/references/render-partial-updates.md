@@ -13,10 +13,10 @@ Update only the terminal regions that changed rather than redrawing the entire s
 
 ```typescript
 function updateUI(state: AppState) {
-  console.clear()  // Clears everything
-  console.log(renderHeader(state))
-  console.log(renderContent(state))
-  console.log(renderFooter(state))
+  console.clear(); // Clears everything
+  console.log(renderHeader(state));
+  console.log(renderContent(state));
+  console.log(renderFooter(state));
   // Redraws 100% of screen even if only footer changed
 }
 ```
@@ -25,21 +25,21 @@ function updateUI(state: AppState) {
 
 ```typescript
 interface Region {
-  row: number
-  content: string
+  row: number;
+  content: string;
 }
 
 function updateRegion({ row, content }: Region) {
   // Move cursor to specific row, clear line, write new content
-  process.stdout.write(`\x1b[${row};1H\x1b[K${content}`)
+  process.stdout.write(`\x1b[${row};1H\x1b[K${content}`);
 }
 
 function updateUI(state: AppState, prevState: AppState) {
   if (state.header !== prevState.header) {
-    updateRegion({ row: 1, content: renderHeader(state) })
+    updateRegion({ row: 1, content: renderHeader(state) });
   }
   if (state.footer !== prevState.footer) {
-    updateRegion({ row: 24, content: renderFooter(state) })
+    updateRegion({ row: 24, content: renderFooter(state) });
   }
   // Only changed regions are updated
 }
@@ -56,7 +56,7 @@ function Dashboard({ data }: { data: DashboardData }) {
       <Content items={data.items} />
       <Footer status={data.status} />
     </Box>
-  )
+  );
 }
 ```
 

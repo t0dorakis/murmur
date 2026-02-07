@@ -1,14 +1,9 @@
 import { debug } from "../debug.ts";
-import { parseInterval } from "../config.ts";
 import { buildDisallowedToolsArgs } from "../permissions.ts";
 import { runParseStream } from "../stream-parser.ts";
 import { isCommandAvailable, getCommandVersion } from "./cli-utils.ts";
-import { DEFAULT_AGENT_TIMEOUT_MS, DEFAULT_MAX_TURNS } from "./constants.ts";
-import type {
-  AgentAdapter,
-  AgentExecutionResult,
-  AgentStreamCallbacks,
-} from "./adapter.ts";
+import { DEFAULT_MAX_TURNS, resolveTimeoutMs } from "./constants.ts";
+import type { AgentAdapter, AgentExecutionResult, AgentStreamCallbacks } from "./adapter.ts";
 import type { WorkspaceConfig } from "../types.ts";
 
 /**
@@ -43,6 +38,10 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       "stream-json",
     ];
 
+    if (workspace.model) {
+      claudeArgs.push("--model", workspace.model);
+    }
+
     debug(`[claude-code] Spawning: ${claudeArgs.join(" ")} (cwd: ${workspace.path})`);
 
     const proc = Bun.spawn(claudeArgs, {
@@ -50,7 +49,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
       stdin: new Blob([prompt]),
       stdout: "pipe",
       stderr: "pipe",
-      timeout: workspace.timeout ? parseInterval(workspace.timeout) : DEFAULT_AGENT_TIMEOUT_MS,
+      timeout: resolveTimeoutMs(workspace),
     });
 
     if (!proc.stdout) throw new Error("Spawned process stdout is not piped");

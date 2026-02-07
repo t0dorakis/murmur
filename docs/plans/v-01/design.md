@@ -73,6 +73,7 @@ Sequential execution. If a heartbeat takes 2 minutes, the next one waits. That's
 ## Daemon Lifecycle
 
 **Start**: `murmur start`
+
 1. Check if PID file exists and process is alive --> exit with "already running"
 2. Spawn detached: `Bun.spawn(["bun", "src/daemon.ts"], { detached: true, stdio: ["ignore", "ignore", "ignore"] })` then `proc.unref()`
 3. Daemon writes PID to `~/.murmur/murmur.pid`
@@ -81,12 +82,14 @@ Sequential execution. If a heartbeat takes 2 minutes, the next one waits. That's
 **PID liveness check**: `process.kill(pid, 0)` succeeds if process exists. Guard against PID recycling by verifying the process is actually `bun` (check via `ps -p <pid> -o comm=`).
 
 **Loop** (inside daemon):
+
 1. Read config.json
 2. For each workspace where `now - lastRun > interval`: run heartbeat
 3. Sleep 10 seconds
 4. Repeat
 
 **Stop**: `murmur stop`
+
 1. Read PID from file
 2. `process.kill(pid, "SIGTERM")`
 3. Daemon catches SIGTERM, cleans up PID file, exits

@@ -17,7 +17,10 @@ export function formatToolTarget(input: Record<string, unknown>, maxLength = 60)
 /**
  * Format tool duration for display. Returns null if duration is below threshold.
  */
-export function formatToolDuration(durationMs: number | undefined, threshold = 1000): string | null {
+export function formatToolDuration(
+  durationMs: number | undefined,
+  threshold = 1000,
+): string | null {
   if (durationMs == null || durationMs <= threshold) return null;
   return `(${(durationMs / 1000).toFixed(1)}s)`;
 }

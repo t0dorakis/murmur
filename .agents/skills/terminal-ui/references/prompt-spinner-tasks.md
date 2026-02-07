@@ -12,77 +12,78 @@ Show spinners or progress tasks for operations longer than 1 second. Users need 
 **Incorrect (silent waiting):**
 
 ```typescript
-import * as p from '@clack/prompts'
+import * as p from "@clack/prompts";
 
-p.intro('Setting up project')
+p.intro("Setting up project");
 
-await installDependencies()  // User sees nothing for 30+ seconds
-await runBuild()
-await runTests()
+await installDependencies(); // User sees nothing for 30+ seconds
+await runBuild();
+await runTests();
 
-p.outro('Done!')
+p.outro("Done!");
 // User thinks CLI is frozen
 ```
 
 **Correct (spinner for single operation):**
 
 ```typescript
-import * as p from '@clack/prompts'
+import * as p from "@clack/prompts";
 
-p.intro('Setting up project')
+p.intro("Setting up project");
 
-const s = p.spinner()
+const s = p.spinner();
 
-s.start('Installing dependencies')
-await installDependencies()
-s.stop('Dependencies installed')
+s.start("Installing dependencies");
+await installDependencies();
+s.stop("Dependencies installed");
 
-s.start('Building project')
-await runBuild()
-s.stop('Build complete')
+s.start("Building project");
+await runBuild();
+s.stop("Build complete");
 
-p.outro('Done!')
+p.outro("Done!");
 ```
 
 **Correct (tasks for multiple operations):**
 
 ```typescript
-import * as p from '@clack/prompts'
+import * as p from "@clack/prompts";
 
-p.intro('Setting up project')
+p.intro("Setting up project");
 
 await p.tasks([
   {
-    title: 'Installing dependencies',
+    title: "Installing dependencies",
     task: async (message) => {
-      message('Resolving packages...')
-      await resolveDeps()
-      message('Downloading...')
-      await downloadDeps()
-      return 'Installed 142 packages'
-    }
-  },
-  {
-    title: 'Building project',
-    task: async () => {
-      await runBuild()
-      return 'Built in 2.3s'
-    }
-  },
-  {
-    title: 'Running tests',
-    task: async () => {
-      const result = await runTests()
-      return `${result.passed} passed, ${result.failed} failed`
+      message("Resolving packages...");
+      await resolveDeps();
+      message("Downloading...");
+      await downloadDeps();
+      return "Installed 142 packages";
     },
-    enabled: process.env.SKIP_TESTS !== 'true'
-  }
-])
+  },
+  {
+    title: "Building project",
+    task: async () => {
+      await runBuild();
+      return "Built in 2.3s";
+    },
+  },
+  {
+    title: "Running tests",
+    task: async () => {
+      const result = await runTests();
+      return `${result.passed} passed, ${result.failed} failed`;
+    },
+    enabled: process.env.SKIP_TESTS !== "true",
+  },
+]);
 
-p.outro('Setup complete!')
+p.outro("Setup complete!");
 ```
 
 **Benefits:**
+
 - Visual indication of progress
 - Dynamic status messages during long operations
 - Conditional task execution with `enabled`

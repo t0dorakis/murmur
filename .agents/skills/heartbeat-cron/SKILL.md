@@ -21,6 +21,7 @@ Create well-crafted HEARTBEAT.md files for murmur through a structured interview
 ## Context
 
 Murmur is a minimal scheduler. It reads a HEARTBEAT.md file, sends its contents to Claude on a schedule, and classifies the response:
+
 - `HEARTBEAT_OK` — nothing to report (silent)
 - `ATTENTION: ...` — needs human attention (logged + surfaced in TUI)
 
@@ -65,10 +66,12 @@ Ask what they want automated. If they're unsure or exploring, read [references/e
 Before diving into details, check whether the user's goal needs tools beyond what's already installed. Run a web search to find relevant CLIs, MCP servers, or agent skills that could help.
 
 **Browser tools** — Many valuable heartbeats need to interact with real websites (checking prices, monitoring pages, logging into portals). Claude's built-in `WebFetch` works for simple static pages, but sites with JavaScript rendering, login flows, or anti-bot measures need a real browser:
+
 - [agent-browser](https://github.com/vercel-labs/agent-browser) — Headless browser CLI for AI agents. Works with Claude Code out of the box.
-- [pi-browser](https://github.com/badlogic/pi-mono) — Browser extension for pi. Use with `"agent": "pi"` and `"piExtensions": ["@mariozechner/pi-browser"]`.
+- [pi-browser](https://github.com/badlogic/pi-mono) — Browser extension for pi. Use with `agent: pi`.
 
 **Other tools** — Search the web for: `"{user's goal}" CLI tool` or `"{user's goal}" MCP server` or check [skills.sh](https://skills.sh) for community skills. Examples:
+
 - Calendar access → Google Calendar MCP or pi-google-calendar extension
 - Slack/Discord delivery → webhook skills on [skills.sh](https://skills.sh)
 - GitHub operations → ensure `gh` CLI is installed
@@ -78,6 +81,7 @@ Tell the user what you found and recommend installing anything that would make t
 **Round 2 — The details:**
 
 Based on their goal, dig into specifics:
+
 - What tools/APIs/commands are needed? (gh, curl, specific URLs, API keys)
 - What's the workspace directory?
 - How often should it run? Two options:
@@ -88,6 +92,7 @@ Based on their goal, dig into specifics:
 **Round 3 — Delivery:**
 
 This is critical. Ask how they want results delivered. Options:
+
 - Write to a file in the workspace (simplest — good default)
 - Post to Slack/Discord via webhook
 - Send via Telegram bot API
@@ -100,6 +105,7 @@ Remind them: murmur is just a scheduler — it won't forward anything. If they w
 **Round 3b — Credentials (if needed):**
 
 If delivery or data sources need tokens/webhooks:
+
 - Env vars from `.env` in the workspace are available (Bun auto-loads them)
 - Sensitive values should go in `.env`, referenced as `$VAR_NAME` in the heartbeat
 
@@ -107,7 +113,7 @@ If delivery or data sources need tokens/webhooks:
 
 Write the HEARTBEAT.md file. Rules:
 
-- Start with `# Heartbeat` and the standard preamble about HEARTBEAT_OK / ATTENTION
+- Don't include instructions about HEARTBEAT_OK / ATTENTION — the runtime injects those automatically
 - Be explicit about every step — Claude has no memory between heartbeats
 - For change-detection workflows (price drops, new items, status changes), include steps to read/write state files in the workspace (e.g., `last-price.txt`, `tracking-state.json`)
 - Include exact commands with real values (no `{placeholder}` left behind)
@@ -142,6 +148,7 @@ Ensure the workspace is in murmur's config (`~/.murmur/config.json`):
 2. If missing, add it with the agreed schedule. Use **either** `interval` or `cron`, never both:
 
    **Interval-based:**
+
    ```json
    {
      "path": "{absolute_workspace_path}",
@@ -151,6 +158,7 @@ Ensure the workspace is in murmur's config (`~/.murmur/config.json`):
    ```
 
    **Cron-based:**
+
    ```json
    {
      "path": "{absolute_workspace_path}",
@@ -159,6 +167,7 @@ Ensure the workspace is in murmur's config (`~/.murmur/config.json`):
      "lastRun": null
    }
    ```
+
    Omit `tz` if the user is fine with their local system timezone.
 
 3. Optional: set `"maxTurns": N` to cap Claude's agent iterations per heartbeat

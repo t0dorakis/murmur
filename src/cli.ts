@@ -1,9 +1,22 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
-import { setDataDir, getDataDir, ensureDataDir, readConfig, writeConfig, getConfigPath, getPidPath, getSocketPath, parseInterval, cleanupRuntimeFiles } from "./config.ts";
+import {
+  setDataDir,
+  getDataDir,
+  ensureDataDir,
+  readConfig,
+  writeConfig,
+  getConfigPath,
+  getPidPath,
+  getSocketPath,
+  parseInterval,
+  validateResolvedConfig,
+  cleanupRuntimeFiles,
+} from "./config.ts";
 import { enableDebug, getDebugLogPath } from "./debug.ts";
-import { startDaemon, runDaemonMain, resolveWorkspaceConfig } from "./daemon.ts";
+import { startDaemon, runDaemonMain } from "./daemon.ts";
+import { resolveWorkspaceConfig } from "./frontmatter.ts";
 import { startSocketServer, type SocketServer } from "./socket.ts";
 import { connectToSocket, type SocketConnection } from "./socket-client.ts";
 import { createTui } from "./tui.ts";
@@ -19,8 +32,11 @@ const VERSION =
   typeof __VERSION__ !== "undefined"
     ? __VERSION__
     : (() => {
-        try { return require("../package.json").version; }
-        catch { return "0.0.0-unknown"; }
+        try {
+          return require("../package.json").version;
+        } catch {
+          return "0.0.0-unknown";
+        }
       })();
 
 function readPid(): number | null {
@@ -61,7 +77,6 @@ function cleanStaleSocket() {
   }
 }
 
-
 function parseGlobalArgs() {
   const raw = process.argv.slice(2);
   let dataDir: string | undefined;
@@ -97,10 +112,36 @@ function parseGlobalArgs() {
       rest.push(raw[i]!);
     }
   }
-  return { dataDir, tick, interval, cron: cronFlag, timeout, detach, daemon, debug: debugFlag, quiet, command: rest[0], targetPath: rest[1] ?? ".", args: rest };
+  return {
+    dataDir,
+    tick,
+    interval,
+    cron: cronFlag,
+    timeout,
+    detach,
+    daemon,
+    debug: debugFlag,
+    quiet,
+    command: rest[0],
+    targetPath: rest[1] ?? ".",
+    args: rest,
+  };
 }
 
-const { dataDir, tick, interval: initInterval, cron: initCron, timeout: initTimeout, detach, daemon, debug: debugFlag, quiet, command, targetPath, args } = parseGlobalArgs();
+const {
+  dataDir,
+  tick,
+  interval: initInterval,
+  cron: initCron,
+  timeout: initTimeout,
+  detach,
+  daemon,
+  debug: debugFlag,
+  quiet,
+  command,
+  targetPath,
+  args,
+} = parseGlobalArgs();
 if (dataDir) setDataDir(dataDir);
 if (debugFlag) {
   enableDebug();
@@ -231,8 +272,13 @@ function status() {
 
   console.log(`\nWorkspaces (${config.workspaces.length}):`);
   for (const ws of config.workspaces) {
+    const resolved = resolveWorkspaceConfig(ws);
     const lastRun = ws.lastRun ?? "never";
-    const schedule = ws.interval ? `every ${ws.interval}` : `cron ${ws.cron}`;
+    const schedule = resolved.interval
+      ? `every ${resolved.interval}`
+      : resolved.cron
+        ? `cron ${resolved.cron}`
+        : "(none)";
     console.log(`  ${ws.path}  ${schedule}  last: ${lastRun}`);
   }
 }
@@ -293,11 +339,9 @@ async function beat(path: string, quietMode: boolean) {
   }
 
   const ws = resolveWorkspaceConfig({ path: resolved, lastRun: null });
-  const entry = await runHeartbeat(
-    ws,
-    quietMode ? undefined : cliEmitter,
-    { quiet: quietMode },
-  );
+  const entry = await runHeartbeat(ws, quietMode ? undefined : cliEmitter, {
+    quiet: quietMode,
+  });
   appendLog(entry);
 
   if (!quietMode && entry.turns && entry.turns.length > 0) {
@@ -343,7 +387,7 @@ function cliEmitter(event: DaemonEvent) {
 const HEARTBEAT_TEMPLATE = (interval: string, timeout?: string, cron?: string) => {
   const lines = ["---"];
   if (cron) {
-    lines.push(`interval: ${cron}`);
+    lines.push(`cron: ${cron}`);
   } else {
     lines.push(`interval: ${interval}`);
   }
@@ -356,22 +400,42 @@ const HEARTBEAT_TEMPLATE = (interval: string, timeout?: string, cron?: string) =
     "# maxTurns: 50",
     "---",
     "",
-    "# Heartbeat",
-    "",
-    "What to do on each heartbeat. If nothing needs attention, respond with",
-    "exactly `HEARTBEAT_OK`. Otherwise, start with `ATTENTION:` and a brief summary.",
-    "",
-    "## Do this",
-    "",
-    "- Check for new GitHub issues on my-org/my-repo using `gh`",
-    "- For any untagged issues, add a triage label based on the content",
-    "- If there are urgent issues (security, data loss, outage), tell me",
+    "Write anything you would like to automate.",
     "",
   );
   return lines.join("\n");
 };
 
 async function init(path: string, opts?: { interval?: string; cron?: string; timeout?: string }) {
+  if (opts?.interval) {
+    try {
+      parseInterval(opts.interval);
+    } catch {
+      console.error(`Invalid interval: "${opts.interval}". Use e.g. "30m", "1h", "15m".`);
+      process.exit(1);
+    }
+  }
+  if (opts?.timeout) {
+    try {
+      parseInterval(opts.timeout);
+    } catch {
+      console.error(`Invalid timeout: "${opts.timeout}". Use e.g. "15m", "1h".`);
+      process.exit(1);
+    }
+  }
+  if (opts?.cron) {
+    // Validate by constructing a minimal workspace config
+    const cronErr = validateResolvedConfig({
+      path: ".",
+      cron: opts.cron,
+      lastRun: null,
+    });
+    if (cronErr) {
+      console.error(`Invalid cron: "${opts.cron}".`);
+      process.exit(1);
+    }
+  }
+
   const resolved = resolve(path);
   const heartbeatFile = join(resolved, "HEARTBEAT.md");
   if (!existsSync(heartbeatFile)) {
@@ -431,57 +495,63 @@ if (command === "--help" || command === "-h") {
 if (daemon) {
   runDaemonMain({ dataDir, tick, debug: debugFlag });
   // runDaemonMain installs signal handlers and keeps the process alive
-} else switch (command) {
-  case "start":
-    if (detach) {
-      await startDetached();
-    } else {
-      await startForeground();
-    }
-    break;
-  case "stop":
-    stop();
-    break;
-  case "status":
-    status();
-    break;
-  case "watch":
-    await watch();
-    break;
-  case "beat":
-    await beat(targetPath, quiet);
-    break;
-  case "init":
-    await init(targetPath, { interval: initInterval, cron: initCron, timeout: initTimeout });
-    break;
-  case "workspaces": {
-    const subcommand = args[1];
-    const wsPath = args[2];
-
-    switch (subcommand) {
-      case "list":
-        listWorkspaces();
-        break;
-      case "remove":
-        if (!wsPath) {
-          console.error("Usage: murmur workspaces remove <path>");
-          process.exit(1);
-        }
-        const removed = await removeWorkspace(wsPath);
-        process.exit(removed ? 0 : 1);
-        break;
-      case "clear": {
-        const cleared = await clearWorkspaces();
-        process.exit(cleared ? 0 : 1);
+} else
+  switch (command) {
+    case "start":
+      if (detach) {
+        await startDetached();
+      } else {
+        await startForeground();
       }
-      default:
-        console.error(subcommand ? `Unknown subcommand: ${subcommand}` : "Missing subcommand");
-        console.error("Usage: murmur workspaces <list|remove|clear>");
-        process.exit(1);
+      break;
+    case "stop":
+      stop();
+      break;
+    case "status":
+      status();
+      break;
+    case "watch":
+      await watch();
+      break;
+    case "beat":
+      await beat(targetPath, quiet);
+      break;
+    case "init":
+      await init(targetPath, {
+        interval: initInterval,
+        cron: initCron,
+        timeout: initTimeout,
+      });
+      break;
+    case "workspaces": {
+      const subcommand = args[1];
+      const wsPath = args[2];
+
+      switch (subcommand) {
+        case "list":
+          listWorkspaces();
+          break;
+        case "remove":
+          if (!wsPath) {
+            console.error("Usage: murmur workspaces remove <path>");
+            process.exit(1);
+          }
+          const removed = await removeWorkspace(wsPath);
+          process.exit(removed ? 0 : 1);
+          break;
+        case "clear": {
+          const cleared = await clearWorkspaces();
+          process.exit(cleared ? 0 : 1);
+          break;
+        }
+        default:
+          console.error(subcommand ? `Unknown subcommand: ${subcommand}` : "Missing subcommand");
+          console.error("Usage: murmur workspaces <list|remove|clear>");
+          process.exit(1);
+      }
+      break;
     }
-    break;
+    default:
+      printHelp();
+      process.exit(1);
   }
-  default:
-    printHelp();
-    process.exit(1);
-}

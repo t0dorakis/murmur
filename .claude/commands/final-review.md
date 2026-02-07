@@ -12,6 +12,7 @@ git log --oneline -10 | grep -i "Co-Authored-By: Claude"
 - **Follow-up pass**: Recent Claude co-authored commits exist from a previous `/final-review` run on this same feature.
 
 If this is a follow-up pass:
+
 - Note this in the summary as "Review Pass #2" (or #3, etc.)
 - Tell the review agents to check git history to understand WHY recent changes were made before suggesting reversals
 - Be more conservative with changes - the previous pass already applied significant improvements
@@ -20,10 +21,12 @@ If this is a follow-up pass:
 ## Step 1: Create or Update the PR
 
 First, check which branch you're on:
+
 - **If on `main`**: Create a new feature branch with a descriptive name based on the changes (e.g., `feature/add-user-metrics`, `fix/dashboard-loading`), then commit the changes to that branch.
 - **If already on a feature branch**: Continue with existing branch.
 
 Then handle the PR:
+
 - If a PR doesn't exist for this branch, create one with a clear title and description summarizing the changes.
 - If a PR already exists, push any uncommitted changes to it.
 
@@ -32,18 +35,23 @@ Then handle the PR:
 Use the Task tool to launch these three agents simultaneously.
 
 **Important context for all agents**: If this is a follow-up pass, include in each agent's prompt:
+
 - "Check git log to see recent commits and their messages before making recommendations"
 - "If a pattern looks intentional based on recent commit messages, don't recommend reversing it without strong justification"
 - "Focus on issues that may have been INTRODUCED by recent changes, not re-reviewing the entire file"
 
 ### Agent 1: Codebase Consistency Reviewer
+
 Review the code changes with these focuses:
+
 - Are we duplicating logic that already exists elsewhere in the codebase? Search for similar patterns, utilities, hooks, or helpers that we should be using instead.
 - Are there other places in the codebase with similar situations where this same logic/fix should be applied? We don't want inconsistency.
 - Check for opportunities to consolidate with existing utilities, hooks, or helpers.
 
 ### Agent 2: SOLID & Clean Code Reviewer
+
 Review the code changes through the lens of Uncle Bob's Clean Code principles:
+
 - Single Responsibility: Are functions/components doing one thing?
 - Open/Closed: Can we extend without modifying?
 - Look for opportunities to replace conditionals with polymorphism or strategy patterns
@@ -52,7 +60,9 @@ Review the code changes through the lens of Uncle Bob's Clean Code principles:
 - Check for proper abstraction levels
 
 ### Agent 3: Defensive Code Auditor
+
 Review for overly defensive code that could hide real issues:
+
 - try-catch blocks that swallow exceptions silently
 - Fallback values that mask null/undefined errors we'd want to know about
 - Optional chaining (`?.`) that hides broken assumptions
@@ -77,6 +87,7 @@ When the three agents return their recommendations:
 Run ALL of these that apply to the changes:
 
 ### 4a. Type Checking & Linting
+
 ```bash
 bun typecheck
 bun lint
@@ -84,11 +95,13 @@ bun format
 ```
 
 ### 4b. Unit Tests
+
 ```bash
 bun test
 ```
 
 ### 4c. E2E Tests (if configured)
+
 ```bash
 bun test:e2e
 ```
@@ -114,17 +127,21 @@ After all fixes and tests pass, commit and push the changes to the PR.
 Provide a summary with these sections:
 
 ### Review Pass
+
 - State which pass this is (e.g., "Review Pass #1" or "Review Pass #2")
 - If follow-up pass, briefly note what the previous pass addressed
 
 ### Changes Applied
+
 - List the recommendations you implemented from each agent
 
 ### Recommendations Skipped
+
 - For each skipped item, explain WHY you decided not to do it
 - Remember: "out of scope" is not a valid excuse in a single-developer repo
 
 ### Test Coverage
+
 - TypeScript compilation status
 - Lint results
 - Unit test results
@@ -132,10 +149,12 @@ Provide a summary with these sections:
 - What was verified via agent-browser
 
 ### Unable to Test
+
 - List anything that couldn't be tested and why
 - Explain what you'd want me to manually verify
 
 ### Another Pass Needed?
+
 - If this pass made substantial changes (new functions/components, significant refactoring), recommend running `/final-review` again
 - If changes were minor (small tweaks, style fixes), recommend proceeding to merge
 - Be honest: "This pass was substantial - I'd recommend one more review" or "Changes were minimal - ready to merge"

@@ -13,9 +13,9 @@ Add cron expression support alongside intervals using Effect's `Cron` module. Ea
 ```typescript
 type WorkspaceConfig = {
   path: string;
-  interval?: string;   // "30m", "1h", "1d" — existing format
-  cron?: string;        // "0 9 * * *" — standard 5-field cron
-  tz?: string;          // "Europe/Berlin" — timezone for cron (defaults to local)
+  interval?: string; // "30m", "1h", "1d" — existing format
+  cron?: string; // "0 9 * * *" — standard 5-field cron
+  tz?: string; // "Europe/Berlin" — timezone for cron (defaults to local)
   maxTurns?: number;
   lastRun: string | null;
 };
@@ -24,6 +24,7 @@ type WorkspaceConfig = {
 Exactly one of `interval` or `cron` must be set. The `tz` field is only valid with `cron`.
 
 Example config:
+
 ```json
 {
   "workspaces": [
@@ -95,6 +96,7 @@ function isCronDue(ws: WorkspaceConfig): boolean {
 ### 3. config.ts — Config validation
 
 When reading config, validate each workspace:
+
 - Has exactly one of `interval` or `cron`
 - `cron` parses successfully via `Cron.parse()`
 - `tz` is only present when `cron` is set
@@ -119,13 +121,13 @@ function computeNextRunAt(ws: WorkspaceConfig): number {
 
 ### 5. WorkspaceStatus type
 
-Add `schedule` display string so TUI can show either "30m" or "0 9 * * *":
+Add `schedule` display string so TUI can show either "30m" or "0 9 \* \* \*":
 
 ```typescript
 type WorkspaceStatus = {
   path: string;
   name: string;
-  interval: string;    // display string: "30m" or "cron: 0 9 * * *"
+  interval: string; // display string: "30m" or "cron: 0 9 * * *"
   nextRunAt: number;
   lastOutcome: Outcome | null;
   lastRunAt: number | null;

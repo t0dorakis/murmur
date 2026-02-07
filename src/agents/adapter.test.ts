@@ -1,9 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import {
-  getAdapter,
-  listAdapters,
-  detectAvailableAgents,
-} from "./index.ts";
+import { getAdapter, listAdapters, detectAvailableAgents } from "./index.ts";
 
 describe("Agent Adapter Registry", () => {
   test("lists registered adapters", () => {

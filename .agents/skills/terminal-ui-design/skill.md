@@ -22,20 +22,20 @@ Choose a clear conceptual direction and execute it with precision. A dense infor
 
 Choose ONE and commit fully:
 
-| Aesthetic | Character | Colors | Typography |
-|-----------|-----------|--------|------------|
-| **Cyberpunk/Hacker** | Glitchy, dangerous, alive | Hot pink `#ff00ff`, electric cyan `#00ffff`, deep purple bg | Monospace with Unicode glitches |
-| **Retro Computing** | Nostalgic, warm, authentic | Amber `#ffb000` or green `#00ff00` on black | Chunky ASCII art |
-| **Minimalist Zen** | Quiet, focused, calming | Muted grays, single accent color | Generous whitespace, sparse |
-| **Maximalist Dashboard** | Dense, powerful, professional | Information-coded colors | Tight grids, compact |
-| **Synthwave/Neon** | 80s future, vibrant | Magenta, cyan, purple gradients | Stylized headers |
-| **Monochrome Brutalist** | Bold, stark, uncompromising | Single color, white on black | Heavy borders, blocks |
-| **Corporate Mainframe** | Professional, trustworthy | Blue-gray, minimal color | Clean tables, structured |
-| **Playful/Whimsical** | Fun, approachable, human | Bright primaries, emojis | Rounded corners, icons |
-| **Matrix-Style** | Code rain, digital, mysterious | Green on black only | Cascading characters |
-| **Military/Tactical** | Urgent, precise, no-nonsense | OD green, amber warnings | Grid coordinates, timestamps |
-| **Art Deco** | Elegant, geometric, luxurious | Gold, black, cream | Decorative frames |
-| **Vaporwave** | Dreamy, surreal, glitchy | Pink, blue, purple pastels | Japanese characters, waves |
+| Aesthetic                | Character                      | Colors                                                      | Typography                      |
+| ------------------------ | ------------------------------ | ----------------------------------------------------------- | ------------------------------- |
+| **Cyberpunk/Hacker**     | Glitchy, dangerous, alive      | Hot pink `#ff00ff`, electric cyan `#00ffff`, deep purple bg | Monospace with Unicode glitches |
+| **Retro Computing**      | Nostalgic, warm, authentic     | Amber `#ffb000` or green `#00ff00` on black                 | Chunky ASCII art                |
+| **Minimalist Zen**       | Quiet, focused, calming        | Muted grays, single accent color                            | Generous whitespace, sparse     |
+| **Maximalist Dashboard** | Dense, powerful, professional  | Information-coded colors                                    | Tight grids, compact            |
+| **Synthwave/Neon**       | 80s future, vibrant            | Magenta, cyan, purple gradients                             | Stylized headers                |
+| **Monochrome Brutalist** | Bold, stark, uncompromising    | Single color, white on black                                | Heavy borders, blocks           |
+| **Corporate Mainframe**  | Professional, trustworthy      | Blue-gray, minimal color                                    | Clean tables, structured        |
+| **Playful/Whimsical**    | Fun, approachable, human       | Bright primaries, emojis                                    | Rounded corners, icons          |
+| **Matrix-Style**         | Code rain, digital, mysterious | Green on black only                                         | Cascading characters            |
+| **Military/Tactical**    | Urgent, precise, no-nonsense   | OD green, amber warnings                                    | Grid coordinates, timestamps    |
+| **Art Deco**             | Elegant, geometric, luxurious  | Gold, black, cream                                          | Decorative frames               |
+| **Vaporwave**            | Dreamy, surreal, glitchy       | Pink, blue, purple pastels                                  | Japanese characters, waves      |
 
 ## Box Drawing & Borders
 
@@ -68,6 +68,7 @@ Block chars:    █▀▀▀▀▀▀▀▀█    Chunky, bold, brutalist
 ```
 
 **Advanced techniques**:
+
 - Asymmetric borders (double top, single sides)
 - Decorative corners: `◆ ◈ ✦ ⬡ ● ◢ ◣`
 - Mixed styles for hierarchy (heavy for primary, light for secondary)
@@ -75,6 +76,7 @@ Block chars:    █▀▀▀▀▀▀▀▀█    Chunky, bold, brutalist
 ## Color & Theme Implementation
 
 ### ANSI 16 (Universal)
+
 ```
 Black   Red     Green   Yellow  Blue    Magenta Cyan    White
 \x1b[30m \x1b[31m \x1b[32m \x1b[33m \x1b[34m \x1b[35m \x1b[36m \x1b[37m
@@ -82,6 +84,7 @@ Bright: \x1b[90m through \x1b[97m
 ```
 
 ### True Color (24-bit)
+
 ```
 Foreground: \x1b[38;2;R;G;Bm
 Background: \x1b[48;2;R;G;Bm
@@ -90,6 +93,7 @@ Background: \x1b[48;2;R;G;Bm
 ### Signature Palettes
 
 **Cyberpunk**:
+
 ```
 Background: #1a0a2e (deep purple)
 Primary:    #ff00ff (hot pink)
@@ -98,6 +102,7 @@ Accent:     #ff6b6b (coral warning)
 ```
 
 **Amber Terminal**:
+
 ```
 Background: #000000
 Primary:    #ffb000 (warm amber)
@@ -106,6 +111,7 @@ Bright:     #ffd966 (light amber)
 ```
 
 **Nord-Inspired**:
+
 ```
 Background: #2e3440 (polar night)
 Primary:    #88c0d0 (frost blue)
@@ -114,7 +120,9 @@ Accent:     #bf616a (aurora red)
 ```
 
 ### Gradient Fills
+
 Use block characters for gradients:
+
 ```
 ░▒▓█ — Light to solid
 ▁▂▃▄▅▆▇█ — Height progression (for charts)
@@ -123,6 +131,7 @@ Use block characters for gradients:
 ## Typography & Text Styling
 
 ### Text Decorations
+
 ```
 Bold:          \x1b[1m
 Dim:           \x1b[2m
@@ -136,6 +145,7 @@ Reset:         \x1b[0m
 ### Header Styles
 
 **Block ASCII** (figlet-style):
+
 ```
 ███████╗██╗██╗     ███████╗███████╗
 ██╔════╝██║██║     ██╔════╝██╔════╝
@@ -146,11 +156,13 @@ Reset:         \x1b[0m
 ```
 
 **Letter Spacing**:
+
 ```
 S T A T U S    R E P O R T
 ```
 
 **Section Markers**:
+
 ```
 ▶ SECTION NAME
 [ SECTION ]
@@ -160,20 +172,22 @@ S T A T U S    R E P O R T
 ```
 
 ### Unicode Enhancement
+
 Replace boring characters with styled alternatives:
 
-| Instead of | Use |
-|------------|-----|
-| `-` bullet | `▸ › ◉ ⬢ ★ ⚡` |
-| `*` star | `★ ⭐ ✦ ✧` |
-| `>` arrow | `→ ➜ ⟶ ▶` |
-| `[x]` check | `✓ ✔ ◉ ●` |
-| `[ ]` empty | `○ ◯ ☐` |
-| `...` loading | `⋯ ⠿ ···` |
+| Instead of    | Use            |
+| ------------- | -------------- |
+| `-` bullet    | `▸ › ◉ ⬢ ★ ⚡` |
+| `*` star      | `★ ⭐ ✦ ✧`     |
+| `>` arrow     | `→ ➜ ⟶ ▶`      |
+| `[x]` check   | `✓ ✔ ◉ ●`      |
+| `[ ]` empty   | `○ ◯ ☐`        |
+| `...` loading | `⋯ ⠿ ···`      |
 
 ## Layout & Spatial Composition
 
 ### Panel Layout Example
+
 ```
 ╭─── SYSTEM MONITOR ──────────────────────────────╮
 │                                                  │
@@ -190,6 +204,7 @@ Replace boring characters with styled alternatives:
 ```
 
 ### Column Layout
+
 ```
 ┌─ SERVERS ────────┐  ┌─ ALERTS ─────────┐
 │                  │  │                  │
@@ -201,6 +216,7 @@ Replace boring characters with styled alternatives:
 ```
 
 ### Hierarchy Principles
+
 - **Primary**: Bold, high contrast, prominent position
 - **Secondary**: Normal weight, slightly dimmed
 - **Tertiary**: Dim text, small, peripheral
@@ -209,6 +225,7 @@ Replace boring characters with styled alternatives:
 ## Motion & Animation
 
 ### Spinners
+
 ```python
 # Braille dots
 frames = ['⠋', '⠙', '⠹', '⠸', '⠼', '⠴', '⠦', '⠧', '⠇', '⠏']
@@ -227,6 +244,7 @@ frames = ['🌑', '🌒', '🌓', '🌔', '🌕', '🌖', '🌗', '🌘']
 ```
 
 ### Progress Bars
+
 ```
 Standard:   [████████████░░░░░░░░]  60%
 Minimal:    ████████████▒▒▒▒▒▒▒▒  60%
@@ -235,6 +253,7 @@ Blocks:     █████████████░░░░░░░░  60%
 ```
 
 ### Transitions
+
 ```python
 # Typing effect
 for char in text:
@@ -250,12 +269,14 @@ for i, line in enumerate(lines):
 ## Data Visualization
 
 ### Sparklines
+
 ```
 Inline chart: ▁▂▃▄▅▆▇█▇▆▅▄▃▂▁
 Usage trend:  CPU ▂▃▅▇▆▃▂▁▂▄▆▇▅▃
 ```
 
 ### Status Indicators
+
 ```
 ● Online     ○ Offline    ◐ Partial
 ✓ Success    ✗ Failed     ⟳ Pending
@@ -263,6 +284,7 @@ Usage trend:  CPU ▂▃▅▇▆▃▂▁▂▄▆▇▅▃
 ```
 
 ### Tree Structure
+
 ```
 ├── src/
 │   ├── main.py
@@ -275,6 +297,7 @@ Usage trend:  CPU ▂▃▅▇▆▃▂▁▂▄▆▇▅▃
 ```
 
 ### Tables
+
 ```
 ┌──────────────┬─────────┬──────────┐
 │ SERVICE      │ STATUS  │ LATENCY  │
@@ -288,6 +311,7 @@ Usage trend:  CPU ▂▃▅▇▆▃▂▁▂▄▆▇▅▃
 ## Library Quick Reference
 
 ### Python: Rich
+
 ```python
 from rich.console import Console
 from rich.panel import Panel
@@ -301,6 +325,7 @@ console.print(Panel("Content", title="Title", border_style="green"))
 ```
 
 ### Python: Textual (TUI Framework)
+
 ```python
 from textual.app import App
 from textual.widgets import Header, Footer, Static
@@ -318,6 +343,7 @@ class MyApp(App):
 ```
 
 ### Go: Bubbletea + Lipgloss
+
 ```go
 import (
     "github.com/charmbracelet/lipgloss"
@@ -332,6 +358,7 @@ var style = lipgloss.NewStyle().
 ```
 
 ### Rust: Ratatui
+
 ```rust
 use ratatui::{
     prelude::*,
@@ -345,12 +372,15 @@ let block = Block::default()
 ```
 
 ### Node.js: Ink (React for CLI)
+
 ```tsx
-import { render, Box, Text } from 'ink';
+import { render, Box, Text } from "ink";
 
 const App = () => (
   <Box flexDirection="column" padding={1}>
-    <Text bold color="magenta">Hello</Text>
+    <Text bold color="magenta">
+      Hello
+    </Text>
     <Text color="cyan">World</Text>
   </Box>
 );
@@ -359,6 +389,7 @@ render(<App />);
 ```
 
 ### Pure ANSI Escape Codes
+
 ```python
 # Colors
 print("\x1b[38;2;255;0;255mHot Pink\x1b[0m")
@@ -406,6 +437,7 @@ Before finalizing any terminal UI:
 ## Example: Complete Themed Interface
 
 **Cyberpunk System Monitor**:
+
 ```
 ╔══════════════════════════════════════════════════════════════╗
 ║  ▓▓▓ NEURAL•LINK ▓▓▓  ◢◤ SYSTEM DIAGNOSTIC v2.7 ◢◤         ║

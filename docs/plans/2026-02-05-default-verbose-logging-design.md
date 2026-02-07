@@ -26,18 +26,20 @@ Make tool call visibility the default behavior for `murmur beat` and the TUI dae
 Replace manual line buffering and state tracking with Effect Stream:
 
 ```typescript
-import { Stream } from "effect"
+import { Stream } from "effect";
 
 const parseClaudeStream = (readable: ReadableStream<Uint8Array>) =>
-  Stream.fromReadableStream(() => readable, (e) => new ParseError(e))
-    .pipe(
-      Stream.decodeText(),
-      Stream.splitLines,
-      Stream.filter((line) => line.trim().length > 0),
-      Stream.map((line) => JSON.parse(line) as StreamMessage),
-      Stream.mapAccum(initialState, processMessage),
-      Stream.flatMap(Stream.fromIterable),
-    )
+  Stream.fromReadableStream(
+    () => readable,
+    (e) => new ParseError(e),
+  ).pipe(
+    Stream.decodeText(),
+    Stream.splitLines,
+    Stream.filter((line) => line.trim().length > 0),
+    Stream.map((line) => JSON.parse(line) as StreamMessage),
+    Stream.mapAccum(initialState, processMessage),
+    Stream.flatMap(Stream.fromIterable),
+  );
 ```
 
 The `processMessage` accumulator handles matching `tool_use` with `tool_result` (same logic, cleaner structure).
@@ -54,6 +56,7 @@ Inline display with icons:
 ```
 
 **Formatting rules:**
+
 - Tool name shown as-is (Read, Edit, Bash, Grep, etc.)
 - First argument shown as the "target" (file path, command, pattern)
 - Long paths truncated: `…deep/path/file.ts`
@@ -62,6 +65,7 @@ Inline display with icons:
 ### TUI Daemon Integration
 
 **Active beat section** (during heartbeat):
+
 ```
 ── myproject ─────────────────────────────
 ◆ Read package.json
@@ -70,6 +74,7 @@ Inline display with icons:
 ```
 
 **Feed history** (completed beats):
+
 ```
 ✓ myproject  2m ago  4 tools  $0.02
 ● other-repo  15m ago  12 tools  [attention]
@@ -82,12 +87,12 @@ Feed shows tool count summary. Full details in `~/.murmur/last-beat-{workspace}.
 **Remove:** `--verbose` / `-V`
 **Add:** `--quiet` / `-q` to suppress tool calls
 
-| Command | Tools shown | Stdout | Summary |
-|---------|-------------|--------|---------|
-| `murmur beat <path>` | ✓ | ✓ | ✓ |
-| `murmur beat <path> -q` | ✗ | ✓ | ✓ |
-| `murmur daemon` | ✓ | ✓ | in feed |
-| `murmur daemon -q` | ✗ | ✓ | in feed |
+| Command                 | Tools shown | Stdout | Summary |
+| ----------------------- | ----------- | ------ | ------- |
+| `murmur beat <path>`    | ✓           | ✓      | ✓       |
+| `murmur beat <path> -q` | ✗           | ✓      | ✓       |
+| `murmur daemon`         | ✓           | ✓      | in feed |
+| `murmur daemon -q`      | ✗           | ✓      | in feed |
 
 Quiet mode still parses stream (for logging), just suppresses tool display.
 
@@ -95,15 +100,15 @@ Quiet mode still parses stream (for logging), just suppresses tool display.
 
 ### Files to Modify
 
-| File | Changes |
-|------|---------|
-| `src/stream-parser.ts` | Rewrite with Effect Stream |
-| `src/cli.ts` | Replace `--verbose` with `--quiet`, update display |
-| `src/heartbeat.ts` | Always use stream-json, pass quiet flag |
-| `src/tui.ts` | Handle `heartbeat:tool-call`, render tool list |
-| `src/types.ts` | Add `tools` to `ActiveBeat` |
-| `src/ansi.ts` | Add tool icon constants |
-| `tests/stream-parser.test.ts` | Update for Effect-based API |
+| File                          | Changes                                            |
+| ----------------------------- | -------------------------------------------------- |
+| `src/stream-parser.ts`        | Rewrite with Effect Stream                         |
+| `src/cli.ts`                  | Replace `--verbose` with `--quiet`, update display |
+| `src/heartbeat.ts`            | Always use stream-json, pass quiet flag            |
+| `src/tui.ts`                  | Handle `heartbeat:tool-call`, render tool list     |
+| `src/types.ts`                | Add `tools` to `ActiveBeat`                        |
+| `src/ansi.ts`                 | Add tool icon constants                            |
+| `tests/stream-parser.test.ts` | Update for Effect-based API                        |
 
 ### Estimated Impact
 

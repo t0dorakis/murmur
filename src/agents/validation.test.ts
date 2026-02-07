@@ -13,9 +13,7 @@ describe("Pi Agent Config Validation", () => {
       lastRun: null,
     } as WorkspaceConfig;
 
-    await expect(adapter.execute("test", workspace)).rejects.toThrow(
-      "model must be a string",
-    );
+    await expect(adapter.execute("test", workspace)).rejects.toThrow("model must be a string");
   });
 
   test("rejects invalid session type", async () => {
@@ -26,9 +24,7 @@ describe("Pi Agent Config Validation", () => {
       lastRun: null,
     } as WorkspaceConfig;
 
-    await expect(adapter.execute("test", workspace)).rejects.toThrow(
-      "session must be a string",
-    );
+    await expect(adapter.execute("test", workspace)).rejects.toThrow("session must be a string");
   });
 
   test("accepts valid pi config", async () => {

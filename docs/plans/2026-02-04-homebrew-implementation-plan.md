@@ -69,6 +69,7 @@ We hardcode the version rather than reading `package.json` at runtime because `p
 **Why:** Verify the binary compiles and runs before setting up CI.
 
 **Changes to `package.json`:**
+
 ```json
 "scripts": {
   "build": "bun build --compile src/cli.ts --outfile murmur",
@@ -97,6 +98,7 @@ See design doc for full YAML.
 **File:** Initial `Formula/murmur.rb` for the `homebrew-murmur` repo.
 
 The formula:
+
 - `depends_on "bun"`
 - Runs `bun install && bun build --compile src/cli.ts --outfile murmur`
 - Installs the binary to `bin/`
@@ -113,13 +115,13 @@ The formula:
 
 ## File Change Summary
 
-| File | Change |
-|------|--------|
-| `src/cli.ts` | Add `--daemon` flag, self-re-exec in `startDetached()`, add `--version` |
-| `src/daemon.ts` | Extract `runDaemonMain()` from `import.meta.main` block |
-| `package.json` | Add `"version"`, add `"build"` script |
-| `LICENSE` | New file (MIT) |
-| `.github/workflows/release.yml` | New file |
+| File                            | Change                                                                  |
+| ------------------------------- | ----------------------------------------------------------------------- |
+| `src/cli.ts`                    | Add `--daemon` flag, self-re-exec in `startDetached()`, add `--version` |
+| `src/daemon.ts`                 | Extract `runDaemonMain()` from `import.meta.main` block                 |
+| `package.json`                  | Add `"version"`, add `"build"` script                                   |
+| `LICENSE`                       | New file (MIT)                                                          |
+| `.github/workflows/release.yml` | New file                                                                |
 
 ## What stays out of scope
 

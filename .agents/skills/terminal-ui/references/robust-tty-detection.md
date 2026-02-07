@@ -12,10 +12,10 @@ Check if stdin/stdout are TTYs and adjust behavior. Disable interactive features
 **Incorrect (assumes interactive terminal):**
 
 ```typescript
-import * as p from '@clack/prompts'
+import * as p from "@clack/prompts";
 
 async function main() {
-  const name = await p.text({ message: 'Name?' })
+  const name = await p.text({ message: "Name?" });
   // Hangs in CI waiting for input that never comes
 }
 ```
@@ -23,24 +23,24 @@ async function main() {
 **Correct (TTY-aware):**
 
 ```typescript
-import * as p from '@clack/prompts'
+import * as p from "@clack/prompts";
 
 async function main() {
   // Check for interactive terminal
-  const isInteractive = process.stdin.isTTY && process.stdout.isTTY
+  const isInteractive = process.stdin.isTTY && process.stdout.isTTY;
 
   if (!isInteractive) {
     // Non-interactive: require flags
     if (!args.name) {
-      console.error('Error: --name is required in non-interactive mode')
-      process.exit(1)
+      console.error("Error: --name is required in non-interactive mode");
+      process.exit(1);
     }
-    return { name: args.name }
+    return { name: args.name };
   }
 
   // Interactive: use prompts
-  const name = await p.text({ message: 'Name?' })
-  return { name }
+  const name = await p.text({ message: "Name?" });
+  return { name };
 }
 ```
 
@@ -48,36 +48,35 @@ async function main() {
 
 ```typescript
 interface Environment {
-  isTTY: boolean
-  isCI: boolean
-  hasColor: boolean
-  termWidth: number
+  isTTY: boolean;
+  isCI: boolean;
+  hasColor: boolean;
+  termWidth: number;
 }
 
 function detectEnvironment(): Environment {
-  const isTTY = Boolean(process.stdout.isTTY)
+  const isTTY = Boolean(process.stdout.isTTY);
 
   const isCI = Boolean(
     process.env.CI ||
     process.env.CONTINUOUS_INTEGRATION ||
     process.env.GITHUB_ACTIONS ||
     process.env.GITLAB_CI ||
-    process.env.JENKINS_URL
-  )
+    process.env.JENKINS_URL,
+  );
 
-  const hasColor = isTTY &&
+  const hasColor =
+    isTTY &&
     !process.env.NO_COLOR &&
-    process.env.TERM !== 'dumb' &&
-    process.env.FORCE_COLOR !== '0'
+    process.env.TERM !== "dumb" &&
+    process.env.FORCE_COLOR !== "0";
 
-  const termWidth = isTTY
-    ? process.stdout.columns || 80
-    : 80
+  const termWidth = isTTY ? process.stdout.columns || 80 : 80;
 
-  return { isTTY, isCI, hasColor, termWidth }
+  return { isTTY, isCI, hasColor, termWidth };
 }
 
-const env = detectEnvironment()
+const env = detectEnvironment();
 
 if (env.isCI) {
   // Longer timeouts
@@ -91,9 +90,9 @@ if (env.isCI) {
 ```typescript
 function log(message: string) {
   if (process.stdout.isTTY) {
-    console.log(color.cyan(`ℹ ${message}`))
+    console.log(color.cyan(`ℹ ${message}`));
   } else {
-    console.log(`[INFO] ${message}`)  // Plain text for logs
+    console.log(`[INFO] ${message}`); // Plain text for logs
   }
 }
 ```

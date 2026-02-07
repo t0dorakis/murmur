@@ -65,7 +65,7 @@ Triggered on tag push (`v*`). Runs on a single `ubuntu-latest` runner (free tier
 name: Release
 on:
   push:
-    tags: ['v*']
+    tags: ["v*"]
 
 permissions:
   contents: write
@@ -110,8 +110,8 @@ jobs:
 
 ### 3. Secrets
 
-| Secret | Purpose |
-|--------|---------|
+| Secret             | Purpose                                                     |
+| ------------------ | ----------------------------------------------------------- |
 | `TAP_GITHUB_TOKEN` | GitHub PAT with write access to `t0dorakis/homebrew-murmur` |
 
 Create via GitHub Settings > Developer settings > Personal access tokens > Fine-grained tokens. Grant `Contents: Read and write` permission on the `homebrew-murmur` repo only.

@@ -94,9 +94,20 @@ describe("tui rendering", () => {
     const { screen, bus, tui } = setup();
     tui.start();
 
-    bus.emit({ type: "tick", workspaces: [makeWorkspace({ path: "/tmp/ws" })] });
-    bus.emit({ type: "heartbeat:start", workspace: "/tmp/ws", promptPreview: "Check issues" });
-    bus.emit({ type: "heartbeat:stdout", workspace: "/tmp/ws", chunk: "Checking 3 repos..." });
+    bus.emit({
+      type: "tick",
+      workspaces: [makeWorkspace({ path: "/tmp/ws" })],
+    });
+    bus.emit({
+      type: "heartbeat:start",
+      workspace: "/tmp/ws",
+      promptPreview: "Check issues",
+    });
+    bus.emit({
+      type: "heartbeat:stdout",
+      workspace: "/tmp/ws",
+      chunk: "Checking 3 repos...",
+    });
 
     expect(screen.text()).toContain("test-ws");
     expect(screen.text()).toContain("Checking 3 repos");
@@ -106,12 +117,24 @@ describe("tui rendering", () => {
     const { screen, bus, tui } = setup();
     tui.start();
 
-    bus.emit({ type: "tick", workspaces: [makeWorkspace({ path: "/tmp/ws" })] });
-    bus.emit({ type: "heartbeat:start", workspace: "/tmp/ws", promptPreview: "Check issues" });
+    bus.emit({
+      type: "tick",
+      workspaces: [makeWorkspace({ path: "/tmp/ws" })],
+    });
+    bus.emit({
+      type: "heartbeat:start",
+      workspace: "/tmp/ws",
+      promptPreview: "Check issues",
+    });
     bus.emit({
       type: "heartbeat:done",
       workspace: "/tmp/ws",
-      entry: { ts: new Date().toISOString(), workspace: "/tmp/ws", outcome: "ok", durationMs: 1500 },
+      entry: {
+        ts: new Date().toISOString(),
+        workspace: "/tmp/ws",
+        outcome: "ok",
+        durationMs: 1500,
+      },
     });
 
     expect(screen.text()).toContain("ok");
@@ -122,8 +145,15 @@ describe("tui rendering", () => {
     const { screen, bus, tui } = setup();
     tui.start();
 
-    bus.emit({ type: "tick", workspaces: [makeWorkspace({ path: "/tmp/ws" })] });
-    bus.emit({ type: "heartbeat:start", workspace: "/tmp/ws", promptPreview: "Check email" });
+    bus.emit({
+      type: "tick",
+      workspaces: [makeWorkspace({ path: "/tmp/ws" })],
+    });
+    bus.emit({
+      type: "heartbeat:start",
+      workspace: "/tmp/ws",
+      promptPreview: "Check email",
+    });
     bus.emit({
       type: "heartbeat:done",
       workspace: "/tmp/ws",
@@ -159,7 +189,13 @@ describe("tui rendering", () => {
 
     bus.emit({
       type: "tick",
-      workspaces: [makeWorkspace({ name: "briefing", schedule: "0 9 * * *", scheduleType: "cron" })],
+      workspaces: [
+        makeWorkspace({
+          name: "briefing",
+          schedule: "0 9 * * *",
+          scheduleType: "cron",
+        }),
+      ],
     });
 
     expect(screen.text()).toContain("briefing");
@@ -178,7 +214,14 @@ describe("tui rendering", () => {
 
     bus.emit({
       type: "tick",
-      workspaces: [makeWorkspace({ name: "daily", schedule: "0 9 * * *", scheduleType: "cron", nextRunAt })],
+      workspaces: [
+        makeWorkspace({
+          name: "daily",
+          schedule: "0 9 * * *",
+          scheduleType: "cron",
+          nextRunAt,
+        }),
+      ],
     });
 
     expect(screen.text()).toContain(`next at`);
@@ -189,9 +232,20 @@ describe("tui rendering", () => {
     const { screen, bus, tui } = setup();
     tui.start();
 
-    bus.emit({ type: "tick", workspaces: [makeWorkspace({ path: "/tmp/ws" })] });
-    bus.emit({ type: "heartbeat:start", workspace: "/tmp/ws", promptPreview: "Check" });
-    bus.emit({ type: "heartbeat:stdout", workspace: "/tmp/ws", chunk: "working..." });
+    bus.emit({
+      type: "tick",
+      workspaces: [makeWorkspace({ path: "/tmp/ws" })],
+    });
+    bus.emit({
+      type: "heartbeat:start",
+      workspace: "/tmp/ws",
+      promptPreview: "Check",
+    });
+    bus.emit({
+      type: "heartbeat:stdout",
+      workspace: "/tmp/ws",
+      chunk: "working...",
+    });
 
     expect(screen.text()).toContain("working...");
 
@@ -199,7 +253,12 @@ describe("tui rendering", () => {
     bus.emit({
       type: "heartbeat:done",
       workspace: "/tmp/ws",
-      entry: { ts: new Date().toISOString(), workspace: "/tmp/ws", outcome: "ok", durationMs: 500 },
+      entry: {
+        ts: new Date().toISOString(),
+        workspace: "/tmp/ws",
+        outcome: "ok",
+        durationMs: 500,
+      },
     });
 
     expect(screen.text()).not.toContain("running");

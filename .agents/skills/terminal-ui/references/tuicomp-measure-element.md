@@ -62,6 +62,7 @@ function ResponsiveTable({ rows }: { rows: string[][] }) {
 **Note:** `measureElement` returns accurate values only after initial render. Call it inside `useEffect` to ensure layout calculations are complete.
 
 **When to use measureElement:**
+
 - Responsive table column widths
 - Text truncation based on available space
 - Centering content in variable-size containers

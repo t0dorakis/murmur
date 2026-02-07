@@ -1,57 +1,37 @@
-import { writeFileSync, readFileSync } from "node:fs";
-import { basename, join } from "node:path";
-import { setDataDir, ensureDataDir, isDue, nextRunAt, parseInterval, readConfig, updateLastRun, getPidPath, getSocketPath, cleanupRuntimeFiles } from "./config.ts";
+import { writeFileSync } from "node:fs";
+import { basename } from "node:path";
+import {
+  setDataDir,
+  ensureDataDir,
+  isDue,
+  nextRunAt,
+  parseInterval,
+  readConfig,
+  updateLastRun,
+  validateResolvedConfig,
+  getPidPath,
+  getSocketPath,
+  cleanupRuntimeFiles,
+} from "./config.ts";
 import { debug, enableDebug } from "./debug.ts";
 import { createEventBus, type EventBus } from "./events.ts";
-import { parseFrontmatter, mergeWorkspaceConfig } from "./frontmatter.ts";
+import { resolveWorkspaceConfig } from "./frontmatter.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
 import { startSocketServer } from "./socket.ts";
 import type { WorkspaceConfig, WorkspaceStatus } from "./types.ts";
 
-/** Read HEARTBEAT.md frontmatter and merge with config.json workspace entry. */
-export function resolveWorkspaceConfig(ws: WorkspaceConfig): WorkspaceConfig {
-  try {
-    const raw = readFileSync(join(ws.path, "HEARTBEAT.md"), "utf-8");
-    const { metadata } = parseFrontmatter(raw);
-    return mergeWorkspaceConfig(ws, metadata);
-  } catch (err: any) {
-    if (err?.code !== "ENOENT") {
-      console.error(`Warning: could not read HEARTBEAT.md in ${ws.path}: ${err?.message}`);
-    }
-    return ws;
-  }
-}
-
-function workspaceName(resolved: WorkspaceConfig): string {
-  // 1. Frontmatter name (merged into config)
-  if (resolved.name) return resolved.name;
-
-  // 2. First markdown heading
-  try {
-    const text = readFileSync(join(resolved.path, "HEARTBEAT.md"), "utf-8");
-    const match = /^#\s+(.+)/m.exec(text);
-    if (match) return match[1]!.trim();
-  } catch {}
-
-  // 3. Directory basename
-  return basename(resolved.path);
-}
-
-export function buildWorkspaceStatuses(workspaces: WorkspaceConfig[]): WorkspaceStatus[] {
-  return workspaces.map((ws) => {
-    const resolved = resolveWorkspaceConfig(ws);
-    return {
-      path: ws.path,
-      name: workspaceName(resolved),
-      description: resolved.description,
-      schedule: resolved.interval ?? resolved.cron ?? "(none)",
-      scheduleType: resolved.cron ? "cron" as const : "interval" as const,
-      nextRunAt: nextRunAt(resolved),
-      lastOutcome: null,
-      lastRunAt: ws.lastRun ? new Date(ws.lastRun).getTime() : null,
-    };
-  });
+export function buildWorkspaceStatuses(resolved: WorkspaceConfig[]): WorkspaceStatus[] {
+  return resolved.map((ws) => ({
+    path: ws.path,
+    name: ws.name ?? basename(ws.path),
+    description: ws.description,
+    schedule: ws.interval ?? ws.cron ?? "(none)",
+    scheduleType: ws.cron ? ("cron" as const) : ("interval" as const),
+    nextRunAt: nextRunAt(ws),
+    lastOutcome: null,
+    lastRunAt: ws.lastRun ? new Date(ws.lastRun).getTime() : null,
+  }));
 }
 
 export type DaemonHandle = {
@@ -67,23 +47,44 @@ export function startDaemon(tickMs: number): DaemonHandle {
 
   const loopDone = (async () => {
     await Promise.resolve(); // yield so callers can subscribe before first events
-    debug(`Daemon ready (PID ${process.pid}, ${initialConfig.workspaces.length} workspace(s), tick=${tickMs}ms)`);
-    bus.emit({ type: "daemon:ready", pid: process.pid, workspaceCount: initialConfig.workspaces.length });
+    debug(
+      `Daemon ready (PID ${process.pid}, ${initialConfig.workspaces.length} workspace(s), tick=${tickMs}ms)`,
+    );
+    bus.emit({
+      type: "daemon:ready",
+      pid: process.pid,
+      workspaceCount: initialConfig.workspaces.length,
+    });
 
     while (running) {
       try {
         const config = readConfig();
         debug(`Tick: checking ${config.workspaces.length} workspace(s)`);
-        bus.emit({ type: "tick", workspaces: buildWorkspaceStatuses(config.workspaces) });
 
+        // Resolve frontmatter once per tick for all workspaces
+        const resolved: WorkspaceConfig[] = [];
         for (const ws of config.workspaces) {
+          const r = resolveWorkspaceConfig(ws);
+          const error = validateResolvedConfig(r);
+          if (error) {
+            debug(`  ${ws.path}: skipping — ${error}`);
+            continue;
+          }
+          resolved.push(r);
+        }
+
+        bus.emit({
+          type: "tick",
+          workspaces: buildWorkspaceStatuses(resolved),
+        });
+
+        for (const ws of resolved) {
           if (!running) break;
-          const resolved = resolveWorkspaceConfig(ws);
-          const due = isDue(resolved);
+          const due = isDue(ws);
           debug(`  ${ws.path}: isDue=${due}`);
           if (!due) continue;
 
-          const entry = await runHeartbeat(resolved, bus.emit.bind(bus));
+          const entry = await runHeartbeat(ws, bus.emit.bind(bus));
           appendLog(entry);
 
           await updateLastRun(ws.path, entry.ts);

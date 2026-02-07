@@ -73,6 +73,7 @@ function SearchInput() {
 ```
 
 **Benefits:**
+
 - Input appears instantly (query updates synchronously)
 - Visual indicator shows work in progress
 - Debouncing prevents excessive API calls

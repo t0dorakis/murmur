@@ -38,10 +38,15 @@ const assistantMixedEvent = (
     },
   });
 
-const userToolResultEvent = (toolUseId: string, content: string | Array<{ type: string; text?: string }>) =>
+const userToolResultEvent = (
+  toolUseId: string,
+  content: string | Array<{ type: string; text?: string }>,
+) =>
   JSON.stringify({
     type: "user",
-    message: { content: [{ type: "tool_result", tool_use_id: toolUseId, content }] },
+    message: {
+      content: [{ type: "tool_result", tool_use_id: toolUseId, content }],
+    },
   });
 
 const resultEvent = (result: string, costUsd?: number, numTurns?: number) =>
@@ -65,8 +70,14 @@ describe("parseStreamJson", () => {
     const parsed = parseStreamJson(ndjson);
     expect(parsed.resultText).toBe("HEARTBEAT_OK");
     expect(parsed.turns).toHaveLength(2); // assistant + result
-    expect(parsed.turns[0]).toEqual({ role: "assistant", text: "HEARTBEAT_OK" });
-    expect(parsed.turns[1]).toMatchObject({ role: "result", text: "HEARTBEAT_OK" });
+    expect(parsed.turns[0]).toEqual({
+      role: "assistant",
+      text: "HEARTBEAT_OK",
+    });
+    expect(parsed.turns[1]).toMatchObject({
+      role: "result",
+      text: "HEARTBEAT_OK",
+    });
   });
 
   test("parses conversation with tool calls", () => {
@@ -97,12 +108,7 @@ describe("parseStreamJson", () => {
   test("parses mixed text and tool call in single assistant message", () => {
     const ndjson = [
       initEvent,
-      assistantMixedEvent(
-        "Let me check the status.",
-        "Bash",
-        { command: "git status" },
-        "tool_02",
-      ),
+      assistantMixedEvent("Let me check the status.", "Bash", { command: "git status" }, "tool_02"),
       userToolResultEvent("tool_02", "clean"),
       resultEvent("HEARTBEAT_OK"),
     ].join("\n");
@@ -193,10 +199,7 @@ describe("parseStreamJson", () => {
   });
 
   test("handles empty result", () => {
-    const ndjson = [
-      initEvent,
-      resultEvent(""),
-    ].join("\n");
+    const ndjson = [initEvent, resultEvent("")].join("\n");
 
     const parsed = parseStreamJson(ndjson);
     expect(parsed.resultText).toBe("");

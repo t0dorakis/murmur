@@ -80,6 +80,7 @@ CITATION TRACKING (CRITICAL):
 ## Executive Summary
 
 [Write 3-5 bullet points, 50-250 words total]
+
 - **Key Finding 1:** [Major discovery with specific data/metrics]
 - **Key Finding 2:** [Important insight with evidence]
 - **Key Finding 3:** [Critical conclusion with implications]
@@ -94,12 +95,15 @@ CITATION TRACKING (CRITICAL):
 ## Introduction
 
 ### Research Question
+
 [State the original question clearly and completely]
 
 [Add 1-2 sentences providing context for why this question matters]
 
 ### Scope & Methodology
+
 [2-3 paragraphs explaining:]
+
 - What specific aspects were investigated
 - What was included vs excluded from scope
 - What research methods were used (web search, academic sources, industry reports, etc.)
@@ -107,7 +111,9 @@ CITATION TRACKING (CRITICAL):
 - Time period covered
 
 ### Key Assumptions
+
 [List 3-5 important assumptions made during research]
+
 - Assumption 1: [Description and why it matters]
 - Assumption 2: [Description and why it matters]
 - [Continue...]
@@ -128,14 +134,16 @@ CITATION TRACKING (CRITICAL):
 [Opening paragraph: State the finding clearly and why it matters]
 
 [Body paragraphs:
+
 - Present detailed evidence
 - Include specific data, statistics, dates, numbers
 - Explain mechanisms, causes, or relationships
 - Discuss implications
 - Address nuances or exceptions
-]
+  ]
 
 **Key Evidence:**
+
 - Data point 1 from Source A [1]
 - Data point 2 from Source B [2]
 - Conflicting view from Source C [3] and how it was resolved
@@ -229,6 +237,7 @@ CITATION TRACKING (CRITICAL):
 [2-3 paragraphs explaining contradictory evidence found during research]
 
 **Contradictory Finding 1:** [Description]
+
 - Source: [Citation]
 - Why it contradicts: [Explanation]
 - How resolved/interpreted: [Your analysis]
@@ -239,11 +248,13 @@ CITATION TRACKING (CRITICAL):
 ### Known Gaps
 
 [2-3 paragraphs explaining:]
+
 - What information was not available
 - What questions remain unanswered
 - What would strengthen this research
 
 **Gap 1:** [Description]
+
 - Why it's missing
 - How it affects conclusions
 - How to address it in future research
@@ -255,6 +266,7 @@ CITATION TRACKING (CRITICAL):
 [Revisit key assumptions from intro, now with more detail on their validity]
 
 **Assumption 1:** [Restate]
+
 - Evidence supporting it: [...]
 - Evidence challenging it: [...]
 - Overall validity: [...]
@@ -262,6 +274,7 @@ CITATION TRACKING (CRITICAL):
 ### Areas of Uncertainty
 
 [2-3 paragraphs on:]
+
 - Where sources disagree
 - Where evidence is thin
 - Where extrapolation was necessary
@@ -336,6 +349,7 @@ CITATION TRACKING (CRITICAL):
 [2-3 paragraphs describing the research process in detail]
 
 **Phase Execution:**
+
 - Phase 1 (SCOPE): [What was done]
 - Phase 2 (PLAN): [What was done]
 - Phase 3 (RETRIEVE): [What was done]
@@ -346,6 +360,7 @@ CITATION TRACKING (CRITICAL):
 **Total Sources:** [Number]
 
 **Source Types:**
+
 - Academic journals: [Number]
 - Industry reports: [Number]
 - News articles: [Number]
@@ -364,17 +379,20 @@ CITATION TRACKING (CRITICAL):
 [2-3 paragraphs explaining:]
 
 **Triangulation:**
+
 - How claims were verified across multiple sources
 - Minimum sources required per major claim: 3
 - How contradictions were handled
 
 **Credibility Assessment:**
+
 - How source quality was evaluated
 - Scoring system used (0-100)
 - Average credibility score: [Number]/100
 - Distribution: [High/medium/low source counts]
 
 **Quality Control:**
+
 - Validation checks performed
 - Issues found and corrected
 - Final quality metrics
@@ -383,14 +401,15 @@ CITATION TRACKING (CRITICAL):
 
 <!-- Explicit mapping of major claims to supporting sources -->
 
-| Claim ID | Major Claim | Evidence Type | Supporting Sources | Confidence |
-|----------|-------------|---------------|-------------------|------------|
-| C1 | [First major claim from findings] | [Primary data / Meta-analysis / Expert opinion] | [1], [2], [3] | High / Medium / Low |
-| C2 | [Second major claim] | [Evidence type] | [4], [5], [6] | High / Medium / Low |
-| C3 | [Third major claim] | [Evidence type] | [7], [8] | High / Medium / Low |
-| ... | [Continue for all major claims] | ... | ... | ... |
+| Claim ID | Major Claim                       | Evidence Type                                   | Supporting Sources | Confidence          |
+| -------- | --------------------------------- | ----------------------------------------------- | ------------------ | ------------------- |
+| C1       | [First major claim from findings] | [Primary data / Meta-analysis / Expert opinion] | [1], [2], [3]      | High / Medium / Low |
+| C2       | [Second major claim]              | [Evidence type]                                 | [4], [5], [6]      | High / Medium / Low |
+| C3       | [Third major claim]               | [Evidence type]                                 | [7], [8]           | High / Medium / Low |
+| ...      | [Continue for all major claims]   | ...                                             | ...                | ...                 |
 
 **Confidence Levels:**
+
 - **High**: 3+ independent sources, consistent findings, strong methodology
 - **Medium**: 2 sources OR single high-quality source with minor contradictions
 - **Low**: Single source OR significant contradictions in evidence
