@@ -107,7 +107,7 @@ If delivery or data sources need tokens/webhooks:
 
 Write the HEARTBEAT.md file. Rules:
 
-- Start with `# Heartbeat` and the standard preamble about HEARTBEAT_OK / ATTENTION
+- Don't include instructions about HEARTBEAT_OK / ATTENTION — the runtime injects those automatically
 - Be explicit about every step — Claude has no memory between heartbeats
 - For change-detection workflows (price drops, new items, status changes), include steps to read/write state files in the workspace (e.g., `last-price.txt`, `tracking-state.json`)
 - Include exact commands with real values (no `{placeholder}` left behind)
