@@ -98,7 +98,7 @@ Frontmatter values override config.json. Config.json values are used as fallback
 | `agent` | Agent harness: `claude-code` (default), `pi` |
 | `model` | Model selection (e.g., `opus`, `anthropic/claude-sonnet-4.5`) |
 | `session` | Session ID for context reuse (pi agent) |
-| `permissions` | `skip` or deny list |
+| `permissions` | `skip` only (deny lists require config.json) |
 
 **Response protocol:**
 - `HEARTBEAT_OK` — nothing to report (silent, just logged)

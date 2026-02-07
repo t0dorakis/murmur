@@ -1,6 +1,6 @@
 import { resolve } from "node:path";
 import { readConfig, writeConfig } from "./config.ts";
-import { resolveWorkspaceConfig } from "./daemon.ts";
+import { resolveWorkspaceConfig } from "./frontmatter.ts";
 
 export function listWorkspaces(): void {
   const config = readConfig();

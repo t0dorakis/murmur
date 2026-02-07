@@ -145,4 +145,24 @@ describe("mergeWorkspaceConfig", () => {
     expect(merged.model).toBe("opus");
     expect(merged.session).toBe("my-session");
   });
+
+  test("only accepts numeric maxTurns, ignores string", () => {
+    const merged = mergeWorkspaceConfig(baseWs, { maxTurns: "fifty" as any });
+    expect(merged.maxTurns).toBeUndefined();
+  });
+
+  test("only accepts 'skip' for permissions", () => {
+    const merged = mergeWorkspaceConfig(baseWs, { permissions: "skip" });
+    expect(merged.permissions).toBe("skip");
+  });
+
+  test("ignores non-skip permissions values", () => {
+    const merged = mergeWorkspaceConfig(baseWs, { permissions: "deny" } as any);
+    expect(merged.permissions).toBeUndefined();
+  });
+
+  test("ignores numeric values for string fields", () => {
+    const merged = mergeWorkspaceConfig(baseWs, { name: 123 as any });
+    expect(merged.name).toBeUndefined();
+  });
 });

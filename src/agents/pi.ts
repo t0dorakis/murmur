@@ -1,7 +1,6 @@
 import { debug } from "../debug.ts";
-import { parseInterval } from "../config.ts";
 import { isCommandAvailable, getCommandVersion } from "./cli-utils.ts";
-import { DEFAULT_AGENT_TIMEOUT_MS } from "./constants.ts";
+import { resolveTimeoutMs } from "./constants.ts";
 import type {
   AgentAdapter,
   AgentExecutionResult,
@@ -86,7 +85,7 @@ export class PiAdapter implements AgentAdapter {
       stdin: new Blob([prompt]),
       stdout: "pipe",
       stderr: "pipe",
-      timeout: workspace.timeout ? parseInterval(workspace.timeout) : DEFAULT_AGENT_TIMEOUT_MS,
+      timeout: resolveTimeoutMs(workspace),
     });
 
     if (!proc.stdout) throw new Error("Spawned process stdout is not piped");

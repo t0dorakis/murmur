@@ -3,7 +3,8 @@ import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { setDataDir, getDataDir, ensureDataDir, readConfig, writeConfig, getConfigPath, getPidPath, getSocketPath, parseInterval, cleanupRuntimeFiles } from "./config.ts";
 import { enableDebug, getDebugLogPath } from "./debug.ts";
-import { startDaemon, runDaemonMain, resolveWorkspaceConfig } from "./daemon.ts";
+import { startDaemon, runDaemonMain } from "./daemon.ts";
+import { resolveWorkspaceConfig } from "./frontmatter.ts";
 import { startSocketServer, type SocketServer } from "./socket.ts";
 import { connectToSocket, type SocketConnection } from "./socket-client.ts";
 import { createTui } from "./tui.ts";
@@ -231,8 +232,9 @@ function status() {
 
   console.log(`\nWorkspaces (${config.workspaces.length}):`);
   for (const ws of config.workspaces) {
+    const resolved = resolveWorkspaceConfig(ws);
     const lastRun = ws.lastRun ?? "never";
-    const schedule = ws.interval ? `every ${ws.interval}` : `cron ${ws.cron}`;
+    const schedule = resolved.interval ? `every ${resolved.interval}` : resolved.cron ? `cron ${resolved.cron}` : "(none)";
     console.log(`  ${ws.path}  ${schedule}  last: ${lastRun}`);
   }
 }
@@ -343,7 +345,7 @@ function cliEmitter(event: DaemonEvent) {
 const HEARTBEAT_TEMPLATE = (interval: string, timeout?: string, cron?: string) => {
   const lines = ["---"];
   if (cron) {
-    lines.push(`interval: ${cron}`);
+    lines.push(`cron: ${cron}`);
   } else {
     lines.push(`interval: ${interval}`);
   }
@@ -372,6 +374,15 @@ const HEARTBEAT_TEMPLATE = (interval: string, timeout?: string, cron?: string) =
 };
 
 async function init(path: string, opts?: { interval?: string; cron?: string; timeout?: string }) {
+  if (opts?.interval) {
+    try { parseInterval(opts.interval); }
+    catch { console.error(`Invalid interval: "${opts.interval}". Use e.g. "30m", "1h", "15m".`); process.exit(1); }
+  }
+  if (opts?.timeout) {
+    try { parseInterval(opts.timeout); }
+    catch { console.error(`Invalid timeout: "${opts.timeout}". Use e.g. "15m", "1h".`); process.exit(1); }
+  }
+
   const resolved = resolve(path);
   const heartbeatFile = join(resolved, "HEARTBEAT.md");
   if (!existsSync(heartbeatFile)) {
