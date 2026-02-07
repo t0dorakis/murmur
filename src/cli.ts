@@ -3,7 +3,7 @@ import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import { setDataDir, getDataDir, ensureDataDir, readConfig, writeConfig, getConfigPath, getPidPath, getSocketPath, parseInterval, cleanupRuntimeFiles } from "./config.ts";
 import { enableDebug, getDebugLogPath } from "./debug.ts";
-import { startDaemon, runDaemonMain } from "./daemon.ts";
+import { startDaemon, runDaemonMain, resolveWorkspaceConfig } from "./daemon.ts";
 import { startSocketServer, type SocketServer } from "./socket.ts";
 import { connectToSocket, type SocketConnection } from "./socket-client.ts";
 import { createTui } from "./tui.ts";
@@ -292,8 +292,9 @@ async function beat(path: string, quietMode: boolean) {
     console.log(`(showing tool calls and reasoning)\n`);
   }
 
+  const ws = resolveWorkspaceConfig({ path: resolved, lastRun: null });
   const entry = await runHeartbeat(
-    { path: resolved, lastRun: null },
+    ws,
     quietMode ? undefined : cliEmitter,
     { quiet: quietMode },
   );
