@@ -314,15 +314,31 @@ function status() {
   }
 
   console.log(`\nWorkspaces (${config.workspaces.length}):`);
-  for (const ws of config.workspaces) {
+  const rows = config.workspaces.map((ws) => {
     const resolved = resolveWorkspaceConfig(ws);
-    const lastRun = ws.lastRun ?? "never";
+    const name = resolved.name || basename(ws.path);
     const schedule = resolved.interval
       ? `every ${resolved.interval}`
       : resolved.cron
         ? `cron ${resolved.cron}`
         : "(none)";
-    console.log(`  ${ws.path}  ${schedule}  last: ${lastRun}`);
+    let lastRun = "never";
+    if (ws.lastRun) {
+      const diff = Date.now() - new Date(ws.lastRun).getTime();
+      lastRun = diff > 0 ? `${prettyMs(diff, { compact: true })} ago` : "just now";
+    }
+    return { name, schedule, lastRun, path: ws.path };
+  });
+
+  const nameW = Math.max(...rows.map((r) => r.name.length));
+  const schedW = Math.max(...rows.map((r) => r.schedule.length));
+  const lastW = Math.max(...rows.map((r) => r.lastRun.length));
+
+  for (const r of rows) {
+    const nameCol = r.name.padEnd(nameW);
+    const schedCol = r.schedule.padEnd(schedW);
+    const lastCol = r.lastRun.padEnd(lastW);
+    console.log(`  ${nameCol}  ${schedCol}  last: ${lastCol}  ${r.path}`);
   }
 }
 
