@@ -25,6 +25,7 @@ import { createTui } from "./tui.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
 import { formatToolTarget, formatToolDuration } from "./tool-format.ts";
+import { checkWorkspaceHealth, readRecentErrors, getLastOutcome } from "./status-utils.ts";
 import type { DaemonEvent } from "./types.ts";
 import { listWorkspaces, removeWorkspace, clearWorkspaces } from "./workspaces.ts";
 
@@ -318,41 +319,93 @@ function status() {
 
   const config = readConfig();
   if (config.workspaces.length === 0) {
-    console.log(`No workspaces configured. Edit ${getConfigPath()} to add workspaces.`);
+    console.log(`\nNo workspaces configured. Run: murmur init <path>`);
     return;
   }
 
-  console.log(`\nWorkspaces (${config.workspaces.length}):`);
+  let validCount = 0;
+  let issueCount = 0;
+
   const rows = config.workspaces.map((ws) => {
+    const health = checkWorkspaceHealth(ws.path);
     const resolved = resolveWorkspaceConfig(ws);
+    const configError = validateResolvedConfig(resolved);
+
+    let issue: string | undefined;
+    if (!health.pathExists) {
+      issue = "path does not exist";
+    } else if (!health.heartbeatExists) {
+      issue = "HEARTBEAT.md missing";
+    } else if (configError) {
+      issue = configError;
+    }
+
+    if (issue) {
+      issueCount++;
+    } else {
+      validCount++;
+    }
+
+    const indicator = issue ? "\u2717" : "\u2713";
     const name = resolved.name ?? basename(ws.path);
     const schedule = resolved.interval
       ? `every ${resolved.interval}`
       : resolved.cron
         ? `cron ${resolved.cron}`
         : "(none)";
-    let lastRun = "never";
-    if (ws.lastRun) {
+
+    let detail: string;
+    if (issue) {
+      detail = issue;
+    } else if (!ws.lastRun) {
+      detail = "never run";
+    } else {
       const t = new Date(ws.lastRun).getTime();
       if (Number.isNaN(t)) {
-        lastRun = "invalid";
+        detail = "invalid timestamp";
       } else {
         const diff = Date.now() - t;
-        lastRun = diff > 0 ? `${prettyMs(diff, { compact: true })} ago` : "just now";
+        const ago = diff > 0 ? `${prettyMs(diff, { compact: true })} ago` : "just now";
+        const lastOutcome = getLastOutcome(ws.path);
+        const outcomeTag = lastOutcome ? ` (${lastOutcome.outcome})` : "";
+        detail = `last: ${ago}${outcomeTag}`;
       }
     }
-    return { name, schedule, lastRun, path: ws.path };
+
+    return { indicator, name, schedule, detail, path: ws.path };
   });
 
   const nameW = Math.max(...rows.map((r) => r.name.length));
   const schedW = Math.max(...rows.map((r) => r.schedule.length));
-  const lastW = Math.max(...rows.map((r) => r.lastRun.length));
+  const detailW = Math.max(...rows.map((r) => r.detail.length));
+
+  const summary =
+    issueCount > 0
+      ? `${validCount} valid, ${issueCount} ${issueCount === 1 ? "issue" : "issues"}`
+      : `${validCount}`;
+  console.log(`\nWorkspaces (${summary}):`);
 
   for (const r of rows) {
     const nameCol = r.name.padEnd(nameW);
     const schedCol = r.schedule.padEnd(schedW);
-    const lastCol = r.lastRun.padEnd(lastW);
-    console.log(`  ${nameCol}  ${schedCol}  last: ${lastCol}  ${r.path}`);
+    const detailCol = r.detail.padEnd(detailW);
+    console.log(`  ${r.indicator} ${nameCol}  ${schedCol}  ${detailCol}  ${r.path}`);
+  }
+
+  // Recent issues from heartbeat log
+  const errors = readRecentErrors(5);
+  if (errors.length > 0) {
+    console.log(`\nRecent issues (last 24h):`);
+    for (const entry of errors) {
+      const elapsed = Date.now() - new Date(entry.ts).getTime();
+      const time = prettyMs(elapsed, { compact: true });
+      const msg =
+        entry.outcome === "error"
+          ? (entry.error ?? "unknown error")
+          : (entry.summary ?? "needs attention");
+      const shortPath = basename(entry.workspace);
+      console.log(`  \u2022 ${time} ago ${shortPath}: ${msg}`);
+    }
   }
 }
 
