@@ -1,42 +1,29 @@
+import { YAML } from "bun";
 import { readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { debug } from "./debug.ts";
 import type { WorkspaceConfig } from "./types.ts";
 
 export type FrontmatterResult = {
-  metadata: Record<string, string | number>;
+  metadata: Record<string, unknown>;
   content: string;
 };
 
 /**
  * Parse YAML frontmatter from a markdown string.
- * Supports simple key: value pairs. Auto-detects numeric literals.
+ * Uses Bun's built-in YAML parser for full spec compliance.
  */
 export function parseFrontmatter(raw: string): FrontmatterResult {
   const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(raw);
   if (!match) return { metadata: {}, content: raw };
 
-  const yamlBlock = match[1]!;
-  const content = match[2]!;
-  const metadata: Record<string, string | number> = {};
+  const parsed = YAML.parse(match[1]!);
+  const metadata: Record<string, unknown> =
+    parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed
+      : {};
 
-  for (const line of yamlBlock.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-
-    const colonIdx = trimmed.indexOf(":");
-    if (colonIdx === -1) continue;
-
-    const key = trimmed.slice(0, colonIdx).trim();
-    const value = trimmed.slice(colonIdx + 1).trim();
-    if (!key || !value) continue;
-
-    // Auto-detect numeric literals — intervals like "30m" stay strings
-    const num = Number(value);
-    metadata[key] = Number.isFinite(num) && String(num) === value ? num : value;
-  }
-
-  return { metadata, content };
+  return { metadata, content: match[2]! };
 }
 
 /** String fields that map directly from frontmatter to WorkspaceConfig. */
@@ -59,7 +46,7 @@ const STRING_FIELDS = [
  */
 export function mergeWorkspaceConfig(
   ws: WorkspaceConfig,
-  metadata: Record<string, string | number>,
+  metadata: Record<string, unknown>,
 ): WorkspaceConfig {
   const merged = { ...ws };
 
@@ -68,7 +55,8 @@ export function mergeWorkspaceConfig(
     if (typeof val === "string") (merged as any)[field] = val;
   }
 
-  if (typeof metadata.maxTurns === "number") merged.maxTurns = metadata.maxTurns;
+  if (typeof metadata.maxTurns === "number")
+    merged.maxTurns = metadata.maxTurns;
   if (metadata.permissions === "skip") merged.permissions = "skip";
 
   return merged;
@@ -84,7 +72,9 @@ export function resolveWorkspaceConfig(ws: WorkspaceConfig): WorkspaceConfig {
     raw = readFileSync(join(ws.path, "HEARTBEAT.md"), "utf-8");
   } catch (err: any) {
     if (err?.code !== "ENOENT") {
-      debug(`Warning: could not read HEARTBEAT.md in ${ws.path}: ${err?.message}`);
+      debug(
+        `Warning: could not read HEARTBEAT.md in ${ws.path}: ${err?.message}`,
+      );
     }
     return ws;
   }
