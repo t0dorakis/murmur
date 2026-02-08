@@ -52,6 +52,10 @@ If you prefer to write the heartbeat yourself:
 murmur init ~/repos/my-project    # Creates HEARTBEAT.md template
 vim ~/repos/my-project/HEARTBEAT.md
 murmur start                       # Start the daemon
+
+# Multiple heartbeats in one repo:
+murmur init ~/repos/my-project --name deploy-monitor
+murmur init ~/repos/my-project --name issue-worker
 ```
 
 The daemon reads `~/.murmur/config.json` and runs each workspace on schedule. Press `q` to quit, `Ctrl-D` to detach.
@@ -64,8 +68,8 @@ murmur start --detach              Start daemon (background)
 murmur watch                       Attach TUI to running daemon
 murmur stop                        Stop daemon
 murmur status                      Show daemon and workspace status
-murmur beat [path]                 Run one heartbeat immediately
-murmur init [path]                 Create HEARTBEAT.md template
+murmur beat [path] [--name <name>] Run one heartbeat immediately
+murmur init [path] [--name <name>] Create HEARTBEAT.md template
 ```
 
 ## HEARTBEAT.md
@@ -187,7 +191,7 @@ If nothing new or nothing worth proposing, HEARTBEAT_OK.
 
 | Field      | Description                                               |
 | ---------- | --------------------------------------------------------- |
-| `path`     | Absolute path to workspace (must contain `HEARTBEAT.md`)  |
+| `path`     | Absolute path to workspace root                           |
 | `interval` | Run every N units: `15m`, `1h`, `6h`, `1d`                |
 | `cron`     | Cron expression (alternative to interval): `0 9 * * 1-5`  |
 | `tz`       | Timezone for cron (default: system)                       |
@@ -198,6 +202,29 @@ If nothing new or nothing worth proposing, HEARTBEAT_OK.
 | `session`  | Session ID for context reuse                              |
 
 All config fields can also be set in HEARTBEAT.md frontmatter (takes precedence). Use `interval` or `cron`, not both.
+
+### Multiple Heartbeats per Repo
+
+A single workspace can have multiple heartbeats by placing them in a `heartbeats/` directory:
+
+```
+my-project/
+├── HEARTBEAT.md                          # root heartbeat (optional)
+├── heartbeats/
+│   ├── deploy-monitor/
+│   │   └── HEARTBEAT.md                  # named heartbeat
+│   └── issue-worker/
+│       └── HEARTBEAT.md                  # named heartbeat
+└── src/
+```
+
+```bash
+murmur init ~/repos/my-project --name deploy-monitor
+murmur init ~/repos/my-project --name issue-worker
+murmur beat ~/repos/my-project --name issue-worker  # run one specifically
+```
+
+All heartbeats share the repo root as their working directory. Each has its own schedule (via frontmatter) and runs independently. The daemon auto-discovers heartbeats in `heartbeats/` — one config entry handles all of them.
 
 ## Agent Harnesses
 
@@ -273,7 +300,7 @@ Outcomes: `ok`, `attention`, `error`.
 
 **Use the heartbeat skill.** The `heartbeat-cron` skill interviews you, drafts the prompt, tests it, and registers it — no manual config editing. It also searches for relevant tools and skills that can help with your specific use case.
 
-**One heartbeat, one purpose.** Keep each HEARTBEAT.md focused on a single automation. Need multiple automations? Use multiple workspaces with different schedules. This keeps prompts small, context clean, and failures isolated.
+**One heartbeat, one purpose.** Keep each HEARTBEAT.md focused on a single automation. Need multiple automations in the same repo? Use `murmur init --name <name>` to create heartbeats in `heartbeats/<name>/HEARTBEAT.md` — they share the repo root as CWD but run on independent schedules. This keeps prompts small, context clean, and failures isolated.
 
 **Start with file-based delivery.** Writing results to a markdown file in the workspace is the simplest delivery method and great for getting started. Add Slack webhooks, Telegram bots, or push notifications once the heartbeat logic is dialed in.
 
