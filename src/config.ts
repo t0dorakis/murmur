@@ -33,6 +33,12 @@ export function getSocketPath() {
   return join(dataDir, SOCKET_FILENAME);
 }
 
+export const LOG_FILENAME = "heartbeats.jsonl";
+
+export function getLogPath() {
+  return join(dataDir, LOG_FILENAME);
+}
+
 export function ensureDataDir(): void {
   mkdirSync(dataDir, { recursive: true });
 }

@@ -29,6 +29,13 @@ export const toolIcons = {
   error: "✗", // Tool failed
 } as const;
 
+// General-purpose status icons
+export const icons = {
+  ok: "✓",
+  fail: "✗",
+  bullet: "•",
+} as const;
+
 // Composites
 export function styled(text: string, ...codes: string[]): string {
   if (codes.length === 0) return text;
