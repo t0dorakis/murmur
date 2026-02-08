@@ -4,24 +4,25 @@ Minimal cron daemon for Claude Code. Schedules recurring AI sessions via HEARTBE
 
 ## Key Files
 
-| File | Role |
-|------|------|
-| `src/cli.ts` | CLI entry point (start, stop, status, beat, init, watch) |
-| `src/daemon.ts` | Core scheduling loop; spawns heartbeats on tick |
-| `src/heartbeat.ts` | Single heartbeat execution; reads HEARTBEAT.md, calls agent, classifies result |
-| `src/config.ts` | Config management (~/.murmur/config.json) |
-| `src/frontmatter.ts` | YAML frontmatter parser; merges HEARTBEAT.md metadata with config |
-| `src/types.ts` | Shared type definitions |
-| `src/agents/adapter.ts` | Abstract agent interface + registry |
-| `src/agents/claude-code.ts` | Claude Code CLI adapter |
-| `src/agents/pi.ts` | Pi agent adapter |
-| `src/tui.ts` | Terminal UI for real-time daemon monitoring |
-| `src/socket.ts` | Unix socket server for TUI ↔ daemon communication |
-| `.agents/skills/heartbeat-cron/SKILL.md` | Heartbeat creation skill (see below) |
+| File                                     | Role                                                                           |
+| ---------------------------------------- | ------------------------------------------------------------------------------ |
+| `src/cli.ts`                             | CLI entry point (start, stop, status, beat, init, watch)                       |
+| `src/daemon.ts`                          | Core scheduling loop; spawns heartbeats on tick                                |
+| `src/heartbeat.ts`                       | Single heartbeat execution; reads HEARTBEAT.md, calls agent, classifies result |
+| `src/config.ts`                          | Config management (~/.murmur/config.json)                                      |
+| `src/frontmatter.ts`                     | YAML frontmatter parser; merges HEARTBEAT.md metadata with config              |
+| `src/types.ts`                           | Shared type definitions                                                        |
+| `src/agents/adapter.ts`                  | Abstract agent interface + registry                                            |
+| `src/agents/claude-code.ts`              | Claude Code CLI adapter                                                        |
+| `src/agents/pi.ts`                       | Pi agent adapter                                                               |
+| `src/tui.ts`                             | Terminal UI for real-time daemon monitoring                                    |
+| `src/socket.ts`                          | Unix socket server for TUI ↔ daemon communication                              |
+| `.agents/skills/heartbeat-cron/SKILL.md` | Heartbeat creation skill (see below)                                           |
 
 ## Heartbeat-Cron Skill
 
 The skill at `.agents/skills/heartbeat-cron/` is a first-class citizen — it's the primary onboarding interface for creating heartbeats. **When the murmur API changes (frontmatter fields, CLI commands, config format, response protocol), update the skill immediately.** Key files to keep in sync:
+
 - `.agents/skills/heartbeat-cron/SKILL.md` — main skill definition
 - `.agents/skills/heartbeat-cron/references/examples.md` — example heartbeats
 
@@ -47,18 +48,21 @@ Default to using Bun instead of Node.js.
 - Prefer `Bun.file` over `node:fs`'s readFile/writeFile
 - Bun.$`ls` instead of execa.
 
-## Testing
+## Testing & Quality
 
 ```bash
-# Build binary
-bun run build
+# Format + lint + type-check
+bun run check
 
 # Unit tests only (fast, no binary needed)
 bun run test
 
 # E2E tests (build binary before)
+bun run build
 bun run test:e2e
 ```
+
+A pre-commit hook runs `lint-staged` automatically — formatting (oxfmt) and linting with type-checking (oxlint) on every commit.
 
 ## Frontend
 
@@ -105,6 +109,21 @@ Run `bun run release <version>` (e.g. `bun run release 0.2.0`). This bumps packa
 - Semantic naming (purpose, not implementation)
 - Write straightforward code; avoid clever/obscure solutions.
 - **Boy Scout Rule**: Leave code cleaner than you found it. Small improvements (rename unclear vars, extract duplicates, add types) welcome when touching nearby code.
+
+**Prefer Packages Over Custom Code**
+
+Before writing complex utilities (regex patterns, parsers, protocol handlers, date handling), evaluate alternatives in this order:
+
+1. **Native Bun API** — if Bun provides a simple built-in, use it
+2. **Effect-TS** — if our existing Effect dependency solves it cleanly, use it
+3. **unjs ecosystem** — preferred package source for its quality and minimal footprint
+4. **Other well-maintained packages** — must be actively maintained with reasonable size
+
+MUST justify hand-rolling when a package alternative exists:
+
+- Does the package result in _less_ code than a custom solution? If the package adds more code/complexity than writing it ourselves, skip it.
+- Is it actively maintained? Unmaintained packages are worse than custom code.
+- Bundle size is secondary to correctness, but avoid bloat — this is a CLI tool where performance and developer ergonomics matter most.
 
 **When ending a work session**, you MUST complete ALL steps below. Work is NOT complete until `git push` succeeds.
 

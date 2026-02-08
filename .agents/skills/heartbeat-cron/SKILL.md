@@ -37,7 +37,7 @@ Every heartbeat is a markdown file with an optional YAML frontmatter block. Fron
 
 ```yaml
 ---
-interval: 1h            # or cron: "0 9 * * 1-5" (pick one)
+interval: 1h # or cron: "0 9 * * 1-5" (pick one)
 # tz: America/New_York  # timezone for cron (default: local system tz)
 # timeout: 15m          # max run time (default: 5m)
 # agent: claude-code    # "claude-code" (default) or "pi"
@@ -48,11 +48,11 @@ interval: 1h            # or cron: "0 9 * * 1-5" (pick one)
 # session: my-session   # pi-specific: reuse a named browser session
 # permissions: skip      # skip permission checks (only "skip" supported in frontmatter)
 ---
-
 Your prompt here...
 ```
 
 **Notes:**
+
 - `interval` or `cron` — use one, not both. Intervals: `15m`, `1h`, `6h`, `1d`. Cron: standard 5-field expressions.
 - `permissions: "skip"` is the only permissions value supported in frontmatter. For deny lists, use config.json.
 - `murmur init` generates a template with these fields pre-filled.
@@ -80,6 +80,7 @@ which murmur
   ```
 
 You can also scaffold a workspace immediately with flags:
+
 ```bash
 murmur init {path} --interval 30m
 murmur init {path} --cron "0 9 * * 1-5" --timeout 15m
