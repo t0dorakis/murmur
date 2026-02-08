@@ -5,12 +5,18 @@ describe("Agent Adapter Registry", () => {
   test("lists registered adapters", () => {
     const adapters = listAdapters();
     expect(adapters).toContain("claude-code");
+    expect(adapters).toContain("codex");
     expect(adapters).toContain("pi");
   });
 
   test("gets claude-code adapter", () => {
     const adapter = getAdapter("claude-code");
     expect(adapter.name).toBe("claude-code");
+  });
+
+  test("gets codex adapter", () => {
+    const adapter = getAdapter("codex");
+    expect(adapter.name).toBe("codex");
   });
 
   test("gets pi adapter", () => {
@@ -33,6 +39,13 @@ describe("Agent Adapter Registry", () => {
 describe("Agent Adapter Interface", () => {
   test("claude-code adapter has required methods", () => {
     const adapter = getAdapter("claude-code");
+    expect(typeof adapter.execute).toBe("function");
+    expect(typeof adapter.isAvailable).toBe("function");
+    expect(typeof adapter.getVersion).toBe("function");
+  });
+
+  test("codex adapter has required methods", () => {
+    const adapter = getAdapter("codex");
     expect(typeof adapter.execute).toBe("function");
     expect(typeof adapter.isAvailable).toBe("function");
     expect(typeof adapter.getVersion).toBe("function");

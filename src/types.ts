@@ -42,6 +42,13 @@ export type PiConfig = BaseWorkspaceConfig & {
 };
 
 /**
+ * OpenAI Codex CLI-specific configuration.
+ */
+export type CodexConfig = BaseWorkspaceConfig & {
+  agent: "codex";
+};
+
+/**
  * Generic agent configuration (for future/unknown agents).
  */
 type GenericAgentConfig = BaseWorkspaceConfig & {
@@ -54,7 +61,7 @@ type GenericAgentConfig = BaseWorkspaceConfig & {
  * Workspace configuration supporting multiple agent harnesses.
  * Uses discriminated union based on the 'agent' field for type safety.
  */
-export type WorkspaceConfig = ClaudeCodeConfig | PiConfig | GenericAgentConfig;
+export type WorkspaceConfig = ClaudeCodeConfig | PiConfig | CodexConfig | GenericAgentConfig;
 
 export type Config = {
   workspaces: WorkspaceConfig[];

@@ -8,10 +8,12 @@
 
 import { registerAdapter } from "./adapter.ts";
 import { ClaudeCodeAdapter } from "./claude-code.ts";
+import { CodexAdapter } from "./codex.ts";
 import { PiAdapter } from "./pi.ts";
 
 // Register all available adapters
 registerAdapter(new ClaudeCodeAdapter());
+registerAdapter(new CodexAdapter());
 registerAdapter(new PiAdapter());
 
 // Re-export adapter utilities
