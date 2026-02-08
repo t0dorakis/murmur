@@ -1,3 +1,4 @@
+import prettyMs from "pretty-ms";
 import { truncate } from "./ansi.ts";
 
 /**
@@ -22,5 +23,5 @@ export function formatToolDuration(
   threshold = 1000,
 ): string | null {
   if (durationMs == null || durationMs <= threshold) return null;
-  return `(${(durationMs / 1000).toFixed(1)}s)`;
+  return `(${prettyMs(durationMs)})`;
 }

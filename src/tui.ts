@@ -1,4 +1,5 @@
 import { basename } from "node:path";
+import prettyMs from "pretty-ms";
 import {
   altScreenOn,
   altScreenOff,
@@ -58,35 +59,16 @@ const MAX_FEED_ENTRIES = 50;
 
 // --- Formatting helpers ---
 
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  const s = ms / 1000;
-  if (s < 60) return `${s.toFixed(1)}s`;
-  const m = Math.floor(s / 60);
-  const rem = Math.floor(s % 60);
-  return `${m}m ${rem}s`;
-}
-
 function formatCountdown(targetMs: number): string {
   const diff = targetMs - Date.now();
   if (diff <= 0) return "due";
-  const totalSec = Math.ceil(diff / 1000);
-  const h = Math.floor(totalSec / 3600);
-  const m = Math.floor((totalSec % 3600) / 60);
-  const s = totalSec % 60;
-  if (h > 0) return `${h}h ${String(m).padStart(2, "0")}m ${String(s).padStart(2, "0")}s`;
-  return `${m}m ${String(s).padStart(2, "0")}s`;
+  return prettyMs(diff, { secondsDecimalDigits: 0 });
 }
 
 function formatAgo(epochMs: number): string {
   const diff = Date.now() - epochMs;
   if (diff < 60_000) return "just now";
-  const m = Math.floor(diff / 60_000);
-  if (m < 60) return `${m}m ago`;
-  const h = Math.floor(m / 60);
-  if (h < 24) return `${h}h ago`;
-  const d = Math.floor(h / 24);
-  return `${d}d ago`;
+  return `${prettyMs(diff, { compact: true })} ago`;
 }
 
 function workspaceDisplayName(path: string, workspaces: WorkspaceStatus[]): string {
@@ -143,7 +125,7 @@ function formatAbsoluteTime(epochMs: number): string {
 
 function workspaceStatusText(ws: WorkspaceStatus, active: boolean): string {
   if (active) {
-    const elapsed = formatDuration(Date.now() - (ws.lastRunAt ?? Date.now()));
+    const elapsed = prettyMs(Date.now() - (ws.lastRunAt ?? Date.now()));
     return styled(`▶ running (${elapsed})`, bold, white);
   }
   const diff = ws.nextRunAt - Date.now();
@@ -185,7 +167,7 @@ function renderActiveBeat(state: TuiState, termWidth: number, maxLines: number):
   if (!state.activeBeat) return [];
   const { workspace, output, tools, startedAt } = state.activeBeat;
   const name = workspaceDisplayName(workspace, state.workspaces);
-  const elapsed = formatDuration(Date.now() - startedAt);
+  const elapsed = prettyMs(Date.now() - startedAt);
 
   const lines: string[] = [];
   lines.push(
@@ -223,7 +205,7 @@ function renderActiveBeat(state: TuiState, termWidth: number, maxLines: number):
 
 function renderFeedEntry(entry: FeedEntry, termWidth: number): string[] {
   const name = entry.name;
-  const dur = entry.durationMs != null ? formatDuration(entry.durationMs) : "";
+  const dur = entry.durationMs != null ? prettyMs(entry.durationMs) : "";
   const tools =
     entry.toolCount > 0
       ? styled(`${entry.toolCount} tool${entry.toolCount !== 1 ? "s" : ""}`, dim)

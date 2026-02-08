@@ -1,6 +1,7 @@
 #!/usr/bin/env bun
 import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { resolve, join, basename } from "node:path";
+import prettyMs from "pretty-ms";
 import {
   setDataDir,
   getDataDir,
@@ -11,6 +12,7 @@ import {
   getPidPath,
   getSocketPath,
   parseInterval,
+  nextRunAt,
   validateResolvedConfig,
   cleanupRuntimeFiles,
 } from "./config.ts";
@@ -75,6 +77,50 @@ function cleanStaleSocket() {
       }
     }
   }
+}
+
+/** Get workspace count and soonest next-heartbeat info from config. */
+function getWorkspaceSummary(): { count: number; nextHeartbeat: string | null } {
+  try {
+    const config = readConfig();
+    const count = config.workspaces.length;
+    if (count === 0) return { count, nextHeartbeat: null };
+
+    let soonestName: string | null = null;
+    let soonestMs = Infinity;
+
+    for (const ws of config.workspaces) {
+      try {
+        const resolved = resolveWorkspaceConfig(ws);
+        if (!resolved.interval && !resolved.cron) continue;
+        const nextMs = nextRunAt(resolved) - Date.now();
+        if (nextMs < soonestMs) {
+          soonestMs = nextMs;
+          soonestName = resolved.name ?? basename(ws.path);
+        }
+      } catch {
+        // Skip workspaces with corrupt frontmatter
+      }
+    }
+
+    if (!soonestName) return { count, nextHeartbeat: null };
+    if (soonestMs <= 0) return { count, nextHeartbeat: `${soonestName} (due now)` };
+    return {
+      count,
+      nextHeartbeat: `${soonestName} in ${prettyMs(soonestMs, { secondsDecimalDigits: 0 })}`,
+    };
+  } catch {
+    return { count: 0, nextHeartbeat: null };
+  }
+}
+
+/** Print daemon status banner with workspace summary and hints. */
+function printDaemonBanner(message: string) {
+  const { count, nextHeartbeat } = getWorkspaceSummary();
+  console.log(`${message} Watching ${count} workspace(s).`);
+  if (nextHeartbeat) console.log(`Next heartbeat: ${nextHeartbeat}`);
+  console.log(`View status: murmur status`);
+  console.log(`Attach to TUI: murmur watch`);
 }
 
 function parseGlobalArgs() {
@@ -156,8 +202,8 @@ async function startForeground() {
   ensureDataDir();
   const pid = readPid();
   if (pid && isProcessAlive(pid)) {
-    console.log(`Already running (PID ${pid}). Use "murmur watch" to attach.`);
-    process.exit(1);
+    printDaemonBanner(`Daemon already running (PID ${pid}).`);
+    process.exit(0);
   }
 
   cleanStaleSocket();
@@ -166,6 +212,10 @@ async function startForeground() {
   const config = readConfig();
 
   writeFileSync(getPidPath(), String(process.pid));
+
+  console.log(
+    `Daemon started (PID ${process.pid}). Watching ${config.workspaces.length} workspace(s). Press Ctrl+C to stop.`,
+  );
 
   const handle = startDaemon(tickMs);
 
@@ -213,8 +263,8 @@ async function startDetached() {
   ensureDataDir();
   const pid = readPid();
   if (pid && isProcessAlive(pid)) {
-    console.log(`Already running (PID ${pid}).`);
-    process.exit(1);
+    printDaemonBanner(`Daemon already running (PID ${pid}).`);
+    process.exit(0);
   }
 
   const isCompiled = process.execPath === process.argv[0];
@@ -236,7 +286,7 @@ async function startDetached() {
   await Bun.sleep(500);
   const newPid = readPid();
   if (newPid && isProcessAlive(newPid)) {
-    console.log(`Started (PID ${newPid}).`);
+    printDaemonBanner(`Daemon started (PID ${newPid}).`);
   } else {
     const stderr = existsSync(stderrLog) ? readFileSync(stderrLog, "utf-8").trim() : "";
     console.error(`Daemon failed to start.${stderr ? `\n${stderr}` : ""}`);
@@ -251,7 +301,9 @@ function stop() {
     return;
   }
   process.kill(pid, "SIGTERM");
-  console.log(`Stopped (PID ${pid}).`);
+  const { count } = getWorkspaceSummary();
+  console.log(`Daemon stopped (PID ${pid}). ${count} workspace(s) released.`);
+  console.log(`Restart: murmur start --detach`);
 }
 
 function status() {
@@ -271,15 +323,36 @@ function status() {
   }
 
   console.log(`\nWorkspaces (${config.workspaces.length}):`);
-  for (const ws of config.workspaces) {
+  const rows = config.workspaces.map((ws) => {
     const resolved = resolveWorkspaceConfig(ws);
-    const lastRun = ws.lastRun ?? "never";
+    const name = resolved.name ?? basename(ws.path);
     const schedule = resolved.interval
       ? `every ${resolved.interval}`
       : resolved.cron
         ? `cron ${resolved.cron}`
         : "(none)";
-    console.log(`  ${ws.path}  ${schedule}  last: ${lastRun}`);
+    let lastRun = "never";
+    if (ws.lastRun) {
+      const t = new Date(ws.lastRun).getTime();
+      if (Number.isNaN(t)) {
+        lastRun = "invalid";
+      } else {
+        const diff = Date.now() - t;
+        lastRun = diff > 0 ? `${prettyMs(diff, { compact: true })} ago` : "just now";
+      }
+    }
+    return { name, schedule, lastRun, path: ws.path };
+  });
+
+  const nameW = Math.max(...rows.map((r) => r.name.length));
+  const schedW = Math.max(...rows.map((r) => r.schedule.length));
+  const lastW = Math.max(...rows.map((r) => r.lastRun.length));
+
+  for (const r of rows) {
+    const nameCol = r.name.padEnd(nameW);
+    const schedCol = r.schedule.padEnd(schedW);
+    const lastCol = r.lastRun.padEnd(lastW);
+    console.log(`  ${nameCol}  ${schedCol}  last: ${lastCol}  ${r.path}`);
   }
 }
 
@@ -366,7 +439,7 @@ async function beat(path: string, quietMode: boolean) {
   } else {
     console.error(`ERROR: ${entry.error}`);
   }
-  console.log(`(${entry.durationMs}ms)`);
+  console.log(`(${prettyMs(entry.durationMs)})`);
 }
 
 function cliEmitter(event: DaemonEvent) {
@@ -387,7 +460,7 @@ function cliEmitter(event: DaemonEvent) {
 const HEARTBEAT_TEMPLATE = (interval: string, timeout?: string, cron?: string) => {
   const lines = ["---"];
   if (cron) {
-    lines.push(`cron: ${cron}`);
+    lines.push(`cron: "${cron}"`);
   } else {
     lines.push(`interval: ${interval}`);
   }

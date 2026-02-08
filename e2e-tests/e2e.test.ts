@@ -38,7 +38,9 @@ function createWorkspace(frontmatter: Record<string, string | number>): string {
   const wsDir = join(testDataDir, `ws-${testId++}`);
   mkdirSync(wsDir, { recursive: true });
 
-  const fmLines = Object.entries(frontmatter).map(([k, v]) => `${k}: ${v}`);
+  const fmLines = Object.entries(frontmatter).map(([k, v]) =>
+    typeof v === "string" ? `${k}: "${v}"` : `${k}: ${v}`,
+  );
   const heartbeat = `---\n${fmLines.join("\n")}\n---\n\n${PROMPT_BODY}`;
   writeFileSync(join(wsDir, "HEARTBEAT.md"), heartbeat);
   writeFileSync(join(wsDir, "jokes.txt"), SEED_JOKE);
@@ -113,6 +115,7 @@ afterAll(() => {
 async function testDaemonLifecycle(
   workspaceConfig: Record<string, string | number>,
   statusAssertions?: (stdout: string) => void,
+  { waitMs = 10_000 }: { waitMs?: number } = {},
 ) {
   const wsDir = createWorkspace(workspaceConfig);
   const jokesBefore = jokeCount(wsDir);
@@ -132,7 +135,7 @@ async function testDaemonLifecycle(
   // Start daemon in background
   const startResult = await murmur("start", "--detach", "--tick", "5s");
   expect(startResult.exitCode).toBe(0);
-  expect(startResult.stdout).toContain("Started");
+  expect(startResult.stdout).toContain("Daemon started");
 
   // PID file exists and process is alive
   const pidFile = join(testDataDir, PID_FILENAME);
@@ -145,8 +148,8 @@ async function testDaemonLifecycle(
   expect(statusResult.stdout).toContain("running");
   statusAssertions?.(statusResult.stdout);
 
-  // Wait for daemon to tick and Claude to finish
-  await Bun.sleep(10_000);
+  // Wait for daemon to tick and agent to finish
+  await Bun.sleep(waitMs);
 
   // Daemon fired a heartbeat — lastRun updated
   const config = JSON.parse(readFileSync(configFile, "utf-8"));
@@ -158,7 +161,7 @@ async function testDaemonLifecycle(
   // Stop daemon
   const stopResult = await murmur("stop");
   expect(stopResult.exitCode).toBe(0);
-  expect(stopResult.stdout).toContain("Stopped");
+  expect(stopResult.stdout).toContain("Daemon stopped");
 
   await Bun.sleep(1_000);
 
@@ -238,7 +241,11 @@ describe("e2e", () => {
   }, 60_000);
 
   test("daemon lifecycle with pi agent", async () => {
-    await testDaemonLifecycle({ agent: "pi", interval: "1s", maxTurns: 50 });
+    await testDaemonLifecycle(
+      { agent: "pi", interval: "1s", maxTurns: 50 },
+      undefined,
+      { waitMs: 30_000 },
+    );
 
     // Status reports stopped after lifecycle completes
     const statusAfter = await murmur("status");

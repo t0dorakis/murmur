@@ -1,42 +1,27 @@
+import { YAML } from "bun";
 import { readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import { debug } from "./debug.ts";
 import type { WorkspaceConfig } from "./types.ts";
 
 export type FrontmatterResult = {
-  metadata: Record<string, string | number>;
+  metadata: Record<string, unknown>;
   content: string;
 };
 
 /**
  * Parse YAML frontmatter from a markdown string.
- * Supports simple key: value pairs. Auto-detects numeric literals.
+ * Uses Bun's built-in YAML parser for full spec compliance.
  */
 export function parseFrontmatter(raw: string): FrontmatterResult {
   const match = /^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/.exec(raw);
   if (!match) return { metadata: {}, content: raw };
 
-  const yamlBlock = match[1]!;
-  const content = match[2]!;
-  const metadata: Record<string, string | number> = {};
+  const parsed = YAML.parse(match[1]!);
+  const metadata: Record<string, unknown> =
+    parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
 
-  for (const line of yamlBlock.split("\n")) {
-    const trimmed = line.trim();
-    if (!trimmed || trimmed.startsWith("#")) continue;
-
-    const colonIdx = trimmed.indexOf(":");
-    if (colonIdx === -1) continue;
-
-    const key = trimmed.slice(0, colonIdx).trim();
-    const value = trimmed.slice(colonIdx + 1).trim();
-    if (!key || !value) continue;
-
-    // Auto-detect numeric literals — intervals like "30m" stay strings
-    const num = Number(value);
-    metadata[key] = Number.isFinite(num) && String(num) === value ? num : value;
-  }
-
-  return { metadata, content };
+  return { metadata, content: match[2]! };
 }
 
 /** String fields that map directly from frontmatter to WorkspaceConfig. */
@@ -59,7 +44,7 @@ const STRING_FIELDS = [
  */
 export function mergeWorkspaceConfig(
   ws: WorkspaceConfig,
-  metadata: Record<string, string | number>,
+  metadata: Record<string, unknown>,
 ): WorkspaceConfig {
   const merged = { ...ws };
 
@@ -89,7 +74,14 @@ export function resolveWorkspaceConfig(ws: WorkspaceConfig): WorkspaceConfig {
     return ws;
   }
 
-  const { metadata, content } = parseFrontmatter(raw);
+  let metadata: Record<string, unknown>;
+  let content: string;
+  try {
+    ({ metadata, content } = parseFrontmatter(raw));
+  } catch (err: any) {
+    debug(`Warning: could not parse frontmatter in ${ws.path}: ${err?.message}`);
+    return ws;
+  }
   const resolved = mergeWorkspaceConfig(ws, metadata);
 
   // Extract name from first heading if not set in frontmatter
