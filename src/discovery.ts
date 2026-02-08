@@ -3,8 +3,18 @@ import { basename, dirname, join } from "node:path";
 import { debug } from "./debug.ts";
 import type { WorkspaceConfig } from "./types.ts";
 
-const HEARTBEATS_DIR = "heartbeats";
-const HEARTBEAT_FILENAME = "HEARTBEAT.md";
+export const HEARTBEATS_DIR = "heartbeats";
+export const HEARTBEAT_FILENAME = "HEARTBEAT.md";
+
+/** Check whether a workspace config refers to the root HEARTBEAT.md (or has no heartbeatFile set). */
+export function isRootHeartbeat(ws: WorkspaceConfig): boolean {
+  return !ws.heartbeatFile || ws.heartbeatFile === HEARTBEAT_FILENAME;
+}
+
+/** Build the relative path for a named heartbeat: `heartbeats/<name>/HEARTBEAT.md`. */
+export function namedHeartbeatFile(name: string): string {
+  return join(HEARTBEATS_DIR, name, HEARTBEAT_FILENAME);
+}
 
 /**
  * Canonical identifier for a heartbeat within a workspace.
@@ -12,7 +22,7 @@ const HEARTBEAT_FILENAME = "HEARTBEAT.md";
  * or `path::heartbeatFile` for multi-heartbeat entries.
  */
 export function heartbeatId(ws: WorkspaceConfig): string {
-  if (!ws.heartbeatFile || ws.heartbeatFile === HEARTBEAT_FILENAME) {
+  if (isRootHeartbeat(ws)) {
     return ws.path;
   }
   return `${ws.path}::${ws.heartbeatFile}`;
@@ -25,11 +35,11 @@ export function heartbeatId(ws: WorkspaceConfig): string {
  */
 export function heartbeatDisplayName(ws: WorkspaceConfig): string {
   const base = basename(ws.path);
-  if (!ws.heartbeatFile || ws.heartbeatFile === HEARTBEAT_FILENAME) {
+  if (isRootHeartbeat(ws)) {
     return base;
   }
   // heartbeatFile is like "heartbeats/issue-worker/HEARTBEAT.md"
-  const heartbeatDir = dirname(ws.heartbeatFile);
+  const heartbeatDir = dirname(ws.heartbeatFile!);
   const heartbeatName = basename(heartbeatDir);
   return `${base}/${heartbeatName}`;
 }
@@ -71,7 +81,13 @@ export function discoverHeartbeats(wsPath: string): string[] {
         }
       }
     } catch (err: any) {
-      debug(`Warning: could not read ${heartbeatsDir}: ${err?.message}`);
+      // ENOENT can happen if the directory is removed between existsSync and readdirSync
+      if (err?.code === "ENOENT") {
+        debug(`Warning: ${heartbeatsDir} was removed during discovery`);
+      } else {
+        // Permission errors and I/O failures should be visible
+        console.error(`Error reading ${heartbeatsDir}: ${err?.message}`);
+      }
     }
   }
 
@@ -91,7 +107,9 @@ export function expandWorkspace(ws: WorkspaceConfig): WorkspaceConfig[] {
     return [ws];
   }
 
-  // Single root heartbeat — return as-is (backward compat)
+  // Single root heartbeat with no lastRuns map — return as-is (backward compat).
+  // The !ws.lastRuns guard ensures expansion still occurs when lastRuns exists,
+  // so each expanded entry gets its heartbeatFile set correctly.
   if (heartbeats.length === 1 && heartbeats[0] === HEARTBEAT_FILENAME && !ws.lastRuns) {
     return [ws];
   }
@@ -111,8 +129,8 @@ export function expandWorkspace(ws: WorkspaceConfig): WorkspaceConfig[] {
  * Checks `lastRuns[heartbeatFile]` first, falls back to flat `lastRun` for root HEARTBEAT.md.
  */
 function resolveLastRun(ws: WorkspaceConfig, heartbeatFile: string): string | null {
-  // Check lastRuns map first
-  if (ws.lastRuns?.[heartbeatFile]) {
+  // Check lastRuns map first (use != null to catch empty strings, letting parseLastRun handle validation)
+  if (ws.lastRuns?.[heartbeatFile] != null) {
     return ws.lastRuns[heartbeatFile];
   }
   // Fall back to flat lastRun for root heartbeat only

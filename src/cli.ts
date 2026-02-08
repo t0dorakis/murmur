@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
 import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
-import { resolve, join, basename } from "node:path";
+import { resolve, join, dirname } from "node:path";
 import prettyMs from "pretty-ms";
 import {
   setDataDir,
@@ -12,6 +12,7 @@ import {
   getPidPath,
   getSocketPath,
   parseInterval,
+  parseLastRun,
   nextRunAt,
   validateResolvedConfig,
   cleanupRuntimeFiles,
@@ -26,7 +27,12 @@ import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
 import { formatToolTarget, formatToolDuration } from "./tool-format.ts";
 import type { DaemonEvent } from "./types.ts";
-import { expandWorkspace, heartbeatId } from "./discovery.ts";
+import {
+  expandWorkspace,
+  heartbeatDisplayName,
+  heartbeatId,
+  namedHeartbeatFile,
+} from "./discovery.ts";
 import { listWorkspaces, removeWorkspace, clearWorkspaces } from "./workspaces.ts";
 
 // Injected by `bun build --define` at compile time; falls back to package.json in dev
@@ -100,7 +106,7 @@ function getWorkspaceSummary(): { count: number; nextHeartbeat: string | null } 
         const nextMs = nextRunAt(resolved) - Date.now();
         if (nextMs < soonestMs) {
           soonestMs = nextMs;
-          soonestName = resolved.name ?? basename(ws.path);
+          soonestName = resolved.name ?? heartbeatDisplayName(ws);
         }
       } catch {
         // Skip workspaces with corrupt frontmatter
@@ -337,21 +343,17 @@ function status() {
   console.log(`\nHeartbeats (${expanded.length}):`);
   const rows = expanded.map((ws) => {
     const resolved = resolveWorkspaceConfig(ws);
-    const name = resolved.name ?? basename(ws.path);
+    const name = resolved.name ?? heartbeatDisplayName(ws);
     const schedule = resolved.interval
       ? `every ${resolved.interval}`
       : resolved.cron
         ? `cron ${resolved.cron}`
         : "(none)";
     let lastRun = "never";
-    if (ws.lastRun) {
-      const t = new Date(ws.lastRun).getTime();
-      if (Number.isNaN(t)) {
-        lastRun = "invalid";
-      } else {
-        const diff = Date.now() - t;
-        lastRun = diff > 0 ? `${prettyMs(diff, { compact: true })} ago` : "just now";
-      }
+    const lastRunAt = parseLastRun(ws);
+    if (lastRunAt != null) {
+      const diff = Date.now() - lastRunAt;
+      lastRun = diff > 0 ? `${prettyMs(diff, { compact: true })} ago` : "just now";
     }
     return { name, schedule, lastRun, id: heartbeatId(ws) };
   });
@@ -414,7 +416,7 @@ async function beat(path: string, quietMode: boolean, heartbeatName?: string) {
   const resolved = resolve(path);
 
   // Build workspace config with optional heartbeatFile
-  const hbFile = heartbeatName ? `heartbeats/${heartbeatName}/HEARTBEAT.md` : undefined;
+  const hbFile = heartbeatName ? namedHeartbeatFile(heartbeatName) : undefined;
 
   const hbAbsPath = hbFile ? join(resolved, hbFile) : join(resolved, "HEARTBEAT.md");
   if (!existsSync(hbAbsPath)) {
@@ -540,9 +542,10 @@ async function init(
   // Determine heartbeat file path
   let hbFilePath: string;
   if (opts?.name) {
-    const dir = join(resolved, "heartbeats", opts.name);
+    const relPath = namedHeartbeatFile(opts.name);
+    const dir = dirname(join(resolved, relPath));
     mkdirSync(dir, { recursive: true });
-    hbFilePath = join(dir, "HEARTBEAT.md");
+    hbFilePath = join(resolved, relPath);
   } else {
     hbFilePath = join(resolved, "HEARTBEAT.md");
   }
@@ -562,6 +565,10 @@ async function init(
     config.workspaces.push({ path: resolved, lastRun: null });
     await writeConfig(config);
     console.log(`Added workspace to config.`);
+  } else if (opts?.name) {
+    console.log(
+      `Workspace already registered. Heartbeat "${opts.name}" will be discovered automatically.`,
+    );
   }
 }
 

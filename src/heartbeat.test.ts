@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { join } from "node:path";
-import { mkdtempSync } from "node:fs";
+import { mkdirSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { classify, buildPrompt } from "./heartbeat.ts";
 
@@ -53,5 +53,21 @@ Do the thing.`;
     const prompt = await buildPrompt({ path: dir, lastRun: null });
     expect(prompt).toContain("# Heartbeat");
     expect(prompt).toContain("Do the thing.");
+  });
+
+  test("reads from heartbeatFile when specified", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "murmur-test-"));
+    mkdirSync(join(dir, "heartbeats", "worker"), { recursive: true });
+    await Bun.write(join(dir, "heartbeats", "worker", "HEARTBEAT.md"), "# Worker\n\nDo work.");
+
+    const prompt = await buildPrompt({
+      path: dir,
+      heartbeatFile: "heartbeats/worker/HEARTBEAT.md",
+      lastRun: null,
+    });
+    // CWD should still be the repo root
+    expect(prompt).toContain(`WORKSPACE: ${dir}`);
+    expect(prompt).toContain("# Worker");
+    expect(prompt).toContain("Do work.");
   });
 });

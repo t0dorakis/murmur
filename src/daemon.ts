@@ -5,6 +5,7 @@ import {
   isDue,
   nextRunAt,
   parseInterval,
+  parseLastRun,
   readConfig,
   updateLastRun,
   validateResolvedConfig,
@@ -31,7 +32,7 @@ export function buildWorkspaceStatuses(resolved: WorkspaceConfig[]): WorkspaceSt
     scheduleType: ws.cron ? ("cron" as const) : ("interval" as const),
     nextRunAt: nextRunAt(ws),
     lastOutcome: null,
-    lastRunAt: ws.lastRun ? new Date(ws.lastRun).getTime() : null,
+    lastRunAt: parseLastRun(ws),
   }));
 }
 

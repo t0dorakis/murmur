@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { Cron, Either } from "effect";
 import { debug } from "./debug.ts";
+import { HEARTBEAT_FILENAME } from "./discovery.ts";
 import { validatePermissions } from "./permissions.ts";
 import type { Config, WorkspaceConfig } from "./types.ts";
 
@@ -152,9 +153,11 @@ export async function updateLastRun(
     console.error(`Warning: workspace ${workspacePath} not found in config during lastRun update`);
     return;
   }
-  if (heartbeatFile && heartbeatFile !== "HEARTBEAT.md") {
+  if (heartbeatFile && heartbeatFile !== HEARTBEAT_FILENAME) {
     // Multi-heartbeat: store in lastRuns map
-    ws.lastRuns = ws.lastRuns ?? {};
+    if (typeof ws.lastRuns !== "object" || ws.lastRuns === null) {
+      ws.lastRuns = {};
+    }
     ws.lastRuns[heartbeatFile] = lastRun;
   } else {
     ws.lastRun = lastRun;

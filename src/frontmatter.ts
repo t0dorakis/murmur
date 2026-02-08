@@ -69,7 +69,9 @@ export function resolveWorkspaceConfig(ws: WorkspaceConfig): WorkspaceConfig {
   try {
     raw = readFileSync(filePath, "utf-8");
   } catch (err: any) {
-    if (err?.code !== "ENOENT") {
+    if (err?.code === "ENOENT" && ws.heartbeatFile) {
+      debug(`Warning: ${filePath} was discovered but no longer exists`);
+    } else if (err?.code !== "ENOENT") {
       debug(`Warning: could not read ${filePath}: ${err?.message}`);
     }
     return ws;
