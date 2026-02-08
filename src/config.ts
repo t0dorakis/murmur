@@ -141,14 +141,24 @@ export async function writeConfig(config: Config): Promise<void> {
   renameSync(tmp, configPath);
 }
 
-export async function updateLastRun(workspacePath: string, lastRun: string): Promise<void> {
+export async function updateLastRun(
+  workspacePath: string,
+  lastRun: string,
+  heartbeatFile?: string,
+): Promise<void> {
   const config = readConfig();
   const ws = config.workspaces.find((w) => w.path === workspacePath);
   if (!ws) {
     console.error(`Warning: workspace ${workspacePath} not found in config during lastRun update`);
     return;
   }
-  ws.lastRun = lastRun;
+  if (heartbeatFile && heartbeatFile !== "HEARTBEAT.md") {
+    // Multi-heartbeat: store in lastRuns map
+    ws.lastRuns = ws.lastRuns ?? {};
+    ws.lastRuns[heartbeatFile] = lastRun;
+  } else {
+    ws.lastRun = lastRun;
+  }
   await writeConfig(config);
 }
 
@@ -185,7 +195,8 @@ export function cleanupRuntimeFiles(): void {
   tryUnlink(getSocketPath());
 }
 
-function parseLastRun(ws: WorkspaceConfig): number | null {
+export function parseLastRun(ws: WorkspaceConfig): number | null {
+  // For expanded multi-heartbeat entries, lastRun is already resolved by expandWorkspace
   if (!ws.lastRun) return null;
   const t = new Date(ws.lastRun).getTime();
   if (Number.isNaN(t)) {

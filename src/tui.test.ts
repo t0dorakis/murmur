@@ -20,8 +20,10 @@ function setup(cols = 80, rows = 24) {
 }
 
 function makeWorkspace(overrides: Partial<WorkspaceStatus> = {}): WorkspaceStatus {
+  const path = overrides.path ?? "/tmp/test-ws";
   return {
-    path: "/tmp/test-ws",
+    id: path,
+    path,
     name: "test-ws",
     schedule: "1h",
     scheduleType: "interval",

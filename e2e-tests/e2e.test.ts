@@ -222,11 +222,9 @@ describe("e2e", () => {
   }, 60_000);
 
   test("daemon lifecycle with pi agent", async () => {
-    await testDaemonLifecycle(
-      { agent: "pi", interval: "1s", maxTurns: 50 },
-      undefined,
-      { waitMs: 30_000 },
-    );
+    await testDaemonLifecycle({ agent: "pi", interval: "1s", maxTurns: 50 }, undefined, {
+      waitMs: 30_000,
+    });
 
     // Status reports stopped after lifecycle completes
     const statusAfter = await murmur("status");

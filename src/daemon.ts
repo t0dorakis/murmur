@@ -1,5 +1,4 @@
 import { writeFileSync } from "node:fs";
-import { basename } from "node:path";
 import {
   setDataDir,
   ensureDataDir,
@@ -14,6 +13,7 @@ import {
   cleanupRuntimeFiles,
 } from "./config.ts";
 import { debug, enableDebug } from "./debug.ts";
+import { heartbeatId, expandWorkspace } from "./discovery.ts";
 import { createEventBus, type EventBus } from "./events.ts";
 import { resolveWorkspaceConfig } from "./frontmatter.ts";
 import { runHeartbeat } from "./heartbeat.ts";
@@ -23,8 +23,9 @@ import type { WorkspaceConfig, WorkspaceStatus } from "./types.ts";
 
 export function buildWorkspaceStatuses(resolved: WorkspaceConfig[]): WorkspaceStatus[] {
   return resolved.map((ws) => ({
+    id: heartbeatId(ws),
     path: ws.path,
-    name: ws.name ?? basename(ws.path),
+    name: ws.name ?? heartbeatId(ws),
     description: ws.description,
     schedule: ws.interval ?? ws.cron ?? "(none)",
     scheduleType: ws.cron ? ("cron" as const) : ("interval" as const),
@@ -61,16 +62,19 @@ export function startDaemon(tickMs: number): DaemonHandle {
         const config = readConfig();
         debug(`Tick: checking ${config.workspaces.length} workspace(s)`);
 
-        // Resolve frontmatter once per tick for all workspaces
+        // Expand multi-heartbeat workspaces, then resolve frontmatter
         const resolved: WorkspaceConfig[] = [];
         for (const ws of config.workspaces) {
-          const r = resolveWorkspaceConfig(ws);
-          const error = validateResolvedConfig(r);
-          if (error) {
-            debug(`  ${ws.path}: skipping — ${error}`);
-            continue;
+          const expanded = expandWorkspace(ws);
+          for (const ews of expanded) {
+            const r = resolveWorkspaceConfig(ews);
+            const error = validateResolvedConfig(r);
+            if (error) {
+              debug(`  ${heartbeatId(ews)}: skipping — ${error}`);
+              continue;
+            }
+            resolved.push(r);
           }
-          resolved.push(r);
         }
 
         bus.emit({
@@ -81,13 +85,14 @@ export function startDaemon(tickMs: number): DaemonHandle {
         for (const ws of resolved) {
           if (!running) break;
           const due = isDue(ws);
-          debug(`  ${ws.path}: isDue=${due}`);
+          const id = heartbeatId(ws);
+          debug(`  ${id}: isDue=${due}`);
           if (!due) continue;
 
           const entry = await runHeartbeat(ws, bus.emit.bind(bus));
           appendLog(entry);
 
-          await updateLastRun(ws.path, entry.ts);
+          await updateLastRun(ws.path, entry.ts, ws.heartbeatFile);
         }
       } catch (err) {
         console.error("Daemon loop error:", err);
