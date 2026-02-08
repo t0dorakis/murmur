@@ -14,7 +14,7 @@ import {
   cleanupRuntimeFiles,
 } from "./config.ts";
 import { debug, enableDebug } from "./debug.ts";
-import { heartbeatId, expandWorkspace } from "./discovery.ts";
+import { heartbeatId, heartbeatDisplayName, expandWorkspace } from "./discovery.ts";
 import { createEventBus, type EventBus } from "./events.ts";
 import { resolveWorkspaceConfig } from "./frontmatter.ts";
 import { runHeartbeat } from "./heartbeat.ts";
@@ -26,7 +26,7 @@ export function buildWorkspaceStatuses(resolved: WorkspaceConfig[]): WorkspaceSt
   return resolved.map((ws) => ({
     id: heartbeatId(ws),
     path: ws.path,
-    name: ws.name ?? heartbeatId(ws),
+    name: ws.name ?? heartbeatDisplayName(ws),
     description: ws.description,
     schedule: ws.interval ?? ws.cron ?? "(none)",
     scheduleType: ws.cron ? ("cron" as const) : ("interval" as const),

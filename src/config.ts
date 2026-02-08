@@ -3,7 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { Cron, Either } from "effect";
 import { debug } from "./debug.ts";
-import { HEARTBEAT_FILENAME } from "./discovery.ts";
+import { HEARTBEAT_FILENAME, heartbeatId } from "./discovery.ts";
 import { validatePermissions } from "./permissions.ts";
 import type { Config, WorkspaceConfig } from "./types.ts";
 
@@ -159,7 +159,8 @@ export async function updateLastRun(
     console.error(`Warning: workspace ${workspacePath} not found in config during lastRun update`);
     return;
   }
-  if (heartbeatFile && heartbeatFile !== HEARTBEAT_FILENAME) {
+  const isRoot = !heartbeatFile || heartbeatFile === HEARTBEAT_FILENAME;
+  if (!isRoot) {
     // Multi-heartbeat: store in lastRuns map
     if (typeof ws.lastRuns !== "object" || ws.lastRuns === null) {
       ws.lastRuns = {};
@@ -210,7 +211,7 @@ export function parseLastRun(ws: WorkspaceConfig): number | null {
   const t = new Date(ws.lastRun).getTime();
   if (Number.isNaN(t)) {
     console.error(
-      `Invalid lastRun timestamp for ${ws.path}: "${ws.lastRun}". Treating as never run.`,
+      `Invalid lastRun timestamp for ${heartbeatId(ws)}: "${ws.lastRun}". Treating as never run.`,
     );
     return null;
   }

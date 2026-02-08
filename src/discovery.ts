@@ -11,8 +11,15 @@ export function isRootHeartbeat(ws: WorkspaceConfig): boolean {
   return !ws.heartbeatFile || ws.heartbeatFile === HEARTBEAT_FILENAME;
 }
 
+const VALID_NAME_RE = /^[a-zA-Z0-9_-]+$/;
+
 /** Build the relative path for a named heartbeat: `heartbeats/<name>/HEARTBEAT.md`. */
 export function namedHeartbeatFile(name: string): string {
+  if (!name || !VALID_NAME_RE.test(name)) {
+    throw new Error(
+      `Invalid heartbeat name "${name}". Use only alphanumeric characters, hyphens, and underscores.`,
+    );
+  }
   return join(HEARTBEATS_DIR, name, HEARTBEAT_FILENAME);
 }
 
@@ -47,7 +54,7 @@ export function heartbeatDisplayName(ws: WorkspaceConfig): string {
 /**
  * Absolute path to the HEARTBEAT.md file for this workspace config.
  */
-export function heartbeatFilePath(ws: WorkspaceConfig): string {
+export function heartbeatFilePath(ws: Pick<WorkspaceConfig, "path" | "heartbeatFile">): string {
   return join(ws.path, ws.heartbeatFile ?? HEARTBEAT_FILENAME);
 }
 

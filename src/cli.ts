@@ -15,7 +15,7 @@ import {
   validateResolvedConfig,
   cleanupRuntimeFiles,
 } from "./config.ts";
-import { enableDebug, getDebugLogPath } from "./debug.ts";
+import { debug, enableDebug, getDebugLogPath } from "./debug.ts";
 import { startDaemon, runDaemonMain } from "./daemon.ts";
 import { resolveWorkspaceConfig } from "./frontmatter.ts";
 import { startSocketServer, type SocketServer } from "./socket.ts";
@@ -28,7 +28,9 @@ import { printStatus } from "./status-utils.ts";
 import type { DaemonEvent } from "./types.ts";
 import {
   expandWorkspace,
+  HEARTBEAT_FILENAME,
   heartbeatDisplayName,
+  heartbeatFilePath,
   heartbeatId,
   namedHeartbeatFile,
 } from "./discovery.ts";
@@ -118,7 +120,8 @@ function getWorkspaceSummary(): { count: number; nextHeartbeat: string | null } 
       count,
       nextHeartbeat: `${soonestName} in ${prettyMs(soonestMs, { secondsDecimalDigits: 0 })}`,
     };
-  } catch {
+  } catch (err) {
+    debug(`getWorkspaceSummary error: ${err}`);
     return { count: 0, nextHeartbeat: null };
   }
 }
@@ -371,8 +374,9 @@ async function beat(path: string, quietMode: boolean, heartbeatName?: string) {
 
   // Build workspace config with optional heartbeatFile
   const hbFile = heartbeatName ? namedHeartbeatFile(heartbeatName) : undefined;
+  const wsBase = { path: resolved, lastRun: null, heartbeatFile: hbFile };
 
-  const hbAbsPath = hbFile ? join(resolved, hbFile) : join(resolved, "HEARTBEAT.md");
+  const hbAbsPath = heartbeatFilePath(wsBase);
   if (!existsSync(hbAbsPath)) {
     if (heartbeatName) {
       console.error(
@@ -384,7 +388,6 @@ async function beat(path: string, quietMode: boolean, heartbeatName?: string) {
     process.exit(1);
   }
 
-  const wsBase = { path: resolved, lastRun: null, heartbeatFile: hbFile };
   const id = heartbeatId(wsBase);
   console.log(`Running heartbeat for ${id}...`);
   if (!quietMode) {
@@ -501,7 +504,7 @@ async function init(
     mkdirSync(dir, { recursive: true });
     hbFilePath = join(resolved, relPath);
   } else {
-    hbFilePath = join(resolved, "HEARTBEAT.md");
+    hbFilePath = join(resolved, HEARTBEAT_FILENAME);
   }
 
   if (!existsSync(hbFilePath)) {

@@ -30,7 +30,7 @@ export function checkWorkspaceHealth(
   ws: Pick<WorkspaceConfig, "path" | "heartbeatFile">,
 ): WorkspaceHealth {
   const pathExists = existsSync(ws.path);
-  const heartbeatExists = pathExists && existsSync(heartbeatFilePath(ws as WorkspaceConfig));
+  const heartbeatExists = pathExists && existsSync(heartbeatFilePath(ws));
   return { pathExists, heartbeatExists };
 }
 
@@ -215,7 +215,7 @@ export function printStatus() {
     issueCount > 0
       ? `${validCount} valid, ${issueCount} ${issueCount === 1 ? "issue" : "issues"}`
       : `${validCount}`;
-  console.log(`\nWorkspaces (${summary}):`);
+  console.log(`\nHeartbeats (${summary}):`);
 
   for (const r of rows) {
     const nameCol = r.name.padEnd(nameW);

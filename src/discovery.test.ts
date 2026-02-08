@@ -6,6 +6,7 @@ import {
   heartbeatId,
   heartbeatDisplayName,
   heartbeatFilePath,
+  namedHeartbeatFile,
   discoverHeartbeats,
   expandWorkspace,
 } from "./discovery.ts";
@@ -74,6 +75,32 @@ describe("heartbeatFilePath", () => {
       lastRun: null,
     };
     expect(heartbeatFilePath(ws)).toBe("/repo/heartbeats/worker/HEARTBEAT.md");
+  });
+});
+
+describe("namedHeartbeatFile", () => {
+  test("builds correct relative path", () => {
+    expect(namedHeartbeatFile("worker")).toBe("heartbeats/worker/HEARTBEAT.md");
+  });
+
+  test("rejects empty name", () => {
+    expect(() => namedHeartbeatFile("")).toThrow("Invalid heartbeat name");
+  });
+
+  test("rejects path traversal", () => {
+    expect(() => namedHeartbeatFile("../etc")).toThrow("Invalid heartbeat name");
+  });
+
+  test("rejects names with slashes", () => {
+    expect(() => namedHeartbeatFile("a/b")).toThrow("Invalid heartbeat name");
+  });
+
+  test("rejects names with spaces", () => {
+    expect(() => namedHeartbeatFile("my worker")).toThrow("Invalid heartbeat name");
+  });
+
+  test("allows hyphens and underscores", () => {
+    expect(namedHeartbeatFile("my-worker_01")).toBe("heartbeats/my-worker_01/HEARTBEAT.md");
   });
 });
 
