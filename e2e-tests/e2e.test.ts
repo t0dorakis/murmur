@@ -38,7 +38,9 @@ function createWorkspace(frontmatter: Record<string, string | number>): string {
   const wsDir = join(testDataDir, `ws-${testId++}`);
   mkdirSync(wsDir, { recursive: true });
 
-  const fmLines = Object.entries(frontmatter).map(([k, v]) => `${k}: ${v}`);
+  const fmLines = Object.entries(frontmatter).map(([k, v]) =>
+    typeof v === "string" ? `${k}: "${v}"` : `${k}: ${v}`,
+  );
   const heartbeat = `---\n${fmLines.join("\n")}\n---\n\n${PROMPT_BODY}`;
   writeFileSync(join(wsDir, "HEARTBEAT.md"), heartbeat);
   writeFileSync(join(wsDir, "jokes.txt"), SEED_JOKE);

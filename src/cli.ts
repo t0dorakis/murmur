@@ -460,7 +460,7 @@ function cliEmitter(event: DaemonEvent) {
 const HEARTBEAT_TEMPLATE = (interval: string, timeout?: string, cron?: string) => {
   const lines = ["---"];
   if (cron) {
-    lines.push(`cron: ${cron}`);
+    lines.push(`cron: "${cron}"`);
   } else {
     lines.push(`interval: ${interval}`);
   }
