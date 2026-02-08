@@ -13,14 +13,14 @@ function freshDataDir(): string {
 
 describe("checkWorkspaceHealth", () => {
   test("reports missing path", () => {
-    const health = checkWorkspaceHealth("/nonexistent/path/12345");
+    const health = checkWorkspaceHealth({ path: "/nonexistent/path/12345" });
     expect(health.pathExists).toBe(false);
     expect(health.heartbeatExists).toBe(false);
   });
 
   test("reports missing HEARTBEAT.md", () => {
     const dir = mkdtempSync(join(tmpdir(), "murmur-health-"));
-    const health = checkWorkspaceHealth(dir);
+    const health = checkWorkspaceHealth({ path: dir });
     expect(health.pathExists).toBe(true);
     expect(health.heartbeatExists).toBe(false);
   });
@@ -28,7 +28,7 @@ describe("checkWorkspaceHealth", () => {
   test("reports healthy workspace", () => {
     const dir = mkdtempSync(join(tmpdir(), "murmur-health-"));
     writeFileSync(join(dir, "HEARTBEAT.md"), "# Heartbeat\n");
-    const health = checkWorkspaceHealth(dir);
+    const health = checkWorkspaceHealth({ path: dir });
     expect(health.pathExists).toBe(true);
     expect(health.heartbeatExists).toBe(true);
   });

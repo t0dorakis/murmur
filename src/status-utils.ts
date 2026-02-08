@@ -1,11 +1,22 @@
 import { existsSync, readFileSync } from "node:fs";
-import { join, basename } from "node:path";
 import prettyMs from "pretty-ms";
-import { getLogPath, getPidPath, readConfig, validateResolvedConfig } from "./config.ts";
+import {
+  getLogPath,
+  getPidPath,
+  parseLastRun,
+  readConfig,
+  validateResolvedConfig,
+} from "./config.ts";
 import { debug } from "./debug.ts";
+import {
+  expandWorkspace,
+  heartbeatDisplayName,
+  heartbeatFilePath,
+  heartbeatId,
+} from "./discovery.ts";
 import { resolveWorkspaceConfig } from "./frontmatter.ts";
 import { icons } from "./ansi.ts";
-import type { LogEntry, Outcome } from "./types.ts";
+import type { LogEntry, Outcome, WorkspaceConfig } from "./types.ts";
 
 export type WorkspaceHealth = {
   pathExists: boolean;
@@ -15,9 +26,11 @@ export type WorkspaceHealth = {
 /**
  * Validate a workspace path: check directory exists and HEARTBEAT.md is present.
  */
-export function checkWorkspaceHealth(wsPath: string): WorkspaceHealth {
-  const pathExists = existsSync(wsPath);
-  const heartbeatExists = pathExists && existsSync(join(wsPath, "HEARTBEAT.md"));
+export function checkWorkspaceHealth(
+  ws: Pick<WorkspaceConfig, "path" | "heartbeatFile">,
+): WorkspaceHealth {
+  const pathExists = existsSync(ws.path);
+  const heartbeatExists = pathExists && existsSync(heartbeatFilePath(ws));
   return { pathExists, heartbeatExists };
 }
 
@@ -70,11 +83,11 @@ export function readRecentErrors(limit = 5, withinMs = 86_400_000): LogEntry[] {
 }
 
 /**
- * Get the last log entry for a workspace path.
+ * Get the last log entry for a workspace (matched by heartbeat ID).
  */
-export function getLastOutcome(wsPath: string): { outcome: Outcome; ts: string } | null {
+export function getLastOutcome(id: string): { outcome: Outcome; ts: string } | null {
   for (const entry of readLogEntriesReverse()) {
-    if (entry.workspace === wsPath) {
+    if (entry.workspace === id) {
       return { outcome: entry.outcome, ts: entry.ts };
     }
   }
@@ -130,12 +143,15 @@ export function printStatus() {
     return;
   }
 
+  // Expand multi-heartbeat workspaces
+  const expanded = config.workspaces.flatMap(expandWorkspace);
+
   let validCount = 0;
   let issueCount = 0;
 
-  const rows = config.workspaces.map((ws) => {
+  const rows = expanded.map((ws) => {
     try {
-      const health = checkWorkspaceHealth(ws.path);
+      const health = checkWorkspaceHealth(ws);
       const resolved = resolveWorkspaceConfig(ws);
       const configError = validateResolvedConfig(resolved);
 
@@ -155,7 +171,7 @@ export function printStatus() {
       }
 
       const statusIcon = issue ? icons.fail : icons.ok;
-      const name = resolved.name ?? basename(ws.path);
+      const name = resolved.name ?? heartbeatDisplayName(ws);
       const schedule = resolved.interval
         ? `every ${resolved.interval}`
         : resolved.cron
@@ -165,24 +181,28 @@ export function printStatus() {
       let statusMsg: string;
       if (issue) {
         statusMsg = issue;
-      } else if (!ws.lastRun) {
-        statusMsg = "never run";
       } else {
-        const ago = formatElapsed(ws.lastRun);
-        const lastOutcome = getLastOutcome(ws.path);
-        const outcomeTag = lastOutcome ? ` (${lastOutcome.outcome})` : "";
-        statusMsg = `last: ${ago}${outcomeTag}`;
+        const lastRunAt = parseLastRun(ws);
+        if (lastRunAt == null) {
+          statusMsg = "never run";
+        } else {
+          const ago = formatElapsed(new Date(lastRunAt).toISOString());
+          const id = heartbeatId(ws);
+          const lastOutcome = getLastOutcome(id);
+          const outcomeTag = lastOutcome ? ` (${lastOutcome.outcome})` : "";
+          statusMsg = `last: ${ago}${outcomeTag}`;
+        }
       }
 
-      return { statusIcon, name, schedule, statusMsg, path: ws.path };
+      return { statusIcon, name, schedule, statusMsg, id: heartbeatId(ws) };
     } catch {
       issueCount++;
       return {
         statusIcon: icons.fail,
-        name: basename(ws.path),
+        name: heartbeatDisplayName(ws),
         schedule: "(unknown)",
         statusMsg: "config error",
-        path: ws.path,
+        id: heartbeatId(ws),
       };
     }
   });
@@ -195,17 +215,17 @@ export function printStatus() {
     issueCount > 0
       ? `${validCount} valid, ${issueCount} ${issueCount === 1 ? "issue" : "issues"}`
       : `${validCount}`;
-  console.log(`\nWorkspaces (${summary}):`);
+  console.log(`\nHeartbeats (${summary}):`);
 
   for (const r of rows) {
     const nameCol = r.name.padEnd(nameW);
     const schedCol = r.schedule.padEnd(schedW);
     const statusCol = r.statusMsg.padEnd(statusW);
-    console.log(`  ${r.statusIcon} ${nameCol}  ${schedCol}  ${statusCol}  ${r.path}`);
+    console.log(`  ${r.statusIcon} ${nameCol}  ${schedCol}  ${statusCol}  ${r.id}`);
   }
 
   // Recent issues from heartbeat log
-  const nameByPath = new Map(rows.map((r) => [r.path, r.name]));
+  const nameById = new Map(rows.map((r) => [r.id, r.name]));
   const errors = readRecentErrors(5);
   if (errors.length > 0) {
     console.log(`\nRecent issues (last 24h):`);
@@ -219,7 +239,7 @@ export function printStatus() {
         entry.outcome === "error"
           ? (entry.error ?? "unknown error")
           : (entry.summary ?? "needs attention");
-      const wsName = nameByPath.get(entry.workspace) ?? basename(entry.workspace);
+      const wsName = nameById.get(entry.workspace) ?? entry.workspace;
       console.log(`  ${icons.bullet} ${time} ${wsName}: ${msg}`);
     }
   }

@@ -21,6 +21,10 @@ type BaseWorkspaceConfig = {
   model?: string;
   session?: string;
   lastRun: string | null;
+  /** Relative path to the HEARTBEAT.md file (e.g. "heartbeats/issue-worker/HEARTBEAT.md"). */
+  heartbeatFile?: string;
+  /** Per-heartbeat last-run timestamps for multi-heartbeat workspaces. */
+  lastRuns?: Record<string, string>;
 };
 
 /**
@@ -89,6 +93,7 @@ export type LogEntry = {
 };
 
 export type WorkspaceStatus = {
+  id: string;
   path: string;
   name: string;
   description?: string;

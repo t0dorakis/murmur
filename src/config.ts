@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { Cron, Either } from "effect";
 import { debug } from "./debug.ts";
+import { HEARTBEAT_FILENAME, heartbeatId } from "./discovery.ts";
 import { validatePermissions } from "./permissions.ts";
 import type { Config, WorkspaceConfig } from "./types.ts";
 
@@ -147,14 +148,27 @@ export async function writeConfig(config: Config): Promise<void> {
   renameSync(tmp, configPath);
 }
 
-export async function updateLastRun(workspacePath: string, lastRun: string): Promise<void> {
+export async function updateLastRun(
+  workspacePath: string,
+  lastRun: string,
+  heartbeatFile?: string,
+): Promise<void> {
   const config = readConfig();
   const ws = config.workspaces.find((w) => w.path === workspacePath);
   if (!ws) {
     console.error(`Warning: workspace ${workspacePath} not found in config during lastRun update`);
     return;
   }
-  ws.lastRun = lastRun;
+  const isRoot = !heartbeatFile || heartbeatFile === HEARTBEAT_FILENAME;
+  if (!isRoot) {
+    // Multi-heartbeat: store in lastRuns map
+    if (typeof ws.lastRuns !== "object" || ws.lastRuns === null || Array.isArray(ws.lastRuns)) {
+      ws.lastRuns = {};
+    }
+    ws.lastRuns[heartbeatFile] = lastRun;
+  } else {
+    ws.lastRun = lastRun;
+  }
   await writeConfig(config);
 }
 
@@ -191,12 +205,13 @@ export function cleanupRuntimeFiles(): void {
   tryUnlink(getSocketPath());
 }
 
-function parseLastRun(ws: WorkspaceConfig): number | null {
+export function parseLastRun(ws: WorkspaceConfig): number | null {
+  // For expanded multi-heartbeat entries, lastRun is already resolved by expandWorkspace
   if (!ws.lastRun) return null;
   const t = new Date(ws.lastRun).getTime();
   if (Number.isNaN(t)) {
     console.error(
-      `Invalid lastRun timestamp for ${ws.path}: "${ws.lastRun}". Treating as never run.`,
+      `Invalid lastRun timestamp for ${heartbeatId(ws)}: "${ws.lastRun}". Treating as never run.`,
     );
     return null;
   }

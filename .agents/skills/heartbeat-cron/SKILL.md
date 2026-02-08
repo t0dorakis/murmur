@@ -86,6 +86,15 @@ murmur init {path} --interval 30m
 murmur init {path} --cron "0 9 * * 1-5" --timeout 15m
 ```
 
+**Multiple heartbeats per repo** — Use `--name` to create heartbeats in a `heartbeats/` directory:
+
+```bash
+murmur init {path} --name issue-worker --interval 30m
+murmur init {path} --name deploy-monitor --cron "0 9 * * 1-5"
+```
+
+This creates `heartbeats/<name>/HEARTBEAT.md` inside the workspace. All heartbeats share the repo root as CWD. A root `HEARTBEAT.md` still works alongside named heartbeats.
+
 ### 1. Interview
 
 Conduct a focused interview using AskUserQuestion. Go one or two questions at a time, building on previous answers.
@@ -158,7 +167,7 @@ Write the HEARTBEAT.md file. Rules:
 - Keep it focused — one purpose per heartbeat
 - Use `$VAR_NAME` for secrets
 
-Place the file at `{workspace}/HEARTBEAT.md`.
+Place the file at `{workspace}/HEARTBEAT.md` for single-heartbeat workspaces, or `{workspace}/heartbeats/{name}/HEARTBEAT.md` for multi-heartbeat repos.
 
 ### 3. Test
 
@@ -166,6 +175,8 @@ Run one heartbeat to verify:
 
 ```bash
 murmur beat {workspace_path}
+# Or for a named heartbeat:
+murmur beat {workspace_path} --name {name}
 ```
 
 Show the user the outcome and output.
@@ -195,5 +206,5 @@ Register the workspace with murmur so the daemon knows about it:
 - Always test with `murmur beat` before declaring done
 - Always ask the user to evaluate the test result
 - If a heartbeat needs tools the user doesn't have installed, tell them what to install
-- One heartbeat = one purpose. Multiple automations = multiple workspaces.
+- One heartbeat = one purpose. Multiple automations in the same repo = use `heartbeats/` directory with `--name`.
 - Schedule suggestions: `15m` for uptime, `1h` for active dev work, `6h`–`1d` for digests/research. Use cron when the user wants specific times (e.g., `0 9 * * 1-5` for weekday mornings).

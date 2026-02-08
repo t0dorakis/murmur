@@ -1,4 +1,3 @@
-import { basename } from "node:path";
 import prettyMs from "pretty-ms";
 import {
   altScreenOn,
@@ -71,8 +70,8 @@ function formatAgo(epochMs: number): string {
   return `${prettyMs(diff, { compact: true })} ago`;
 }
 
-function workspaceDisplayName(path: string, workspaces: WorkspaceStatus[]): string {
-  return workspaces.find((w) => w.path === path)?.name ?? basename(path);
+function workspaceDisplayName(id: string, workspaces: WorkspaceStatus[]): string {
+  return workspaces.find((w) => w.id === id)?.name ?? id;
 }
 
 function outcomeIcon(outcome: Outcome | null): string {
@@ -174,7 +173,7 @@ function renderActiveBeat(state: TuiState, termWidth: number, maxLines: number):
     ` ${styled("▶", bold, white)} ${styled(name, bold, white)}${" ".repeat(Math.max(1, termWidth - name.length - elapsed.length - 6))}${styled(elapsed, dim)}`,
   );
 
-  const wsStatus = state.workspaces.find((w) => w.path === workspace);
+  const wsStatus = state.workspaces.find((w) => w.id === workspace);
   const feedEntry = state.feed.findLast((f) => f.workspace === workspace);
   const subtitle = wsStatus?.description ?? feedEntry?.promptPreview;
   if (subtitle) {
@@ -260,7 +259,7 @@ function reduceEvent(state: TuiState, event: DaemonEvent): boolean {
         tools: [],
       };
       const name = workspaceDisplayName(event.workspace, state.workspaces);
-      const wsStatus = state.workspaces.find((w) => w.path === event.workspace);
+      const wsStatus = state.workspaces.find((w) => w.id === event.workspace);
       state.feed.push({
         workspace: event.workspace,
         name,
@@ -342,7 +341,7 @@ export function createTui(eventSource: EventSource, screen?: Screen): Tui {
 
     // Workspace rows
     for (const ws of state.workspaces) {
-      const active = state.activeBeat?.workspace === ws.path;
+      const active = state.activeBeat?.workspace === ws.id;
       s.write(clearLine + renderWorkspaceRow(ws, active, termWidth) + "\n");
     }
 

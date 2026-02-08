@@ -25,14 +25,25 @@ function createWorkspace(frontmatter: Record<string, string | number>): string {
   const wsDir = join(testDataDir, `ws-${testId++}`);
   mkdirSync(wsDir, { recursive: true });
 
+  writeHeartbeat(wsDir, "HEARTBEAT.md", frontmatter);
+  writeFileSync(join(wsDir, "jokes.txt"), SEED_JOKE);
+
+  return wsDir;
+}
+
+/** Write a HEARTBEAT.md with frontmatter at a relative path within wsDir */
+function writeHeartbeat(
+  wsDir: string,
+  relativePath: string,
+  frontmatter: Record<string, string | number>,
+): void {
   const fmLines = Object.entries(frontmatter).map(([k, v]) =>
     typeof v === "string" ? `${k}: "${v}"` : `${k}: ${v}`,
   );
   const heartbeat = `---\n${fmLines.join("\n")}\n---\n\n${PROMPT_BODY}`;
-  writeFileSync(join(wsDir, "HEARTBEAT.md"), heartbeat);
-  writeFileSync(join(wsDir, "jokes.txt"), SEED_JOKE);
-
-  return wsDir;
+  const absPath = join(wsDir, relativePath);
+  mkdirSync(join(absPath, ".."), { recursive: true });
+  writeFileSync(absPath, heartbeat);
 }
 
 function jokeCount(wsDir: string): number {
@@ -222,14 +233,64 @@ describe("e2e", () => {
   }, 60_000);
 
   test("daemon lifecycle with pi agent", async () => {
-    await testDaemonLifecycle(
-      { agent: "pi", interval: "1s", maxTurns: 50 },
-      undefined,
-      { waitMs: 30_000 },
-    );
+    await testDaemonLifecycle({ agent: "pi", interval: "1s", maxTurns: 50 }, undefined, {
+      waitMs: 30_000,
+    });
 
     // Status reports stopped after lifecycle completes
     const statusAfter = await murmur("status");
     expect(statusAfter.stdout).toContain("stopped");
   }, 60_000);
+
+  test("multi-heartbeat: beat --name runs a named heartbeat", async () => {
+    const wsDir = join(testDataDir, `ws-${testId++}`);
+    mkdirSync(wsDir, { recursive: true });
+    writeFileSync(join(wsDir, "jokes.txt"), SEED_JOKE);
+
+    // Create a named heartbeat in heartbeats/penguin-jokes/
+    writeHeartbeat(wsDir, "heartbeats/penguin-jokes/HEARTBEAT.md", {
+      agent: "claude-code",
+      model: "haiku",
+      maxTurns: 50,
+      interval: "1h",
+    });
+
+    const jokesBefore = jokeCount(wsDir);
+
+    const result = await murmur("beat", wsDir, "--name", "penguin-jokes");
+    expect(result.exitCode).toBe(0);
+
+    // Log entry uses compound heartbeat ID
+    const logFile = join(testDataDir, "heartbeats.jsonl");
+    const logContent = readFileSync(logFile, "utf-8");
+    expect(logContent).toContain("heartbeats/penguin-jokes/HEARTBEAT.md");
+    expect(logContent).not.toContain('"outcome":"error"');
+
+    // Agent ran with repo root as CWD and modified jokes.txt
+    expect(jokeCount(wsDir)).toBeGreaterThan(jokesBefore);
+  }, 60_000);
+
+  test("multi-heartbeat: status shows expanded heartbeats", async () => {
+    const wsDir = join(testDataDir, `ws-${testId++}`);
+    mkdirSync(wsDir, { recursive: true });
+
+    // Root heartbeat + two named heartbeats
+    writeHeartbeat(wsDir, "HEARTBEAT.md", { interval: "1h" });
+    writeHeartbeat(wsDir, "heartbeats/alpha/HEARTBEAT.md", { interval: "30m" });
+    writeHeartbeat(wsDir, "heartbeats/beta/HEARTBEAT.md", { interval: "2h" });
+
+    const configFile = join(testDataDir, "config.json");
+    writeFileSync(
+      configFile,
+      JSON.stringify({ workspaces: [{ path: wsDir, lastRun: null }] }, null, 2),
+    );
+
+    const result = await murmur("status");
+    expect(result.exitCode).toBe(0);
+
+    // All three heartbeats should appear in status output
+    expect(result.stdout).toContain("Heartbeats (3");
+    expect(result.stdout).toContain("alpha");
+    expect(result.stdout).toContain("beta");
+  }, 15_000);
 });

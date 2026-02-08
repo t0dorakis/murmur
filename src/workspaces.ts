@@ -1,5 +1,6 @@
 import { resolve } from "node:path";
 import { readConfig, writeConfig } from "./config.ts";
+import { expandWorkspace, heartbeatId } from "./discovery.ts";
 import { resolveWorkspaceConfig } from "./frontmatter.ts";
 
 export function listWorkspaces(): void {
@@ -11,10 +12,14 @@ export function listWorkspaces(): void {
     return;
   }
 
-  console.log(`Workspaces (${config.workspaces.length}):\n`);
-  for (const ws of config.workspaces) {
+  // Expand multi-heartbeat workspaces
+  const expanded = config.workspaces.flatMap(expandWorkspace);
+
+  console.log(`Heartbeats (${expanded.length}):\n`);
+  for (const ws of expanded) {
     const resolved = resolveWorkspaceConfig(ws);
-    console.log(`  ${ws.path}`);
+    const id = heartbeatId(ws);
+    console.log(`  ${id}`);
     if (resolved.name) console.log(`    Name: ${resolved.name}`);
     if (resolved.description) console.log(`    Description: ${resolved.description}`);
     const schedule = resolved.cron

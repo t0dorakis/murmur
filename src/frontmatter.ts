@@ -1,7 +1,7 @@
 import { YAML } from "bun";
 import { readFileSync } from "node:fs";
-import { basename, join } from "node:path";
 import { debug } from "./debug.ts";
+import { heartbeatDisplayName, heartbeatFilePath } from "./discovery.ts";
 import type { WorkspaceConfig } from "./types.ts";
 
 export type FrontmatterResult = {
@@ -64,12 +64,15 @@ export function mergeWorkspaceConfig(
  * Also extracts workspace name from the first markdown heading as fallback.
  */
 export function resolveWorkspaceConfig(ws: WorkspaceConfig): WorkspaceConfig {
+  const filePath = heartbeatFilePath(ws);
   let raw: string;
   try {
-    raw = readFileSync(join(ws.path, "HEARTBEAT.md"), "utf-8");
+    raw = readFileSync(filePath, "utf-8");
   } catch (err: any) {
-    if (err?.code !== "ENOENT") {
-      debug(`Warning: could not read HEARTBEAT.md in ${ws.path}: ${err?.message}`);
+    if (err?.code === "ENOENT" && ws.heartbeatFile) {
+      debug(`Warning: ${filePath} was discovered but no longer exists`);
+    } else if (err?.code !== "ENOENT") {
+      debug(`Warning: could not read ${filePath}: ${err?.message}`);
     }
     return ws;
   }
@@ -79,7 +82,7 @@ export function resolveWorkspaceConfig(ws: WorkspaceConfig): WorkspaceConfig {
   try {
     ({ metadata, content } = parseFrontmatter(raw));
   } catch (err: any) {
-    debug(`Warning: could not parse frontmatter in ${ws.path}: ${err?.message}`);
+    debug(`Warning: could not parse frontmatter in ${filePath}: ${err?.message}`);
     return ws;
   }
   const resolved = mergeWorkspaceConfig(ws, metadata);
@@ -90,7 +93,7 @@ export function resolveWorkspaceConfig(ws: WorkspaceConfig): WorkspaceConfig {
     if (headingMatch) {
       resolved.name = headingMatch[1]!.trim();
     } else {
-      resolved.name = basename(ws.path);
+      resolved.name = heartbeatDisplayName(ws);
     }
   }
 

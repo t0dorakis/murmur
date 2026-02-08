@@ -1,6 +1,6 @@
 #!/usr/bin/env bun
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
-import { resolve, join, basename } from "node:path";
+import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { resolve, join, dirname } from "node:path";
 import prettyMs from "pretty-ms";
 import {
   setDataDir,
@@ -8,7 +8,6 @@ import {
   ensureDataDir,
   readConfig,
   writeConfig,
-  getConfigPath,
   getPidPath,
   getSocketPath,
   parseInterval,
@@ -16,7 +15,7 @@ import {
   validateResolvedConfig,
   cleanupRuntimeFiles,
 } from "./config.ts";
-import { enableDebug, getDebugLogPath } from "./debug.ts";
+import { debug, enableDebug, getDebugLogPath } from "./debug.ts";
 import { startDaemon, runDaemonMain } from "./daemon.ts";
 import { resolveWorkspaceConfig } from "./frontmatter.ts";
 import { startSocketServer, type SocketServer } from "./socket.ts";
@@ -27,6 +26,14 @@ import { appendLog } from "./log.ts";
 import { formatToolTarget, formatToolDuration } from "./tool-format.ts";
 import { printStatus } from "./status-utils.ts";
 import type { DaemonEvent } from "./types.ts";
+import {
+  expandWorkspace,
+  HEARTBEAT_FILENAME,
+  heartbeatDisplayName,
+  heartbeatFilePath,
+  heartbeatId,
+  namedHeartbeatFile,
+} from "./discovery.ts";
 import { listWorkspaces, removeWorkspace, clearWorkspaces } from "./workspaces.ts";
 
 // Injected by `bun build --define` at compile time; falls back to package.json in dev
@@ -84,20 +91,23 @@ function cleanStaleSocket() {
 function getWorkspaceSummary(): { count: number; nextHeartbeat: string | null } {
   try {
     const config = readConfig();
-    const count = config.workspaces.length;
-    if (count === 0) return { count, nextHeartbeat: null };
+    if (config.workspaces.length === 0) return { count: 0, nextHeartbeat: null };
+
+    // Expand multi-heartbeat workspaces
+    const expanded = config.workspaces.flatMap(expandWorkspace);
+    const count = expanded.length;
 
     let soonestName: string | null = null;
     let soonestMs = Infinity;
 
-    for (const ws of config.workspaces) {
+    for (const ws of expanded) {
       try {
         const resolved = resolveWorkspaceConfig(ws);
         if (!resolved.interval && !resolved.cron) continue;
         const nextMs = nextRunAt(resolved) - Date.now();
         if (nextMs < soonestMs) {
           soonestMs = nextMs;
-          soonestName = resolved.name ?? basename(ws.path);
+          soonestName = resolved.name ?? heartbeatDisplayName(ws);
         }
       } catch {
         // Skip workspaces with corrupt frontmatter
@@ -110,7 +120,8 @@ function getWorkspaceSummary(): { count: number; nextHeartbeat: string | null } 
       count,
       nextHeartbeat: `${soonestName} in ${prettyMs(soonestMs, { secondsDecimalDigits: 0 })}`,
     };
-  } catch {
+  } catch (err) {
+    debug(`getWorkspaceSummary error: ${err}`);
     return { count: 0, nextHeartbeat: null };
   }
 }
@@ -131,6 +142,7 @@ function parseGlobalArgs() {
   let interval: string | undefined;
   let cronFlag: string | undefined;
   let timeout: string | undefined;
+  let name: string | undefined;
   let detach = false;
   let daemon = false;
   let debugFlag = false;
@@ -147,6 +159,8 @@ function parseGlobalArgs() {
       cronFlag = raw[++i];
     } else if (raw[i] === "--timeout") {
       timeout = raw[++i];
+    } else if (raw[i] === "--name") {
+      name = raw[++i];
     } else if (raw[i] === "--detach") {
       detach = true;
     } else if (raw[i] === "--daemon") {
@@ -165,6 +179,7 @@ function parseGlobalArgs() {
     interval,
     cron: cronFlag,
     timeout,
+    name,
     detach,
     daemon,
     debug: debugFlag,
@@ -181,6 +196,7 @@ const {
   interval: initInterval,
   cron: initCron,
   timeout: initTimeout,
+  name: initName,
   detach,
   daemon,
   debug: debugFlag,
@@ -353,20 +369,32 @@ async function watch() {
   });
 }
 
-async function beat(path: string, quietMode: boolean) {
+async function beat(path: string, quietMode: boolean, heartbeatName?: string) {
   const resolved = resolve(path);
-  const heartbeatFile = join(resolved, "HEARTBEAT.md");
-  if (!existsSync(heartbeatFile)) {
-    console.error(`No HEARTBEAT.md found in ${resolved}. Run "murmur init ${path}" first.`);
+
+  // Build workspace config with optional heartbeatFile
+  const hbFile = heartbeatName ? namedHeartbeatFile(heartbeatName) : undefined;
+  const wsBase = { path: resolved, lastRun: null, heartbeatFile: hbFile };
+
+  const hbAbsPath = heartbeatFilePath(wsBase);
+  if (!existsSync(hbAbsPath)) {
+    if (heartbeatName) {
+      console.error(
+        `No HEARTBEAT.md found at ${hbAbsPath}. Run "murmur init ${path} --name ${heartbeatName}" first.`,
+      );
+    } else {
+      console.error(`No HEARTBEAT.md found in ${resolved}. Run "murmur init ${path}" first.`);
+    }
     process.exit(1);
   }
 
-  console.log(`Running heartbeat for ${resolved}...`);
+  const id = heartbeatId(wsBase);
+  console.log(`Running heartbeat for ${id}...`);
   if (!quietMode) {
     console.log(`(showing tool calls and reasoning)\n`);
   }
 
-  const ws = resolveWorkspaceConfig({ path: resolved, lastRun: null });
+  const ws = resolveWorkspaceConfig(wsBase);
   const entry = await runHeartbeat(ws, quietMode ? undefined : cliEmitter, {
     quiet: quietMode,
   });
@@ -434,7 +462,10 @@ const HEARTBEAT_TEMPLATE = (interval: string, timeout?: string, cron?: string) =
   return lines.join("\n");
 };
 
-async function init(path: string, opts?: { interval?: string; cron?: string; timeout?: string }) {
+async function init(
+  path: string,
+  opts?: { interval?: string; cron?: string; timeout?: string; name?: string },
+) {
   if (opts?.interval) {
     try {
       parseInterval(opts.interval);
@@ -452,7 +483,6 @@ async function init(path: string, opts?: { interval?: string; cron?: string; tim
     }
   }
   if (opts?.cron) {
-    // Validate by constructing a minimal workspace config
     const cronErr = validateResolvedConfig({
       path: ".",
       cron: opts.cron,
@@ -465,13 +495,24 @@ async function init(path: string, opts?: { interval?: string; cron?: string; tim
   }
 
   const resolved = resolve(path);
-  const heartbeatFile = join(resolved, "HEARTBEAT.md");
-  if (!existsSync(heartbeatFile)) {
-    const tpl = HEARTBEAT_TEMPLATE(opts?.interval ?? "1h", opts?.timeout, opts?.cron);
-    await Bun.write(heartbeatFile, tpl);
-    console.log(`Created ${heartbeatFile}`);
+
+  // Determine heartbeat file path
+  let hbFilePath: string;
+  if (opts?.name) {
+    const relPath = namedHeartbeatFile(opts.name);
+    const dir = dirname(join(resolved, relPath));
+    mkdirSync(dir, { recursive: true });
+    hbFilePath = join(resolved, relPath);
   } else {
-    console.log(`HEARTBEAT.md already exists in ${resolved}.`);
+    hbFilePath = join(resolved, HEARTBEAT_FILENAME);
+  }
+
+  if (!existsSync(hbFilePath)) {
+    const tpl = HEARTBEAT_TEMPLATE(opts?.interval ?? "1h", opts?.timeout, opts?.cron);
+    await Bun.write(hbFilePath, tpl);
+    console.log(`Created ${hbFilePath}`);
+  } else {
+    console.log(`HEARTBEAT.md already exists at ${hbFilePath}.`);
   }
 
   ensureDataDir();
@@ -481,6 +522,10 @@ async function init(path: string, opts?: { interval?: string; cron?: string; tim
     config.workspaces.push({ path: resolved, lastRun: null });
     await writeConfig(config);
     console.log(`Added workspace to config.`);
+  } else if (opts?.name) {
+    console.log(
+      `Workspace already registered. Heartbeat "${opts.name}" will be discovered automatically.`,
+    );
   }
 }
 
@@ -492,7 +537,7 @@ Commands:
   start --detach               Start daemon in background
   watch                        Attach TUI to running daemon
   stop                         Stop the daemon
-  status                       Show daemon and workspace status
+  status                       Show daemon and heartbeat status
   beat [path]                  Run one heartbeat immediately
   init [path]                  Create HEARTBEAT.md template
   workspaces list              List all configured workspaces
@@ -504,6 +549,7 @@ Options:
   --interval <interval>        Set interval in HEARTBEAT.md (init only, e.g. 30m)
   --cron <expr>                Set cron in HEARTBEAT.md (init only, e.g. "0 9 * * *")
   --timeout <interval>         Set timeout in HEARTBEAT.md (init only, e.g. 15m)
+  --name <name>                Target a named heartbeat in heartbeats/<name>/
   --debug                      Enable debug logging to <data-dir>/debug.log
   --quiet, -q                  Hide tool calls during beat (show summary only)
   --help, -h                   Show this help message
@@ -542,13 +588,14 @@ if (daemon) {
       await watch();
       break;
     case "beat":
-      await beat(targetPath, quiet);
+      await beat(targetPath, quiet, initName);
       break;
     case "init":
       await init(targetPath, {
         interval: initInterval,
         cron: initCron,
         timeout: initTimeout,
+        name: initName,
       });
       break;
     case "workspaces": {
