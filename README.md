@@ -1,5 +1,12 @@
 # murmur
 
+![Bun](https://img.shields.io/badge/Bun-black?logo=bun&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?logo=typescript&logoColor=white)
+![Effect-TS](https://img.shields.io/badge/Effect--TS-000000)
+![oxlint](https://img.shields.io/badge/oxlint-checked-7C5CFC)
+![oxfmt](https://img.shields.io/badge/oxfmt-formatted-7C5CFC)
+![MIT License](https://img.shields.io/badge/License-MIT-yellow)
+
 A cron daemon for Claude Code. Schedule automated Claude sessions that run on intervals or cron expressions — each one a fresh CLI invocation with full tool access.
 
 Murmur is deliberately minimal: it schedules, runs, and logs. What happens inside each session — checking APIs, sending notifications, updating files — is defined by you and your agent in a markdown prompt. Claude builds the pipeline.
