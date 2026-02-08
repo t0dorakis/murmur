@@ -81,28 +81,47 @@ function cleanStaleSocket() {
 
 /** Get workspace count and soonest next-heartbeat info from config. */
 function getWorkspaceSummary(): { count: number; nextHeartbeat: string | null } {
-  const config = readConfig();
-  const count = config.workspaces.length;
-  if (count === 0) return { count, nextHeartbeat: null };
+  try {
+    const config = readConfig();
+    const count = config.workspaces.length;
+    if (count === 0) return { count, nextHeartbeat: null };
 
-  let soonestName: string | null = null;
-  let soonestMs = Infinity;
+    let soonestName: string | null = null;
+    let soonestMs = Infinity;
 
-  for (const ws of config.workspaces) {
-    const resolved = resolveWorkspaceConfig(ws);
-    if (!resolved.interval && !resolved.cron) continue;
-    const nextMs = nextRunAt(resolved) - Date.now();
-    if (nextMs < soonestMs) {
-      soonestMs = nextMs;
-      soonestName = resolved.name ?? basename(ws.path);
+    for (const ws of config.workspaces) {
+      try {
+        const resolved = resolveWorkspaceConfig(ws);
+        if (!resolved.interval && !resolved.cron) continue;
+        const nextMs = nextRunAt(resolved) - Date.now();
+        if (nextMs < soonestMs) {
+          soonestMs = nextMs;
+          soonestName = resolved.name ?? basename(ws.path);
+        }
+      } catch {
+        // Skip workspaces with corrupt frontmatter
+      }
     }
-  }
 
-  if (!soonestName) return { count, nextHeartbeat: null };
-  if (soonestMs <= 0) return { count, nextHeartbeat: `${soonestName} (due now)` };
-  return { count, nextHeartbeat: `${soonestName} in ${prettyMs(soonestMs, { secondsDecimalDigits: 0 })}` };
+    if (!soonestName) return { count, nextHeartbeat: null };
+    if (soonestMs <= 0) return { count, nextHeartbeat: `${soonestName} (due now)` };
+    return {
+      count,
+      nextHeartbeat: `${soonestName} in ${prettyMs(soonestMs, { secondsDecimalDigits: 0 })}`,
+    };
+  } catch {
+    return { count: 0, nextHeartbeat: null };
+  }
 }
 
+/** Print daemon status banner with workspace summary and hints. */
+function printDaemonBanner(message: string) {
+  const { count, nextHeartbeat } = getWorkspaceSummary();
+  console.log(`${message} Watching ${count} workspace(s).`);
+  if (nextHeartbeat) console.log(`Next heartbeat: ${nextHeartbeat}`);
+  console.log(`View status: murmur status`);
+  console.log(`Attach to TUI: murmur watch`);
+}
 
 function parseGlobalArgs() {
   const raw = process.argv.slice(2);
@@ -183,11 +202,7 @@ async function startForeground() {
   ensureDataDir();
   const pid = readPid();
   if (pid && isProcessAlive(pid)) {
-    const { count, nextHeartbeat } = getWorkspaceSummary();
-    console.log(`Daemon already running (PID ${pid}). Watching ${count} workspace(s).`);
-    if (nextHeartbeat) console.log(`Next heartbeat: ${nextHeartbeat}`);
-    console.log(`View status: murmur status`);
-    console.log(`Attach to TUI: murmur watch`);
+    printDaemonBanner(`Daemon already running (PID ${pid}).`);
     process.exit(0);
   }
 
@@ -198,7 +213,9 @@ async function startForeground() {
 
   writeFileSync(getPidPath(), String(process.pid));
 
-  console.log(`Daemon started (PID ${process.pid}). Watching ${config.workspaces.length} workspace(s). Press Ctrl+C to stop.`);
+  console.log(
+    `Daemon started (PID ${process.pid}). Watching ${config.workspaces.length} workspace(s). Press Ctrl+C to stop.`,
+  );
 
   const handle = startDaemon(tickMs);
 
@@ -246,11 +263,7 @@ async function startDetached() {
   ensureDataDir();
   const pid = readPid();
   if (pid && isProcessAlive(pid)) {
-    const { count, nextHeartbeat } = getWorkspaceSummary();
-    console.log(`Daemon already running (PID ${pid}). Watching ${count} workspace(s).`);
-    if (nextHeartbeat) console.log(`Next heartbeat: ${nextHeartbeat}`);
-    console.log(`View status: murmur status`);
-    console.log(`Attach to TUI: murmur watch`);
+    printDaemonBanner(`Daemon already running (PID ${pid}).`);
     process.exit(0);
   }
 
@@ -273,11 +286,7 @@ async function startDetached() {
   await Bun.sleep(500);
   const newPid = readPid();
   if (newPid && isProcessAlive(newPid)) {
-    const { count, nextHeartbeat } = getWorkspaceSummary();
-    console.log(`Daemon started (PID ${newPid}). Watching ${count} workspace(s).`);
-    if (nextHeartbeat) console.log(`Next heartbeat: ${nextHeartbeat}`);
-    console.log(`View status: murmur status`);
-    console.log(`Attach to TUI: murmur watch`);
+    printDaemonBanner(`Daemon started (PID ${newPid}).`);
   } else {
     const stderr = existsSync(stderrLog) ? readFileSync(stderrLog, "utf-8").trim() : "";
     console.error(`Daemon failed to start.${stderr ? `\n${stderr}` : ""}`);
@@ -291,8 +300,8 @@ function stop() {
     console.log("Not running.");
     return;
   }
-  const { count } = getWorkspaceSummary();
   process.kill(pid, "SIGTERM");
+  const { count } = getWorkspaceSummary();
   console.log(`Daemon stopped (PID ${pid}). ${count} workspace(s) released.`);
   console.log(`Restart: murmur start --detach`);
 }
@@ -316,7 +325,7 @@ function status() {
   console.log(`\nWorkspaces (${config.workspaces.length}):`);
   const rows = config.workspaces.map((ws) => {
     const resolved = resolveWorkspaceConfig(ws);
-    const name = resolved.name || basename(ws.path);
+    const name = resolved.name ?? basename(ws.path);
     const schedule = resolved.interval
       ? `every ${resolved.interval}`
       : resolved.cron
@@ -324,8 +333,13 @@ function status() {
         : "(none)";
     let lastRun = "never";
     if (ws.lastRun) {
-      const diff = Date.now() - new Date(ws.lastRun).getTime();
-      lastRun = diff > 0 ? `${prettyMs(diff, { compact: true })} ago` : "just now";
+      const t = new Date(ws.lastRun).getTime();
+      if (Number.isNaN(t)) {
+        lastRun = "invalid";
+      } else {
+        const diff = Date.now() - t;
+        lastRun = diff > 0 ? `${prettyMs(diff, { compact: true })} ago` : "just now";
+      }
     }
     return { name, schedule, lastRun, path: ws.path };
   });
@@ -425,7 +439,7 @@ async function beat(path: string, quietMode: boolean) {
   } else {
     console.error(`ERROR: ${entry.error}`);
   }
-  console.log(`(${entry.durationMs}ms)`);
+  console.log(`(${prettyMs(entry.durationMs)})`);
 }
 
 function cliEmitter(event: DaemonEvent) {
