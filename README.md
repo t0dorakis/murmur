@@ -19,17 +19,8 @@ npx skills add t0dorakis/murmur --skill heartbeat-cron
 
 Then: `/heartbeat-cron watch my GitHub issues and alert me when something urgent comes in`
 
-## Install
+## Or install manually
 
-**Recommended:** Install the skill, then let Claude handle the rest:
-
-```bash
-npx skills add t0dorakis/murmur --skill heartbeat-cron
-```
-
-The skill prompts you to install murmur if needed.
-
-**Or install manually:**
 
 ```bash
 brew install t0dorakis/murmur/murmur
@@ -41,8 +32,6 @@ From source:
 git clone https://github.com/t0dorakis/murmur.git
 cd murmur && bun install && bun run build
 ```
-
-Requires [Claude CLI](https://docs.anthropic.com/en/docs/claude-cli) installed and authenticated.
 
 ## Manual Setup
 
@@ -70,7 +59,7 @@ murmur init [path] [--name <name>] Create HEARTBEAT.md template
 
 ## HEARTBEAT.md
 
-The prompt file. Write what you want Claude to do on each run — or let the skill generate it through an interview.
+The prompt file. Write what you want your Agent to do on each run — or let the skill generate it through an interview.
 
 HEARTBEAT.md supports optional YAML frontmatter for per-heartbeat configuration:
 
@@ -87,7 +76,7 @@ model: opus
 # permissions: skip
 ---
 
-# Heartbeat
+# Do this
 
 Check for new issues...
 ```
@@ -135,20 +124,6 @@ For anything that needs my attention (review requests, mentions, failing checks 
 If inbox zero, HEARTBEAT_OK.
 ```
 
-**Price monitor:**
-
-```markdown
-Check the current price of the product at the URL below.
-
-URL: https://store.steampowered.com/app/1245620/ELDEN_RING/
-
-1. Read the last known price from `last-price.txt` in this directory
-2. Fetch the product page and extract the current price
-3. If `last-price.txt` doesn't exist, create it with the current price and respond HEARTBEAT_OK
-4. If the price changed: ATTENTION: Price changed to $CURRENT (was $PREVIOUS)
-5. Update `last-price.txt` with the current price
-6. If unchanged, respond HEARTBEAT_OK
-```
 
 **Competitor watch:**
 
