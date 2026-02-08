@@ -49,13 +49,9 @@ Requires [Claude CLI](https://docs.anthropic.com/en/docs/claude-cli) installed a
 If you prefer to write the heartbeat yourself:
 
 ```bash
-murmur init ~/repos/my-project    # Creates HEARTBEAT.md template
+murmur init ~/repos/my-project    # Creates HEARTBEAT.md + registers workspace
 vim ~/repos/my-project/HEARTBEAT.md
 murmur start                       # Start the daemon
-
-# Multiple heartbeats in one repo:
-murmur init ~/repos/my-project --name deploy-monitor
-murmur init ~/repos/my-project --name issue-worker
 ```
 
 The daemon reads `~/.murmur/config.json` and runs each workspace on schedule. Press `q` to quit, `Ctrl-D` to detach.
@@ -218,13 +214,16 @@ my-project/
 └── src/
 ```
 
+The daemon auto-discovers all heartbeats in `heartbeats/` — one `murmur init` registers the workspace, and `murmur start` runs them all. Each heartbeat has its own schedule (via frontmatter) and runs independently, sharing the repo root as working directory.
+
 ```bash
+# Scaffold new named heartbeats:
 murmur init ~/repos/my-project --name deploy-monitor
 murmur init ~/repos/my-project --name issue-worker
-murmur beat ~/repos/my-project --name issue-worker  # run one specifically
-```
 
-All heartbeats share the repo root as their working directory. Each has its own schedule (via frontmatter) and runs independently. The daemon auto-discovers heartbeats in `heartbeats/` — one config entry handles all of them.
+# Run a specific one:
+murmur beat ~/repos/my-project --name issue-worker
+```
 
 ## Agent Harnesses
 
