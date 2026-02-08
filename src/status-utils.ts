@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { getDataDir } from "./config.ts";
+import { getLogPath } from "./config.ts";
+import { debug } from "./debug.ts";
 import type { LogEntry, Outcome } from "./types.ts";
 
 export type WorkspaceHealth = {
@@ -18,34 +19,48 @@ export function checkWorkspaceHealth(wsPath: string): WorkspaceHealth {
 }
 
 /**
- * Read recent error/attention entries from heartbeats.jsonl.
- * Returns the last `limit` non-ok entries within `withinMs` milliseconds.
+ * Read heartbeats.jsonl lines in reverse order, parsing each as a LogEntry.
+ * Skips malformed lines with a debug log. Returns entries newest-first.
+ * The log is assumed to be in chronological append order.
  */
-export function readRecentErrors(limit = 5, withinMs = 86_400_000): LogEntry[] {
-  const logPath = join(getDataDir(), "heartbeats.jsonl");
+function readLogEntriesReverse(): LogEntry[] {
+  const logPath = getLogPath();
   if (!existsSync(logPath)) return [];
 
   let lines: string[];
   try {
     const content = readFileSync(logPath, "utf-8");
     lines = content.trim().split("\n").filter(Boolean);
-  } catch {
+  } catch (err: any) {
+    debug(`Warning: could not read ${logPath}: ${err?.message}`);
     return [];
   }
 
+  const entries: LogEntry[] = [];
+  for (let i = lines.length - 1; i >= 0; i--) {
+    try {
+      entries.push(JSON.parse(lines[i]!));
+    } catch {
+      debug(`Skipping malformed log line ${i + 1}`);
+    }
+  }
+  return entries;
+}
+
+/**
+ * Read recent error/attention entries from heartbeats.jsonl.
+ * Returns the last `limit` non-ok entries within `withinMs` milliseconds.
+ */
+export function readRecentErrors(limit = 5, withinMs = 86_400_000): LogEntry[] {
   const cutoff = Date.now() - withinMs;
   const errors: LogEntry[] = [];
 
-  // Read from end for efficiency
-  for (let i = lines.length - 1; i >= 0 && errors.length < limit; i--) {
-    try {
-      const entry: LogEntry = JSON.parse(lines[i]!);
-      const entryTime = new Date(entry.ts).getTime();
-      if (entryTime < cutoff) break;
-      if (entry.outcome !== "ok") errors.push(entry);
-    } catch {
-      // Skip malformed lines
-    }
+  for (const entry of readLogEntriesReverse()) {
+    if (errors.length >= limit) break;
+    const entryTime = new Date(entry.ts).getTime();
+    // Log is chronological; once we hit an entry older than cutoff, stop
+    if (entryTime < cutoff) break;
+    if (entry.outcome !== "ok") errors.push(entry);
   }
 
   return errors;
@@ -55,27 +70,10 @@ export function readRecentErrors(limit = 5, withinMs = 86_400_000): LogEntry[] {
  * Get the last log entry for a workspace path.
  */
 export function getLastOutcome(wsPath: string): { outcome: Outcome; ts: string } | null {
-  const logPath = join(getDataDir(), "heartbeats.jsonl");
-  if (!existsSync(logPath)) return null;
-
-  let lines: string[];
-  try {
-    const content = readFileSync(logPath, "utf-8");
-    lines = content.trim().split("\n").filter(Boolean);
-  } catch {
-    return null;
-  }
-
-  for (let i = lines.length - 1; i >= 0; i--) {
-    try {
-      const entry: LogEntry = JSON.parse(lines[i]!);
-      if (entry.workspace === wsPath) {
-        return { outcome: entry.outcome, ts: entry.ts };
-      }
-    } catch {
-      // Skip malformed lines
+  for (const entry of readLogEntriesReverse()) {
+    if (entry.workspace === wsPath) {
+      return { outcome: entry.outcome, ts: entry.ts };
     }
   }
-
   return null;
 }

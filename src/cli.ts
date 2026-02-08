@@ -327,57 +327,68 @@ function status() {
   let issueCount = 0;
 
   const rows = config.workspaces.map((ws) => {
-    const health = checkWorkspaceHealth(ws.path);
-    const resolved = resolveWorkspaceConfig(ws);
-    const configError = validateResolvedConfig(resolved);
+    try {
+      const health = checkWorkspaceHealth(ws.path);
+      const resolved = resolveWorkspaceConfig(ws);
+      const configError = validateResolvedConfig(resolved);
 
-    let issue: string | undefined;
-    if (!health.pathExists) {
-      issue = "path does not exist";
-    } else if (!health.heartbeatExists) {
-      issue = "HEARTBEAT.md missing";
-    } else if (configError) {
-      issue = configError;
-    }
-
-    if (issue) {
-      issueCount++;
-    } else {
-      validCount++;
-    }
-
-    const indicator = issue ? "\u2717" : "\u2713";
-    const name = resolved.name ?? basename(ws.path);
-    const schedule = resolved.interval
-      ? `every ${resolved.interval}`
-      : resolved.cron
-        ? `cron ${resolved.cron}`
-        : "(none)";
-
-    let detail: string;
-    if (issue) {
-      detail = issue;
-    } else if (!ws.lastRun) {
-      detail = "never run";
-    } else {
-      const t = new Date(ws.lastRun).getTime();
-      if (Number.isNaN(t)) {
-        detail = "invalid timestamp";
-      } else {
-        const diff = Date.now() - t;
-        const ago = diff > 0 ? `${prettyMs(diff, { compact: true })} ago` : "just now";
-        const lastOutcome = getLastOutcome(ws.path);
-        const outcomeTag = lastOutcome ? ` (${lastOutcome.outcome})` : "";
-        detail = `last: ${ago}${outcomeTag}`;
+      let issue: string | undefined;
+      if (!health.pathExists) {
+        issue = "path does not exist";
+      } else if (!health.heartbeatExists) {
+        issue = "HEARTBEAT.md missing";
+      } else if (configError) {
+        issue = configError;
       }
-    }
 
-    return { indicator, name, schedule, detail, path: ws.path };
+      if (issue) {
+        issueCount++;
+      } else {
+        validCount++;
+      }
+
+      const statusIcon = issue ? "\u2717" : "\u2713";
+      const name = resolved.name ?? basename(ws.path);
+      const schedule = resolved.interval
+        ? `every ${resolved.interval}`
+        : resolved.cron
+          ? `cron ${resolved.cron}`
+          : "(none)";
+
+      let statusMsg: string;
+      if (issue) {
+        statusMsg = issue;
+      } else if (!ws.lastRun) {
+        statusMsg = "never run";
+      } else {
+        const t = new Date(ws.lastRun).getTime();
+        if (Number.isNaN(t)) {
+          statusMsg = "invalid timestamp";
+        } else {
+          const diff = Date.now() - t;
+          const ago = diff > 0 ? `${prettyMs(diff, { compact: true })} ago` : "just now";
+          const lastOutcome = getLastOutcome(ws.path);
+          const outcomeTag = lastOutcome ? ` (${lastOutcome.outcome})` : "";
+          statusMsg = `last: ${ago}${outcomeTag}`;
+        }
+      }
+
+      return { statusIcon, name, schedule, statusMsg, path: ws.path };
+    } catch {
+      issueCount++;
+      return {
+        statusIcon: "\u2717",
+        name: basename(ws.path),
+        schedule: "(unknown)",
+        statusMsg: "config error",
+        path: ws.path,
+      };
+    }
   });
 
   const nameW = Math.max(...rows.map((r) => r.name.length));
   const schedW = Math.max(...rows.map((r) => r.schedule.length));
-  const detailW = Math.max(...rows.map((r) => r.detail.length));
+  const statusW = Math.max(...rows.map((r) => r.statusMsg.length));
 
   const summary =
     issueCount > 0
@@ -388,23 +399,27 @@ function status() {
   for (const r of rows) {
     const nameCol = r.name.padEnd(nameW);
     const schedCol = r.schedule.padEnd(schedW);
-    const detailCol = r.detail.padEnd(detailW);
-    console.log(`  ${r.indicator} ${nameCol}  ${schedCol}  ${detailCol}  ${r.path}`);
+    const statusCol = r.statusMsg.padEnd(statusW);
+    console.log(`  ${r.statusIcon} ${nameCol}  ${schedCol}  ${statusCol}  ${r.path}`);
   }
 
   // Recent issues from heartbeat log
+  const nameByPath = new Map(rows.map((r) => [r.path, r.name]));
   const errors = readRecentErrors(5);
   if (errors.length > 0) {
     console.log(`\nRecent issues (last 24h):`);
     for (const entry of errors) {
       const elapsed = Date.now() - new Date(entry.ts).getTime();
-      const time = prettyMs(elapsed, { compact: true });
+      const time =
+        Number.isNaN(elapsed) || elapsed < 0
+          ? "just now"
+          : `${prettyMs(elapsed, { compact: true })} ago`;
       const msg =
         entry.outcome === "error"
           ? (entry.error ?? "unknown error")
           : (entry.summary ?? "needs attention");
-      const shortPath = basename(entry.workspace);
-      console.log(`  \u2022 ${time} ago ${shortPath}: ${msg}`);
+      const wsName = nameByPath.get(entry.workspace) ?? basename(entry.workspace);
+      console.log(`  \u2022 ${time} ${wsName}: ${msg}`);
     }
   }
 }

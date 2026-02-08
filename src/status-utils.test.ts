@@ -1,9 +1,15 @@
-import { describe, expect, test, beforeEach } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { mkdtempSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
 import { setDataDir } from "./config.ts";
 import { checkWorkspaceHealth, readRecentErrors, getLastOutcome } from "./status-utils.ts";
+
+function freshDataDir(): string {
+  const dir = mkdtempSync(join(tmpdir(), "murmur-log-"));
+  setDataDir(dir);
+  return dir;
+}
 
 describe("checkWorkspaceHealth", () => {
   test("reports missing path", () => {
@@ -29,18 +35,13 @@ describe("checkWorkspaceHealth", () => {
 });
 
 describe("readRecentErrors", () => {
-  beforeEach(() => {
-    const dir = mkdtempSync(join(tmpdir(), "murmur-log-"));
-    setDataDir(dir);
-  });
-
   test("returns empty when no log file", () => {
+    freshDataDir();
     expect(readRecentErrors()).toEqual([]);
   });
 
   test("returns only non-ok entries", () => {
-    const dir = mkdtempSync(join(tmpdir(), "murmur-log-"));
-    setDataDir(dir);
+    const dir = freshDataDir();
 
     const now = new Date().toISOString();
     const entries = [
@@ -69,8 +70,7 @@ describe("readRecentErrors", () => {
   });
 
   test("respects limit", () => {
-    const dir = mkdtempSync(join(tmpdir(), "murmur-log-"));
-    setDataDir(dir);
+    const dir = freshDataDir();
 
     const now = new Date().toISOString();
     const entries = Array.from({ length: 10 }, (_, i) =>
@@ -89,8 +89,7 @@ describe("readRecentErrors", () => {
   });
 
   test("skips entries older than withinMs", () => {
-    const dir = mkdtempSync(join(tmpdir(), "murmur-log-"));
-    setDataDir(dir);
+    const dir = freshDataDir();
 
     const old = new Date(Date.now() - 100_000_000).toISOString();
     const recent = new Date().toISOString();
@@ -116,18 +115,38 @@ describe("readRecentErrors", () => {
     expect(errors.length).toBe(1);
     expect(errors[0]!.workspace).toBe("/new");
   });
+
+  test("skips malformed JSONL lines gracefully", () => {
+    const dir = freshDataDir();
+
+    const now = new Date().toISOString();
+    const lines = [
+      "not valid json",
+      JSON.stringify({
+        ts: now,
+        workspace: "/a",
+        outcome: "error",
+        durationMs: 100,
+        error: "real error",
+      }),
+      "{broken",
+    ];
+    writeFileSync(join(dir, "heartbeats.jsonl"), lines.join("\n") + "\n");
+
+    const errors = readRecentErrors();
+    expect(errors.length).toBe(1);
+    expect(errors[0]!.workspace).toBe("/a");
+  });
 });
 
 describe("getLastOutcome", () => {
   test("returns null when no log file", () => {
-    const dir = mkdtempSync(join(tmpdir(), "murmur-log-"));
-    setDataDir(dir);
+    freshDataDir();
     expect(getLastOutcome("/some/path")).toBeNull();
   });
 
   test("finds last matching entry", () => {
-    const dir = mkdtempSync(join(tmpdir(), "murmur-log-"));
-    setDataDir(dir);
+    const dir = freshDataDir();
 
     const entries = [
       JSON.stringify({
@@ -158,8 +177,7 @@ describe("getLastOutcome", () => {
   });
 
   test("returns null for unknown workspace", () => {
-    const dir = mkdtempSync(join(tmpdir(), "murmur-log-"));
-    setDataDir(dir);
+    const dir = freshDataDir();
 
     const entries = [
       JSON.stringify({
