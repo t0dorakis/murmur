@@ -162,7 +162,7 @@ export async function updateLastRun(
   const isRoot = !heartbeatFile || heartbeatFile === HEARTBEAT_FILENAME;
   if (!isRoot) {
     // Multi-heartbeat: store in lastRuns map
-    if (typeof ws.lastRuns !== "object" || ws.lastRuns === null) {
+    if (typeof ws.lastRuns !== "object" || ws.lastRuns === null || Array.isArray(ws.lastRuns)) {
       ws.lastRuns = {};
     }
     ws.lastRuns[heartbeatFile] = lastRun;

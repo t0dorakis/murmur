@@ -78,7 +78,9 @@ export function discoverHeartbeats(wsPath: string): string[] {
   const heartbeatsDir = join(wsPath, HEARTBEATS_DIR);
   if (existsSync(heartbeatsDir)) {
     try {
-      const entries = readdirSync(heartbeatsDir, { withFileTypes: true });
+      const entries = readdirSync(heartbeatsDir, { withFileTypes: true }).sort((a, b) =>
+        a.name.localeCompare(b.name),
+      );
       for (const entry of entries) {
         if (entry.isDirectory()) {
           const hbPath = join(HEARTBEATS_DIR, entry.name, HEARTBEAT_FILENAME);
