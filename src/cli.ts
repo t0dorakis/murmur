@@ -25,6 +25,7 @@ import { createTui } from "./tui.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
 import { formatToolTarget, formatToolDuration } from "./tool-format.ts";
+import { printStatus } from "./status-utils.ts";
 import type { DaemonEvent } from "./types.ts";
 import { listWorkspaces, removeWorkspace, clearWorkspaces } from "./workspaces.ts";
 
@@ -307,53 +308,7 @@ function stop() {
 }
 
 function status() {
-  const pid = readPid();
-  const alive = pid ? isProcessAlive(pid) : false;
-
-  if (alive) {
-    console.log(`Daemon: running (PID ${pid})`);
-  } else {
-    console.log("Daemon: stopped");
-  }
-
-  const config = readConfig();
-  if (config.workspaces.length === 0) {
-    console.log(`No workspaces configured. Edit ${getConfigPath()} to add workspaces.`);
-    return;
-  }
-
-  console.log(`\nWorkspaces (${config.workspaces.length}):`);
-  const rows = config.workspaces.map((ws) => {
-    const resolved = resolveWorkspaceConfig(ws);
-    const name = resolved.name ?? basename(ws.path);
-    const schedule = resolved.interval
-      ? `every ${resolved.interval}`
-      : resolved.cron
-        ? `cron ${resolved.cron}`
-        : "(none)";
-    let lastRun = "never";
-    if (ws.lastRun) {
-      const t = new Date(ws.lastRun).getTime();
-      if (Number.isNaN(t)) {
-        lastRun = "invalid";
-      } else {
-        const diff = Date.now() - t;
-        lastRun = diff > 0 ? `${prettyMs(diff, { compact: true })} ago` : "just now";
-      }
-    }
-    return { name, schedule, lastRun, path: ws.path };
-  });
-
-  const nameW = Math.max(...rows.map((r) => r.name.length));
-  const schedW = Math.max(...rows.map((r) => r.schedule.length));
-  const lastW = Math.max(...rows.map((r) => r.lastRun.length));
-
-  for (const r of rows) {
-    const nameCol = r.name.padEnd(nameW);
-    const schedCol = r.schedule.padEnd(schedW);
-    const lastCol = r.lastRun.padEnd(lastW);
-    console.log(`  ${nameCol}  ${schedCol}  last: ${lastCol}  ${r.path}`);
-  }
+  printStatus();
 }
 
 async function watch() {
