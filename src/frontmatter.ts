@@ -19,9 +19,7 @@ export function parseFrontmatter(raw: string): FrontmatterResult {
 
   const parsed = YAML.parse(match[1]!);
   const metadata: Record<string, unknown> =
-    parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
-      ? parsed
-      : {};
+    parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? parsed : {};
 
   return { metadata, content: match[2]! };
 }
@@ -55,8 +53,7 @@ export function mergeWorkspaceConfig(
     if (typeof val === "string") (merged as any)[field] = val;
   }
 
-  if (typeof metadata.maxTurns === "number")
-    merged.maxTurns = metadata.maxTurns;
+  if (typeof metadata.maxTurns === "number") merged.maxTurns = metadata.maxTurns;
   if (metadata.permissions === "skip") merged.permissions = "skip";
 
   return merged;
@@ -72,14 +69,19 @@ export function resolveWorkspaceConfig(ws: WorkspaceConfig): WorkspaceConfig {
     raw = readFileSync(join(ws.path, "HEARTBEAT.md"), "utf-8");
   } catch (err: any) {
     if (err?.code !== "ENOENT") {
-      debug(
-        `Warning: could not read HEARTBEAT.md in ${ws.path}: ${err?.message}`,
-      );
+      debug(`Warning: could not read HEARTBEAT.md in ${ws.path}: ${err?.message}`);
     }
     return ws;
   }
 
-  const { metadata, content } = parseFrontmatter(raw);
+  let metadata: Record<string, unknown>;
+  let content: string;
+  try {
+    ({ metadata, content } = parseFrontmatter(raw));
+  } catch (err: any) {
+    debug(`Warning: could not parse frontmatter in ${ws.path}: ${err?.message}`);
+    return ws;
+  }
   const resolved = mergeWorkspaceConfig(ws, metadata);
 
   // Extract name from first heading if not set in frontmatter
