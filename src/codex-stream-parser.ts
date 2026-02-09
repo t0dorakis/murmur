@@ -2,27 +2,16 @@
  * Parses Codex CLI `--json` NDJSON output using Effect Stream.
  *
  * Codex emits ThreadEvent objects: thread.started, turn.started, turn.completed,
- * item.started, item.completed, etc. We extract tool calls, agent messages,
- * and token usage from these events.
+ * item.started, item.completed, etc. We extract tool calls and agent messages
+ * from these events.
  */
 
 import { Effect, Stream } from "effect";
-import { debug } from "./debug.ts";
+import { debug, truncateForLog } from "./debug.ts";
 import type { StreamParseResult, ParseEvent } from "./stream-parser.ts";
 import type { ConversationTurn, ToolCall } from "./types.ts";
 
-/** Truncate a string for debug logging, adding ellipsis if truncated. */
-function truncateForLog(text: string, maxLen = 100): string {
-  return text.length > maxLen ? `${text.slice(0, maxLen)}...` : text;
-}
-
 // -- Codex event types --
-
-type CodexUsage = {
-  input_tokens: number;
-  cached_input_tokens?: number;
-  output_tokens: number;
-};
 
 type AgentMessageItem = {
   id: string;
@@ -59,6 +48,12 @@ type McpToolCallItem = {
 
 type CodexItem = AgentMessageItem | CommandExecutionItem | FileChangeItem | McpToolCallItem;
 
+type CodexUsage = {
+  input_tokens: number;
+  cached_input_tokens?: number;
+  output_tokens: number;
+};
+
 type CodexEvent =
   | { type: "thread.started"; thread_id: string }
   | { type: "turn.started" }
@@ -80,16 +75,12 @@ type ParserState = {
   turns: ConversationTurn[];
   pendingItems: Map<string, PendingItem>;
   resultText: string;
-  inputTokens: number;
-  outputTokens: number;
 };
 
 const initialState = (): ParserState => ({
   turns: [],
   pendingItems: new Map(),
   resultText: "",
-  inputTokens: 0,
-  outputTokens: 0,
 });
 
 /** Extract a readable output string from an MCP tool call result. */
@@ -97,12 +88,35 @@ function extractMcpOutput(item: McpToolCallItem): string | undefined {
   if (item.error) return `Error: ${item.error.message}`;
   if (!item.result?.content) return undefined;
   const texts = (item.result.content as Array<{ type?: string; text?: string }>)
-    .filter((b) => b.type === "text" && typeof b.text === "string")
-    .map((b) => b.text!);
+    .filter(
+      (b): b is { type: string; text: string } => b.type === "text" && typeof b.text === "string",
+    )
+    .map((b) => b.text);
   return texts.length > 0 ? texts.join("\n") : undefined;
 }
 
 function processEvent(state: ParserState, event: CodexEvent): [ParserState, ParseEvent[]] {
+  switch (event.type) {
+    case "turn.failed": {
+      debug(`[codex] Turn failed: ${event.error.message}`);
+      return [state, []];
+    }
+
+    case "error": {
+      debug(`[codex] Thread error: ${event.message}`);
+      return [state, []];
+    }
+
+    case "turn.completed":
+    case "turn.started":
+    case "thread.started":
+    case "item.updated":
+      return [state, []];
+
+    default:
+      break;
+  }
+
   const events: ParseEvent[] = [];
   const newState: ParserState = {
     ...state,
@@ -156,6 +170,11 @@ function processEvent(state: ParserState, event: CodexEvent): [ParserState, Pars
         }
 
         case "mcp_tool_call": {
+          if (typeof item.arguments !== "object" || item.arguments === null) {
+            debug(
+              `[codex] mcp_tool_call ${item.id}: unexpected arguments type: ${typeof item.arguments}`,
+            );
+          }
           const output = extractMcpOutput(item);
           const toolCall: ToolCall = {
             name: item.tool,
@@ -189,18 +208,6 @@ function processEvent(state: ParserState, event: CodexEvent): [ParserState, Pars
       }
       break;
     }
-
-    case "turn.completed": {
-      if (event.usage) {
-        newState.inputTokens += event.usage.input_tokens;
-        newState.outputTokens += event.usage.output_tokens;
-      }
-      break;
-    }
-
-    // Skip: thread.started, turn.started, turn.failed, item.updated, error
-    default:
-      break;
   }
 
   return [newState, events];
@@ -220,19 +227,21 @@ export function parseCodexStream(
   let state = initialState();
 
   for (const line of lines) {
+    let event: CodexEvent;
     try {
-      const event = JSON.parse(line) as CodexEvent;
-      const [newState, events] = processEvent(state, event);
-      state = newState;
-
-      for (const ev of events) {
-        if (ev.type === "tool-call") handlers?.onToolCall?.(ev.toolCall);
-        else if (ev.type === "text") handlers?.onText?.(ev.text);
-      }
+      event = JSON.parse(line) as CodexEvent;
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       debug(`Skipped malformed codex-json line (${errMsg}): ${truncateForLog(line)}`);
       continue;
+    }
+
+    const [newState, events] = processEvent(state, event);
+    state = newState;
+
+    for (const ev of events) {
+      if (ev.type === "tool-call") handlers?.onToolCall?.(ev.toolCall);
+      else if (ev.type === "text") handlers?.onText?.(ev.text);
     }
   }
 

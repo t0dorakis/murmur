@@ -3,13 +3,8 @@
  */
 
 import { Effect, Stream } from "effect";
-import { debug } from "./debug.ts";
+import { debug, truncateForLog } from "./debug.ts";
 import type { ConversationTurn, ToolCall } from "./types.ts";
-
-/** Truncate a string for debug logging, adding ellipsis if truncated. */
-function truncateForLog(text: string, maxLen = 100): string {
-  return text.length > maxLen ? `${text.slice(0, maxLen)}...` : text;
-}
 
 /** Raw content block from Claude's stream-json messages. */
 type ContentBlock =

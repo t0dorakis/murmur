@@ -10,14 +10,10 @@ const threadStarted = JSON.stringify({
 
 const turnStarted = JSON.stringify({ type: "turn.started" });
 
-const turnCompleted = (inputTokens = 1000, outputTokens = 200, cachedInputTokens = 500) =>
+const turnCompleted = () =>
   JSON.stringify({
     type: "turn.completed",
-    usage: {
-      input_tokens: inputTokens,
-      cached_input_tokens: cachedInputTokens,
-      output_tokens: outputTokens,
-    },
+    usage: { input_tokens: 1000, cached_input_tokens: 500, output_tokens: 200 },
   });
 
 const itemStarted = (item: Record<string, unknown>) =>
@@ -305,6 +301,32 @@ describe("parseCodexStream", () => {
     expect(parsed.turns).toHaveLength(1);
     expect(parsed.resultText).toBe("done");
   });
+
+  test("skips turn.failed events without crashing", () => {
+    const ndjson = [
+      threadStarted,
+      turnStarted,
+      itemCompleted({ id: "msg_1", type: "agent_message", text: "partial" }),
+      JSON.stringify({ type: "turn.failed", error: { message: "Rate limit exceeded" } }),
+      itemCompleted({ id: "msg_2", type: "agent_message", text: "recovered" }),
+    ].join("\n");
+
+    const parsed = parseCodexStream(ndjson);
+    expect(parsed.resultText).toBe("recovered");
+    expect(parsed.turns).toHaveLength(2);
+  });
+
+  test("skips error events without crashing", () => {
+    const ndjson = [
+      threadStarted,
+      JSON.stringify({ type: "error", message: "Internal server error" }),
+      itemCompleted({ id: "msg_1", type: "agent_message", text: "ok" }),
+    ].join("\n");
+
+    const parsed = parseCodexStream(ndjson);
+    expect(parsed.resultText).toBe("ok");
+    expect(parsed.turns).toHaveLength(1);
+  });
 });
 
 describe("runCodexParseStream", () => {
@@ -367,6 +389,24 @@ describe("runCodexParseStream", () => {
     });
 
     expect(texts).toEqual(["Hello", "World"]);
+  });
+
+  test("handles malformed lines in stream", async () => {
+    const ndjson = [
+      threadStarted,
+      "not valid json {{{",
+      itemCompleted({ id: "msg_1", type: "agent_message", text: "ok" }),
+    ].join("\n");
+
+    const result = await runCodexParseStream(toReadableStream(ndjson));
+    expect(result.resultText).toBe("ok");
+    expect(result.turns).toHaveLength(1);
+  });
+
+  test("handles empty stream", async () => {
+    const result = await runCodexParseStream(toReadableStream(""));
+    expect(result.resultText).toBe("");
+    expect(result.turns).toHaveLength(0);
   });
 
   test("handles chunked input", async () => {

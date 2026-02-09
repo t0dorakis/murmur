@@ -134,6 +134,8 @@ export class CodexAdapter implements AgentAdapter {
       exitCode,
       stderr,
       turns,
+      costUsd: parsed.costUsd,
+      numTurns: parsed.numTurns,
       durationMs,
     };
   }

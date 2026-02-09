@@ -73,7 +73,7 @@ export type Config = {
 
 export type Outcome = "ok" | "attention" | "error";
 
-/** A tool call extracted from Claude's stream-json output. */
+/** A tool call extracted from an agent's structured output. */
 export type ToolCall = {
   name: string;
   input: Record<string, unknown>;

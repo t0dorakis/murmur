@@ -7,7 +7,7 @@ import type { ReadableSubprocess } from "bun";
  * Stream stdout/stderr from a plain-text agent process, collecting output
  * and returning a unified AgentExecutionResult.
  *
- * Used by adapters that don't emit structured JSONL (e.g., Codex, Pi).
+ * Used by adapters that don't emit structured JSONL (e.g., Pi).
  * For structured stream-json output, see stream-parser.ts (used by Claude Code).
  */
 export async function streamPlainTextProcess(
