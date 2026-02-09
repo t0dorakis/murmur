@@ -42,14 +42,19 @@ export class CodexAdapter implements AgentAdapter {
 
     validateCodexConfig(workspace);
 
+    const sandbox = workspace.sandbox ?? "workspace-write";
     const codexArgs = [
       "codex",
       "exec",
       "--full-auto",
       "--sandbox",
-      "workspace-write",
+      sandbox,
       "--skip-git-repo-check",
     ];
+
+    if (workspace.networkAccess && sandbox === "workspace-write") {
+      codexArgs.push("-c", "sandbox_workspace_write.network_access=true");
+    }
 
     if (workspace.model) {
       codexArgs.push("--model", workspace.model);

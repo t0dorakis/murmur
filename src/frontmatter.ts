@@ -35,6 +35,7 @@ const STRING_FIELDS = [
   "agent",
   "model",
   "session",
+  "sandbox",
 ] as const;
 
 /**
@@ -54,6 +55,8 @@ export function mergeWorkspaceConfig(
   }
 
   if (typeof metadata.maxTurns === "number") merged.maxTurns = metadata.maxTurns;
+  if (typeof metadata.networkAccess === "boolean")
+    (merged as any).networkAccess = metadata.networkAccess;
   if (metadata.permissions === "skip") merged.permissions = "skip";
 
   return merged;

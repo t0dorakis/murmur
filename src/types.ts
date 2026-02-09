@@ -46,6 +46,10 @@ export type PiConfig = BaseWorkspaceConfig & {
  */
 export type CodexConfig = BaseWorkspaceConfig & {
   agent: "codex";
+  /** Codex sandbox mode: "workspace-write" (default), "read-only", or "danger-full-access" */
+  sandbox?: "read-only" | "workspace-write" | "danger-full-access";
+  /** Enable outbound network access (only applies to workspace-write sandbox). Default: false */
+  networkAccess?: boolean;
 };
 
 /**
