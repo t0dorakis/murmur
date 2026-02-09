@@ -55,6 +55,9 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     if (!proc.stdout) throw new Error("Spawned process stdout is not piped");
     const stream = proc.stdout as ReadableStream<Uint8Array>;
 
+    // Drain stderr immediately to prevent pipe buffer deadlock
+    const stderrPromise = new Response(proc.stderr).text();
+
     // Tee stream: one for parsing, one for raw collection
     const [parseStream, rawStream] = stream.tee();
 
@@ -84,7 +87,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     debug(`[claude-code] Stream JSON (first 500 chars): ${stdout.slice(0, 500)}`);
 
     const exitCode = await proc.exited;
-    const stderr = await new Response(proc.stderr).text();
+    const stderr = await stderrPromise;
     const durationMs = Date.now() - start;
 
     debug(`[claude-code] Exit code: ${exitCode}`);
