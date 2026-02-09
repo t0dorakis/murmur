@@ -225,10 +225,22 @@ cron: 0 9 * * *
 ---
 ```
 
-| Agent         | Description                        | Config Options                     |
-| ------------- | ---------------------------------- | ---------------------------------- |
-| `claude-code` | Anthropic's official CLI (default) | `maxTurns`, `permissions`, `model` |
-| `pi`          | Minimal coding agent by @badlogic  | `model`, `session`                 |
+**Codex ([OpenAI Codex CLI](https://github.com/openai/codex)):**
+
+```markdown
+---
+agent: codex
+model: o3
+sandbox: workspace-write
+interval: 1h
+---
+```
+
+| Agent         | Description                        | Config Options                      |
+| ------------- | ---------------------------------- | ----------------------------------- |
+| `claude-code` | Anthropic's official CLI (default) | `maxTurns`, `permissions`, `model`  |
+| `codex`       | OpenAI Codex CLI                   | `model`, `sandbox`, `networkAccess` |
+| `pi`          | Minimal coding agent by @badlogic  | `model`, `session`                  |
 
 If `agent` is not specified, murmur defaults to `claude-code`.
 

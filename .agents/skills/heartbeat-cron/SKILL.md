@@ -40,12 +40,14 @@ Every heartbeat is a markdown file with an optional YAML frontmatter block. Fron
 interval: 1h # or cron: "0 9 * * 1-5" (pick one)
 # tz: America/New_York  # timezone for cron (default: local system tz)
 # timeout: 15m          # max run time (default: 5m)
-# agent: claude-code    # "claude-code" (default) or "pi"
+# agent: claude-code    # "claude-code" (default), "codex", or "pi"
 # model: opus           # model hint passed to the agent
 # maxTurns: 50          # cap agent iterations per run (default: 99)
 # name: My Heartbeat
 # description: What this heartbeat does
 # session: my-session   # pi-specific: reuse a named browser session
+# sandbox: workspace-write  # codex-specific: "read-only", "workspace-write", or "danger-full-access"
+# networkAccess: false  # codex-specific: allow outbound network in workspace-write sandbox
 # permissions: skip      # skip permission checks (only "skip" supported in frontmatter)
 ---
 Your prompt here...
@@ -132,7 +134,7 @@ Based on their goal, dig into specifics:
   - If they pick cron, ask about timezone (defaults to local system tz)
 - Does the heartbeat need more than the default 5-minute timeout? (e.g., `timeout: 15m` for long-running tasks)
 - Any model preference? (default uses whatever the agent defaults to; can set `model: opus`, `model: sonnet`, etc.)
-- Agent choice: `claude-code` (default) runs Claude Code CLI; `pi` runs the pi agent (has browser extensions)
+- Agent choice: `claude-code` (default) runs Claude Code CLI; `codex` runs OpenAI Codex CLI (uses sandbox policies); `pi` runs the pi agent (has browser extensions)
 
 **Round 3 — Delivery:**
 

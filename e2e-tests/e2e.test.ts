@@ -212,6 +212,31 @@ describe("e2e", () => {
     expect(entry.turns.length).toBeGreaterThan(0);
   }, 60_000);
 
+  test("murmur beat with codex agent", async () => {
+    const wsDir = createWorkspace({ agent: "codex" });
+    const jokesBefore = jokeCount(wsDir);
+
+    const result = await murmur("beat", wsDir);
+    expect(result.exitCode).toBe(0);
+
+    // Log file created with a valid entry
+    const logFile = join(testDataDir, "heartbeats.jsonl");
+    expect(existsSync(logFile)).toBe(true);
+
+    const logContent = readFileSync(logFile, "utf-8");
+    const lastLine = logContent.trim().split("\n").pop();
+    expect(lastLine).toBeTruthy();
+    const entry = JSON.parse(lastLine!);
+    expect(entry.outcome).not.toBe("error");
+
+    // Codex actually did the work
+    expect(jokeCount(wsDir)).toBeGreaterThan(jokesBefore);
+
+    // Verify turns were captured
+    expect(entry.turns).toBeTruthy();
+    expect(entry.turns.length).toBeGreaterThan(0);
+  }, 120_000);
+
   test("daemon lifecycle: start, scheduled beat, stop", async () => {
     await testDaemonLifecycle({
       interval: "1s",
@@ -241,6 +266,16 @@ describe("e2e", () => {
     const statusAfter = await murmur("status");
     expect(statusAfter.stdout).toContain("stopped");
   }, 60_000);
+
+  test("daemon lifecycle with codex agent", async () => {
+    await testDaemonLifecycle({ agent: "codex", interval: "1s", maxTurns: 50 }, undefined, {
+      waitMs: 30_000,
+    });
+
+    // Status reports stopped after lifecycle completes
+    const statusAfter = await murmur("status");
+    expect(statusAfter.stdout).toContain("stopped");
+  }, 120_000);
 
   test("multi-heartbeat: beat --name runs a named heartbeat", async () => {
     const wsDir = join(testDataDir, `ws-${testId++}`);
