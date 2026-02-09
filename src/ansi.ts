@@ -51,3 +51,10 @@ export function padRight(text: string, width: number): string {
   if (text.length >= width) return text;
   return text + " ".repeat(width - text.length);
 }
+
+const ANSI_RE = /\x1b\[[0-9;]*m/g;
+
+/** Visible character count, ignoring ANSI escape sequences. */
+export function visualWidth(text: string): number {
+  return text.replace(ANSI_RE, "").length;
+}
