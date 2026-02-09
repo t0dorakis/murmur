@@ -22,6 +22,8 @@ conventional_commits = true
 filter_unconventional = true
 split_commits = false
 commit_parsers = [
+  { message = "^feat\\(skill\\).*heartbeat", group = "Features" },
+  { message = "^feat\\(skill\\)", skip = true },
   { message = "^feat", group = "Features" },
   { message = "^fix", group = "Bug Fixes" },
   { message = "^perf", group = "Performance" },
