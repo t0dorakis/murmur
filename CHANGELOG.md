@@ -2,7 +2,22 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.1] - 2026-02-09
+
+### Bug Fixes
+
+- **tui:** Correct feed entry alignment and ANSI-aware text helpers (#37)
+
+### Features
+
+- **agents:** Add code-review-expert skill and PR reviewer heartbeat (#38)
+- **codex:** Add JSONL stream parsing for live TUI output (#39)
+
 ## [0.4.0] - 2026-02-09
+
+### Bug Fixes
+
+- **release:** Run oxfmt on full repo before release commit
 
 ### Documentation
 
@@ -13,10 +28,10 @@ All notable changes to this project will be documented in this file.
 ### Features
 
 - **cli:** Improve lifecycle feedback, status output, and YAML parsing (#31)
+- Add pre-commit hook with oxlint, oxfmt, and lint-staged
 - **status:** Add health checks, outcome display, and recent errors (#30)
 - Multi-heartbeat support per workspace (#33) (#34)
 - **agents:** Add OpenAI Codex CLI adapter (#36)
-- Add pre-commit hook with oxlint, oxfmt, and lint-staged
 
 ## [0.3.0] - 2026-02-07
 
@@ -60,6 +75,7 @@ All notable changes to this project will be documented in this file.
 - Make verbose logging default with --quiet option
 - Restructure heartbeat skill for skills.sh publishing
 - Add skill metadata and installation instructions
+- Add effect-ts-patterns skill
 - Add permission deny-list for heartbeat agents (#10)
 
 ### Refactoring
