@@ -17,6 +17,7 @@ import {
   truncate,
   padRight,
   toolIcons,
+  visualWidth,
 } from "./ansi.ts";
 import { createScreen, type Screen } from "./screen.ts";
 import { formatToolTarget, formatToolDuration } from "./tool-format.ts";
@@ -170,7 +171,7 @@ function renderActiveBeat(state: TuiState, termWidth: number, maxLines: number):
 
   const lines: string[] = [];
   lines.push(
-    ` ${styled("▶", bold, white)} ${styled(name, bold, white)}${" ".repeat(Math.max(1, termWidth - name.length - elapsed.length - 6))}${styled(elapsed, dim)}`,
+    ` ${styled("▶", bold, white)} ${styled(name, bold, white)}${" ".repeat(Math.max(1, termWidth - name.length - elapsed.length - 4))}${styled(elapsed, dim)}`,
   );
 
   const wsStatus = state.workspaces.find((w) => w.id === workspace);
@@ -213,7 +214,7 @@ function renderFeedEntry(entry: FeedEntry, termWidth: number): string[] {
   if (entry.outcome === "ok") {
     const meta = [outcomeLabel("ok"), tools, styled(dur, dim)].filter(Boolean).join("  ");
     return [
-      ` ${outcomeIcon("ok")} ${styled(name, dim)}${" ".repeat(Math.max(1, termWidth - name.length - meta.length - 8))}${meta}`,
+      ` ${outcomeIcon("ok")} ${styled(name, dim)}${" ".repeat(Math.max(1, termWidth - name.length - visualWidth(meta) - 4))}${meta}`,
     ];
   }
 
@@ -222,7 +223,7 @@ function renderFeedEntry(entry: FeedEntry, termWidth: number): string[] {
   const lines: string[] = [];
   const meta = [label, tools, styled(dur, dim)].filter(Boolean).join("  ");
   lines.push(
-    ` ${icon} ${styled(name, bold, white)}${" ".repeat(Math.max(1, termWidth - name.length - meta.length - 6))}${meta}`,
+    ` ${icon} ${styled(name, bold, white)}${" ".repeat(Math.max(1, termWidth - name.length - visualWidth(meta) - 4))}${meta}`,
   );
 
   const subtitle = entry.description ?? entry.promptPreview;
@@ -374,6 +375,8 @@ export function createTui(eventSource: EventSource, screen?: Screen): Tui {
       let linesUsed = 0;
       for (let i = state.feed.length - 1; i >= 0 && linesUsed < feedSpace; i--) {
         const entry = state.feed[i]!;
+        // Skip in-progress entries — already shown in the active beat section
+        if (entry.outcome === null && state.activeBeat?.workspace === entry.workspace) continue;
         const entryLines = renderFeedEntry(entry, termWidth);
         if (linesUsed + entryLines.length > feedSpace) break;
         for (const line of entryLines) {

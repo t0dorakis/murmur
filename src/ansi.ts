@@ -42,12 +42,40 @@ export function styled(text: string, ...codes: string[]): string {
   return codes.join("") + text + reset;
 }
 
+/** Matches all CSI escape sequences (colors, cursor movement, clear, etc.). */
+export const ANSI_RE = /\x1b\[[0-9;]*[A-Za-z]/g;
+
+/** Strip ANSI escape sequences, returning only visible characters. */
+export function stripAnsi(text: string): string {
+  return text.replace(ANSI_RE, "");
+}
+
+/** Visible character count, ignoring ANSI escape sequences. */
+export function visualWidth(text: string): number {
+  return stripAnsi(text).length;
+}
+
 export function truncate(text: string, maxWidth: number, suffix = "…"): string {
-  if (text.length <= maxWidth) return text;
-  return text.slice(0, maxWidth - suffix.length) + suffix;
+  const stripped = stripAnsi(text);
+  if (stripped.length <= maxWidth) return text;
+  // Walk the original string, counting only visible characters
+  let visible = 0;
+  let i = 0;
+  const target = maxWidth - suffix.length;
+  while (i < text.length && visible < target) {
+    const match = text.slice(i).match(/^\x1b\[[0-9;]*[A-Za-z]/);
+    if (match) {
+      i += match[0].length;
+    } else {
+      i++;
+      visible++;
+    }
+  }
+  return text.slice(0, i) + reset + suffix;
 }
 
 export function padRight(text: string, width: number): string {
-  if (text.length >= width) return text;
-  return text + " ".repeat(width - text.length);
+  const w = visualWidth(text);
+  if (w >= width) return text;
+  return text + " ".repeat(width - w);
 }
