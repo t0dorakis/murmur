@@ -9,6 +9,8 @@
 
 The agent cron daemon. Schedule automated Claude/Codex/Pi sessions that run on intervals or cron expressions — each one a fresh CLI invocation with full tool access.
 
+![murmur demo](hero.gif)
+
 Murmur is deliberately minimal: it schedules, runs, and logs. What happens inside each session — checking APIs, sending notifications, updating files — is defined by you and your agent in a markdown prompt. Claude builds the pipeline.
 
 **Get started in one conversation:**
