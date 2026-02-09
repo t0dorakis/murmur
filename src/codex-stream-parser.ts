@@ -89,7 +89,8 @@ function extractMcpOutput(item: McpToolCallItem): string | undefined {
   if (!item.result?.content) return undefined;
   const texts = (item.result.content as Array<{ type?: string; text?: string }>)
     .filter(
-      (b): b is { type: string; text: string } => b.type === "text" && typeof b.text === "string",
+      (b): b is { type: string; text: string } =>
+        b != null && typeof b === "object" && b.type === "text" && typeof b.text === "string",
     )
     .map((b) => b.text);
   return texts.length > 0 ? texts.join("\n") : undefined;
@@ -205,6 +206,9 @@ function processEvent(state: ParserState, event: CodexEvent): [ParserState, Pars
           });
           break;
         }
+
+        default:
+          debug(`[codex] Unknown item type in item.completed: ${(item as { type: string }).type}`);
       }
       break;
     }
@@ -229,7 +233,16 @@ export function parseCodexStream(
   for (const line of lines) {
     let event: CodexEvent;
     try {
-      event = JSON.parse(line) as CodexEvent;
+      const parsed: unknown = JSON.parse(line);
+      if (
+        !parsed ||
+        typeof parsed !== "object" ||
+        typeof (parsed as { type?: unknown }).type !== "string"
+      ) {
+        debug(`[codex] Skipped event with missing/invalid type: ${truncateForLog(line)}`);
+        continue;
+      }
+      event = parsed as CodexEvent;
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       debug(`Skipped malformed codex-json line (${errMsg}): ${truncateForLog(line)}`);
@@ -266,7 +279,16 @@ export function createCodexParseStream(readable: ReadableStream<Uint8Array>) {
     Stream.filter((line) => line.trim().length > 0),
     Stream.map((line) => {
       try {
-        return JSON.parse(line) as CodexEvent;
+        const parsed: unknown = JSON.parse(line);
+        if (
+          !parsed ||
+          typeof parsed !== "object" ||
+          typeof (parsed as { type?: unknown }).type !== "string"
+        ) {
+          debug(`[codex] Skipped event with missing/invalid type: ${truncateForLog(line)}`);
+          return null;
+        }
+        return parsed as CodexEvent;
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : String(err);
         debug(`Skipped malformed codex-json line (${errMsg}): ${truncateForLog(line)}`);

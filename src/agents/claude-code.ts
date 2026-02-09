@@ -1,4 +1,4 @@
-import { debug } from "../debug.ts";
+import { debug, truncateForLog } from "../debug.ts";
 import { buildDisallowedToolsArgs } from "../permissions.ts";
 import { runParseStream } from "../stream-parser.ts";
 import { isCommandAvailable, getCommandVersion } from "./cli-utils.ts";
@@ -84,7 +84,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
     debug(`[claude-code] Parsed ${turns.length} conversation turns`);
     if (parsed.costUsd != null) debug(`[claude-code] Cost: $${parsed.costUsd.toFixed(6)}`);
     if (parsed.numTurns != null) debug(`[claude-code] Agent turns: ${parsed.numTurns}`);
-    debug(`[claude-code] Stream JSON (first 500 chars): ${stdout.slice(0, 500)}`);
+    debug(`[claude-code] Stream JSON: ${truncateForLog(stdout, 500)}`);
 
     const exitCode = await proc.exited;
     const stderr = await stderrPromise;

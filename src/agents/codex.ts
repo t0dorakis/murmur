@@ -1,4 +1,4 @@
-import { debug } from "../debug.ts";
+import { debug, truncateForLog } from "../debug.ts";
 import { runCodexParseStream } from "../codex-stream-parser.ts";
 import { isCommandAvailable, getCommandVersion } from "./cli-utils.ts";
 import { resolveTimeoutMs } from "./constants.ts";
@@ -122,7 +122,7 @@ export class CodexAdapter implements AgentAdapter {
     const turns = parsed.turns;
 
     debug(`[codex] Parsed ${turns.length} conversation turns`);
-    debug(`[codex] JSONL (first 500 chars): ${stdout.slice(0, 500)}`);
+    debug(`[codex] JSONL: ${truncateForLog(stdout, 500)}`);
 
     const exitCode = await proc.exited;
     const stderr = await stderrPromise;
