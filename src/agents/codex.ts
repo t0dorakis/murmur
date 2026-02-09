@@ -1,8 +1,11 @@
 import { debug } from "../debug.ts";
 import { isCommandAvailable, getCommandVersion } from "./cli-utils.ts";
 import { resolveTimeoutMs } from "./constants.ts";
+import { streamPlainTextProcess } from "./plain-text-stream.ts";
 import type { AgentAdapter, AgentExecutionResult, AgentStreamCallbacks } from "./adapter.ts";
-import type { WorkspaceConfig, ConversationTurn, CodexConfig } from "../types.ts";
+import type { WorkspaceConfig, CodexConfig } from "../types.ts";
+
+const VALID_SANDBOXES = ["read-only", "workspace-write", "danger-full-access"] as const;
 
 /**
  * Validates Codex-specific configuration fields.
@@ -10,11 +13,20 @@ import type { WorkspaceConfig, ConversationTurn, CodexConfig } from "../types.ts
  */
 function validateCodexConfig(workspace: WorkspaceConfig): asserts workspace is CodexConfig {
   if (workspace.agent !== "codex") {
-    throw new Error(`Expected agent 'codex', got: ${workspace.agent ?? "claude-code"}`);
+    throw new Error(`Expected agent 'codex', got: ${workspace.agent ?? "(unset)"}`);
   }
 
   if (workspace.model && typeof workspace.model !== "string") {
     throw new Error(`model must be a string, got: ${typeof workspace.model}`);
+  }
+
+  if (
+    workspace.sandbox &&
+    !VALID_SANDBOXES.includes(workspace.sandbox as (typeof VALID_SANDBOXES)[number])
+  ) {
+    throw new Error(
+      `Invalid sandbox mode: "${workspace.sandbox}". Use: ${VALID_SANDBOXES.join(", ")}`,
+    );
   }
 }
 
@@ -23,12 +35,15 @@ function validateCodexConfig(workspace: WorkspaceConfig): asserts workspace is C
  *
  * Supports:
  * - Full-auto execution mode (--full-auto)
- * - Sandboxed workspace writes (--sandbox workspace-write)
+ * - Configurable sandbox policy (--sandbox)
+ * - Network access toggle for workspace-write sandbox
  * - Model selection (--model)
  * - Configurable timeout
  *
- * Note: Codex uses plain text output (no stream-json).
- * We parse the output to create a synthetic conversation turn.
+ * Limitations vs Claude Code:
+ * - No --max-turns equivalent (Codex manages turns internally)
+ * - No permission deny-list (Codex uses sandbox policies for containment)
+ * - Plain text output only (no structured stream-json)
  */
 export class CodexAdapter implements AgentAdapter {
   readonly name = "codex";
@@ -41,6 +56,15 @@ export class CodexAdapter implements AgentAdapter {
     const start = Date.now();
 
     validateCodexConfig(workspace);
+
+    if (workspace.maxTurns) {
+      debug("[codex] Warning: maxTurns is not supported by Codex CLI and will be ignored");
+    }
+    if (workspace.permissions && workspace.permissions !== "skip") {
+      debug(
+        "[codex] Warning: permissions.deny is not supported by Codex CLI — use sandbox mode instead",
+      );
+    }
 
     const sandbox = workspace.sandbox ?? "workspace-write";
     const codexArgs = [
@@ -60,7 +84,7 @@ export class CodexAdapter implements AgentAdapter {
       codexArgs.push("--model", workspace.model);
     }
 
-    // Read prompt from stdin
+    // Tell codex to read prompt from stdin
     codexArgs.push("-");
 
     debug(`[codex] Spawning: ${codexArgs.join(" ")} (cwd: ${workspace.path})`);
@@ -73,69 +97,7 @@ export class CodexAdapter implements AgentAdapter {
       timeout: resolveTimeoutMs(workspace),
     });
 
-    if (!proc.stdout) throw new Error("Spawned process stdout is not piped");
-
-    let stdout = "";
-
-    const stdoutPromise = (async () => {
-      const decoder = new TextDecoder();
-      const reader = proc.stdout!.getReader();
-
-      try {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-
-          const chunk = decoder.decode(value, { stream: true });
-          stdout += chunk;
-
-          if (callbacks?.onText && chunk) {
-            try {
-              callbacks.onText(chunk);
-            } catch (callbackErr) {
-              debug(
-                `[codex] onText callback error: ${callbackErr instanceof Error ? callbackErr.message : String(callbackErr)}`,
-              );
-            }
-          }
-        }
-      } catch (readErr) {
-        debug(
-          `[codex] Stream read error: ${readErr instanceof Error ? readErr.message : String(readErr)}`,
-        );
-      } finally {
-        reader.releaseLock();
-      }
-
-      return stdout;
-    })();
-
-    const stderrPromise = new Response(proc.stderr).text();
-
-    const [finalStdout, stderr] = await Promise.all([stdoutPromise, stderrPromise]);
-    const exitCode = await proc.exited;
-    const durationMs = Date.now() - start;
-
-    debug(`[codex] Exit code: ${exitCode}`);
-    debug(`[codex] Stdout (first 500 chars): ${finalStdout.slice(0, 500)}`);
-    debug(`[codex] Stderr: ${stderr.trim() || "(empty)"}`);
-    debug(`[codex] Duration: ${durationMs}ms`);
-
-    const turns: ConversationTurn[] = [
-      {
-        role: "result",
-        text: finalStdout.trim(),
-        durationMs,
-      },
-    ];
-
-    return {
-      resultText: finalStdout.trim(),
-      exitCode,
-      stderr,
-      turns,
-      durationMs,
-    };
+    return streamPlainTextProcess(proc, "codex", start, callbacks);
   }
 
   async isAvailable(): Promise<boolean> {

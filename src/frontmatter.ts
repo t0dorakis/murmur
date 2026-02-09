@@ -55,6 +55,7 @@ export function mergeWorkspaceConfig(
   }
 
   if (typeof metadata.maxTurns === "number") merged.maxTurns = metadata.maxTurns;
+  // Agent-specific fields — validated at execution time by each adapter
   if (typeof metadata.networkAccess === "boolean")
     (merged as any).networkAccess = metadata.networkAccess;
   if (metadata.permissions === "skip") merged.permissions = "skip";
