@@ -57,6 +57,14 @@ bump_version() {
   "
 }
 
+bump_skill_version() {
+  local version="$1"
+  local skill="$REPO_ROOT/.agents/skills/heartbeat-cron/SKILL.md"
+  if [[ -f "$skill" ]]; then
+    sed -i '' "s/^  version: \".*\"/  version: \"$version\"/" "$skill"
+  fi
+}
+
 generate_changelog() {
   local tag="$1"
   git-cliff --tag "$tag" -o CHANGELOG.md
@@ -64,7 +72,7 @@ generate_changelog() {
 
 commit_tag_push() {
   local tag="$1"
-  git add package.json CHANGELOG.md
+  git add package.json CHANGELOG.md .agents/skills/heartbeat-cron/SKILL.md
   git commit -m "chore(release): $tag"
   git tag "$tag"
   git pull --rebase
@@ -79,7 +87,7 @@ TAG=""
 cleanup() {
   if $CLEANUP_NEEDED; then
     echo "Error: release failed. Reverting local changes..."
-    git checkout package.json CHANGELOG.md 2>/dev/null || true
+    git checkout package.json CHANGELOG.md .agents/skills/heartbeat-cron/SKILL.md 2>/dev/null || true
     git reset HEAD~ 2>/dev/null || true
     git tag -d "$TAG" 2>/dev/null || true
   fi
@@ -98,6 +106,7 @@ assert_prerequisites
 CLEANUP_NEEDED=true
 
 bump_version "$VERSION"
+bump_skill_version "$VERSION"
 generate_changelog "$TAG"
 commit_tag_push "$TAG"
 
