@@ -13,6 +13,8 @@ The agent cron daemon. Schedule automated Claude/Codex/Pi sessions that run on i
 
 Murmur is deliberately minimal: it schedules, runs, and logs. What happens inside each session — checking APIs, sending notifications, updating files — is defined by you and your agent in a markdown prompt. Claude builds the pipeline.
 
+**Inspired by [OpenClaw](https://github.com/openclaw/openclaw)'s HEARTBEAT system** — a minimal, standalone implementation focused purely on scheduling periodic agent sessions.
+
 **Get started in one conversation:**
 
 ```bash
