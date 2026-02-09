@@ -1,7 +1,7 @@
-import { debug } from "../debug.ts";
+import { debug, truncateForLog } from "../debug.ts";
+import { runCodexParseStream } from "../codex-stream-parser.ts";
 import { isCommandAvailable, getCommandVersion } from "./cli-utils.ts";
 import { resolveTimeoutMs } from "./constants.ts";
-import { streamPlainTextProcess } from "./plain-text-stream.ts";
 import type { AgentAdapter, AgentExecutionResult, AgentStreamCallbacks } from "./adapter.ts";
 import type { WorkspaceConfig, CodexConfig } from "../types.ts";
 
@@ -38,11 +38,11 @@ function validateCodexConfig(workspace: WorkspaceConfig): asserts workspace is C
  * - Network access toggle for workspace-write sandbox
  * - Model selection (--model)
  * - Configurable timeout
+ * - JSONL stream output (--json) for live TUI tool calls and messages
  *
  * Limitations vs Claude Code:
  * - No --max-turns equivalent (Codex manages turns internally)
  * - No permission deny-list (Codex uses sandbox policies for containment)
- * - Plain text output only (no structured stream-json)
  */
 export class CodexAdapter implements AgentAdapter {
   readonly name = "codex";
@@ -69,7 +69,7 @@ export class CodexAdapter implements AgentAdapter {
     // Note: --full-auto is intentionally NOT used — it hardcodes --sandbox workspace-write,
     // overriding the user's explicit sandbox choice. Codex auto-sets approval to "never"
     // when reading from stdin (-), so --full-auto is unnecessary.
-    const codexArgs = ["codex", "exec", "--sandbox", sandbox, "--skip-git-repo-check"];
+    const codexArgs = ["codex", "exec", "--sandbox", sandbox, "--skip-git-repo-check", "--json"];
 
     if (workspace.networkAccess && sandbox === "workspace-write") {
       codexArgs.push("-c", "sandbox_workspace_write.network_access=true");
@@ -92,7 +92,55 @@ export class CodexAdapter implements AgentAdapter {
       timeout: resolveTimeoutMs(workspace),
     });
 
-    return streamPlainTextProcess(proc, "codex", start, callbacks);
+    if (!proc.stdout) throw new Error("Spawned process stdout is not piped");
+    const stream = proc.stdout as ReadableStream<Uint8Array>;
+
+    // Drain stderr immediately to prevent pipe buffer deadlock
+    const stderrPromise = new Response(proc.stderr).text();
+
+    // Tee stream: one for parsing, one for raw collection (debugging)
+    const [parseStream, rawStream] = stream.tee();
+
+    let stdout = "";
+    const rawPromise = new Response(rawStream).text().then((text) => {
+      stdout = text;
+    });
+
+    // Parse JSONL stream; emit events if callbacks provided
+    const parsed = await runCodexParseStream(
+      parseStream,
+      callbacks
+        ? {
+            onToolCall: callbacks.onToolCall,
+            onText: callbacks.onText,
+          }
+        : undefined,
+    );
+
+    await rawPromise;
+    const resultText = parsed.resultText;
+    const turns = parsed.turns;
+
+    debug(`[codex] Parsed ${turns.length} conversation turns`);
+    debug(`[codex] JSONL: ${truncateForLog(stdout, 500)}`);
+
+    const exitCode = await proc.exited;
+    const stderr = await stderrPromise;
+    const durationMs = Date.now() - start;
+
+    debug(`[codex] Exit code: ${exitCode}`);
+    debug(`[codex] Stderr: ${stderr.trim() || "(empty)"}`);
+    debug(`[codex] Duration: ${durationMs}ms`);
+
+    return {
+      resultText,
+      exitCode,
+      stderr,
+      turns,
+      costUsd: parsed.costUsd,
+      numTurns: parsed.numTurns,
+      durationMs,
+    };
   }
 
   async isAvailable(): Promise<boolean> {

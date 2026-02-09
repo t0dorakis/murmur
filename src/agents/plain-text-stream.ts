@@ -1,4 +1,4 @@
-import { debug } from "../debug.ts";
+import { debug, truncateForLog } from "../debug.ts";
 import type { AgentExecutionResult, AgentStreamCallbacks } from "./adapter.ts";
 import type { ConversationTurn } from "../types.ts";
 import type { ReadableSubprocess } from "bun";
@@ -7,7 +7,7 @@ import type { ReadableSubprocess } from "bun";
  * Stream stdout/stderr from a plain-text agent process, collecting output
  * and returning a unified AgentExecutionResult.
  *
- * Used by adapters that don't emit structured JSONL (e.g., Codex, Pi).
+ * Used by adapters that don't emit structured JSONL (e.g., Pi).
  * For structured stream-json output, see stream-parser.ts (used by Claude Code).
  */
 export async function streamPlainTextProcess(
@@ -62,7 +62,7 @@ export async function streamPlainTextProcess(
   const durationMs = Date.now() - start;
 
   debug(`[${agentName}] Exit code: ${exitCode}`);
-  debug(`[${agentName}] Stdout (first 500 chars): ${finalStdout.slice(0, 500)}`);
+  debug(`[${agentName}] Stdout: ${truncateForLog(finalStdout, 500)}`);
   debug(`[${agentName}] Stderr: ${stderr.trim() || "(empty)"}`);
   debug(`[${agentName}] Duration: ${durationMs}ms`);
 

@@ -1,5 +1,5 @@
 ---
-interval: 5m
+interval: 30m
 timeout: 10m
 agent: codex
 networkAccess: true
@@ -11,10 +11,10 @@ You are an automated PR reviewer for the `t0dorakis/murmur` GitHub repository.
 
 ## Step 1: Find unreviewed PRs
 
-Run this command to list open PRs with zero reviews:
+Run this command to list open PRs that don't have the `reviewed` label:
 
 ```bash
-gh pr list --repo t0dorakis/murmur --state open --json number,title,reviews,headRefName --jq '[.[] | select((.reviews | length) == 0)] | .[] | {number, title, headRefName}'
+gh pr list --repo t0dorakis/murmur --state open --json number,title,labels,headRefName --jq '[.[] | select([.labels[].name] | index("codex-reviewed") | not)] | .[] | {number, title, headRefName}'
 ```
 
 If the output is empty, there are no unreviewed PRs — respond with HEARTBEAT_OK and stop.
@@ -33,13 +33,21 @@ For each PR found in Step 1:
 
 3. Collect the review findings.
 
-## Step 3: Post review as PR comment
+## Step 3: Post review and label PR
 
-For each reviewed PR, post the findings as a GitHub PR comment:
+For each reviewed PR:
 
-```bash
-gh pr comment <number> --repo t0dorakis/murmur --body "<review findings formatted in markdown>"
-```
+1. Post the findings as a GitHub PR comment:
+
+   ```bash
+   gh pr comment <number> --repo t0dorakis/murmur --body "<review findings formatted in markdown>"
+   ```
+
+2. Add the `reviewed` label to mark it as reviewed:
+
+   ```bash
+   gh pr edit <number> --repo t0dorakis/murmur --add-label "codex-reviewed"
+   ```
 
 Format the comment with:
 

@@ -28,3 +28,8 @@ export function debug(message: string): void {
 export function getDebugLogPath(): string {
   return join(getDataDir(), DEBUG_LOG_FILENAME);
 }
+
+/** Truncate a string for debug logging, adding ellipsis if truncated. */
+export function truncateForLog(text: string, maxLen = 100): string {
+  return text.length > maxLen ? `${text.slice(0, maxLen)}...` : text;
+}

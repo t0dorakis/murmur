@@ -3,13 +3,8 @@
  */
 
 import { Effect, Stream } from "effect";
-import { debug } from "./debug.ts";
+import { debug, truncateForLog } from "./debug.ts";
 import type { ConversationTurn, ToolCall } from "./types.ts";
-
-/** Truncate a string for debug logging, adding ellipsis if truncated. */
-function truncateForLog(text: string, maxLen = 100): string {
-  return text.length > maxLen ? `${text.slice(0, maxLen)}...` : text;
-}
 
 /** Raw content block from Claude's stream-json messages. */
 type ContentBlock =
@@ -57,11 +52,11 @@ type ParserState = {
   numTurns?: number;
 };
 
-const initialState: ParserState = {
+const initialState = (): ParserState => ({
   turns: [],
   pendingTools: new Map(),
   resultText: "",
-};
+});
 
 function extractToolOutput(
   content: string | Array<{ type: string; text?: string }> | undefined,
@@ -170,7 +165,7 @@ function processMessage(state: ParserState, msg: StreamMessage): [ParserState, P
  * Accumulates state and returns final result when stream completes.
  */
 export function createParseStream(readable: ReadableStream<Uint8Array>) {
-  let finalState = initialState;
+  let finalState = initialState();
 
   const eventStream = Stream.fromReadableStream(
     () => readable,
@@ -189,7 +184,7 @@ export function createParseStream(readable: ReadableStream<Uint8Array>) {
       }
     }),
     Stream.filter((msg): msg is StreamMessage => msg !== null),
-    Stream.mapAccum(initialState, (state, msg) => {
+    Stream.mapAccum(initialState(), (state, msg) => {
       const [newState, events] = processMessage(state, msg);
       finalState = newState;
       return [newState, events];
@@ -219,7 +214,7 @@ export function parseStreamJson(
   },
 ): StreamParseResult {
   const lines = ndjson.split("\n").filter((l) => l.trim());
-  let state = initialState;
+  let state = initialState();
 
   for (const line of lines) {
     try {

@@ -32,6 +32,7 @@ type FeedEntry = {
   outcome: Outcome | null;
   durationMs: number | null;
   output: string;
+  error?: string;
   toolCount: number;
 };
 
@@ -231,10 +232,15 @@ function renderFeedEntry(entry: FeedEntry, termWidth: number): string[] {
     lines.push(`   ${styled(truncate(subtitle, termWidth - 4), dim)}`);
   }
 
-  if (entry.output) {
-    for (const line of entry.output.split("\n").slice(0, 3)) {
+  const detail = entry.output || entry.error;
+  if (detail) {
+    for (const line of detail.split("\n").slice(0, 3)) {
       lines.push(`   ${truncate(line, termWidth - 4)}`);
     }
+  }
+
+  if (entry.outcome === "error") {
+    lines.push(`   ${styled("Logs: ~/.murmur/heartbeats.jsonl", dim)}`);
   }
 
   return lines;
@@ -294,6 +300,7 @@ function reduceEvent(state: TuiState, event: DaemonEvent): boolean {
         const feedEntry = state.feed[idx]!;
         feedEntry.outcome = event.entry.outcome;
         feedEntry.durationMs = event.entry.durationMs;
+        feedEntry.error = event.entry.error;
         feedEntry.output =
           state.activeBeat?.workspace === event.workspace ? state.activeBeat.output : "";
         feedEntry.toolCount =
