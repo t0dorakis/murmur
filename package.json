@@ -1,6 +1,25 @@
 {
   "name": "murmur",
   "version": "0.4.1",
+  "description": "Minimal cron daemon for Claude Code. Schedule recurring AI sessions via HEARTBEAT.md prompt files.",
+  "keywords": [
+    "agent",
+    "ai",
+    "automation",
+    "claude-code",
+    "cli",
+    "cron",
+    "daemon",
+    "heartbeat",
+    "scheduler"
+  ],
+  "homepage": "https://github.com/t0dorakis/murmur",
+  "license": "MIT",
+  "author": "Theo",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/t0dorakis/murmur.git"
+  },
   "bin": {
     "murmur": "./src/cli.ts"
   },
