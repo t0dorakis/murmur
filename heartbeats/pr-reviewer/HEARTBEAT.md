@@ -2,7 +2,7 @@
 interval: 5m
 timeout: 10m
 agent: codex
-sandbox: danger-full-access
+networkAccess: true
 name: PR Reviewer
 description: Checks for unreviewed PRs on t0dorakis/murmur and posts code reviews via Codex
 ---
