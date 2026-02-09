@@ -1,6 +1,6 @@
 {
   "name": "murmur",
-  "version": "0.4.1",
+  "version": "0.4.2",
   "description": "Minimal cron daemon for AI agents. Schedule recurring sessions via HEARTBEAT.md prompt files.",
   "keywords": [
     "agent",

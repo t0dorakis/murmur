@@ -2,16 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
-## [0.4.1] - 2026-02-09
+## [0.4.2] - 2026-02-09
 
 ### Bug Fixes
 
 - **tui:** Correct feed entry alignment and ANSI-aware text helpers (#37)
+- Make package description agent-agnostic (#41)
+
+### Documentation
+
+- **readme:** Sharpen tagline to "agent cron daemon" positioning
+- Add issue templates and CONTRIBUTING.md
 
 ### Features
 
 - **agents:** Add code-review-expert skill and PR reviewer heartbeat (#38)
 - **codex:** Add JSONL stream parsing for live TUI output (#39)
+- **cli:** Add --template flag with github-digest starter template
+
+### Revert
+
+- Undo direct-to-main commits for PR review
 
 ## [0.4.0] - 2026-02-09
 

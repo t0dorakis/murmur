@@ -11,7 +11,7 @@ description: >
   watch, automate, periodic check, scheduled prompt.
 metadata:
   author: t0dorakis
-  version: "0.4.1"
+  version: "0.4.2"
 ---
 
 # Heartbeat Creator
