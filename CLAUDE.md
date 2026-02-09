@@ -99,6 +99,8 @@ Scope is optional. Examples:
 
 Breaking changes: add `BREAKING CHANGE:` in the commit body or `!` after type (e.g. `feat!: redesign config format`).
 
+Skills and heartbeats use `chore(skill)` — only `heartbeat-cron` is a first-class feature (`feat(skill)`).
+
 ## Releasing
 
 Run `bun run release <version>` (e.g. `bun run release 0.2.0`). This bumps package.json, generates CHANGELOG.md via git-cliff, commits, tags, and pushes. The existing CI workflow handles the GitHub release + Homebrew update.

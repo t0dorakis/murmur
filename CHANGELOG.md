@@ -13,11 +13,10 @@ All notable changes to this project will be documented in this file.
 ### Features
 
 - **cli:** Improve lifecycle feedback, status output, and YAML parsing (#31)
-- Add pre-commit hook with oxlint, oxfmt, and lint-staged
-- **skill:** Add triage-issues skill for autonomous issue classification (#32)
 - **status:** Add health checks, outcome display, and recent errors (#30)
 - Multi-heartbeat support per workspace (#33) (#34)
 - **agents:** Add OpenAI Codex CLI adapter (#36)
+- Add pre-commit hook with oxlint, oxfmt, and lint-staged
 
 ## [0.3.0] - 2026-02-07
 
@@ -61,7 +60,6 @@ All notable changes to this project will be documented in this file.
 - Make verbose logging default with --quiet option
 - Restructure heartbeat skill for skills.sh publishing
 - Add skill metadata and installation instructions
-- Add effect-ts-patterns skill
 - Add permission deny-list for heartbeat agents (#10)
 
 ### Refactoring
