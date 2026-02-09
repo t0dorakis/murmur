@@ -1,3 +1,5 @@
+import { stripAnsi } from "./ansi.ts";
+
 export type Screen = {
   write(content: string): void;
   columns(): number;
@@ -44,7 +46,7 @@ export function createTestScreen(cols = 80, rows = 24): TestScreen {
       buffer = "";
     },
     text() {
-      return buffer.replace(/\x1b\[[0-9;]*[A-Za-z]/g, "");
+      return stripAnsi(buffer);
     },
     lines() {
       return this.text()
