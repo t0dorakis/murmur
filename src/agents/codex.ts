@@ -34,7 +34,6 @@ function validateCodexConfig(workspace: WorkspaceConfig): asserts workspace is C
  * Agent adapter for OpenAI Codex CLI.
  *
  * Supports:
- * - Full-auto execution mode (--full-auto)
  * - Configurable sandbox policy (--sandbox)
  * - Network access toggle for workspace-write sandbox
  * - Model selection (--model)
@@ -67,14 +66,10 @@ export class CodexAdapter implements AgentAdapter {
     }
 
     const sandbox = workspace.sandbox ?? "workspace-write";
-    const codexArgs = [
-      "codex",
-      "exec",
-      "--full-auto",
-      "--sandbox",
-      sandbox,
-      "--skip-git-repo-check",
-    ];
+    // Note: --full-auto is intentionally NOT used — it hardcodes --sandbox workspace-write,
+    // overriding the user's explicit sandbox choice. Codex auto-sets approval to "never"
+    // when reading from stdin (-), so --full-auto is unnecessary.
+    const codexArgs = ["codex", "exec", "--sandbox", sandbox, "--skip-git-repo-check"];
 
     if (workspace.networkAccess && sandbox === "workspace-write") {
       codexArgs.push("-c", "sandbox_workspace_write.network_access=true");

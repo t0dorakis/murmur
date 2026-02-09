@@ -213,7 +213,7 @@ describe("e2e", () => {
   }, 60_000);
 
   test("murmur beat with codex agent", async () => {
-    const wsDir = createWorkspace({ agent: "codex", maxTurns: 50 });
+    const wsDir = createWorkspace({ agent: "codex" });
     const jokesBefore = jokeCount(wsDir);
 
     const result = await murmur("beat", wsDir);

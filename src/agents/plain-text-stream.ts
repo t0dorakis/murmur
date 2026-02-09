@@ -1,7 +1,7 @@
 import { debug } from "../debug.ts";
 import type { AgentExecutionResult, AgentStreamCallbacks } from "./adapter.ts";
 import type { ConversationTurn } from "../types.ts";
-import type { Subprocess } from "bun";
+import type { ReadableSubprocess } from "bun";
 
 /**
  * Stream stdout/stderr from a plain-text agent process, collecting output
@@ -11,19 +11,17 @@ import type { Subprocess } from "bun";
  * For structured stream-json output, see stream-parser.ts (used by Claude Code).
  */
 export async function streamPlainTextProcess(
-  proc: Subprocess,
+  proc: ReadableSubprocess,
   agentName: string,
   start: number,
   callbacks?: AgentStreamCallbacks,
 ): Promise<AgentExecutionResult> {
-  if (!proc.stdout) throw new Error("Spawned process stdout is not piped");
-
   let stdout = "";
   let streamError: Error | null = null;
 
   const stdoutPromise = (async () => {
     const decoder = new TextDecoder();
-    const reader = (proc.stdout as ReadableStream<Uint8Array>).getReader();
+    const reader = proc.stdout.getReader();
 
     try {
       while (true) {
@@ -50,6 +48,10 @@ export async function streamPlainTextProcess(
       reader.releaseLock();
     }
 
+    // Flush any remaining buffered bytes from the TextDecoder
+    const remaining = decoder.decode();
+    if (remaining) stdout += remaining;
+
     return stdout;
   })();
 
@@ -67,7 +69,7 @@ export async function streamPlainTextProcess(
   // Surface stream read errors so the caller (heartbeat.ts) can log them properly
   if (streamError) {
     throw new Error(
-      `[${agentName}] Stream read failed after ${stdout.length} bytes: ${(streamError as Error).message}`,
+      `[${agentName}] Stream read failed after ${stdout.length} bytes: ${streamError.message}`,
     );
   }
 
