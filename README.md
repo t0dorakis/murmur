@@ -21,7 +21,6 @@ Then: `/heartbeat-cron watch my GitHub issues and alert me when something urgent
 
 ## Or install manually
 
-
 ```bash
 brew install t0dorakis/murmur/murmur
 ```
@@ -123,7 +122,6 @@ Filter out bot comments and CI noise.
 For anything that needs my attention (review requests, mentions, failing checks on my PRs), write a summary to ~/notes/github-daily.md.
 If inbox zero, HEARTBEAT_OK.
 ```
-
 
 **Competitor watch:**
 

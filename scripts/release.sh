@@ -70,6 +70,12 @@ generate_changelog() {
   git-cliff --tag "$tag" -o CHANGELOG.md
 }
 
+format_all() {
+  bunx oxfmt .
+  # Stage any formatting fixes alongside release changes
+  git add -u
+}
+
 commit_tag_push() {
   local tag="$1"
   git add package.json CHANGELOG.md .agents/skills/heartbeat-cron/SKILL.md
@@ -108,6 +114,7 @@ CLEANUP_NEEDED=true
 bump_version "$VERSION"
 bump_skill_version "$VERSION"
 generate_changelog "$TAG"
+format_all
 commit_tag_push "$TAG"
 
 CLEANUP_NEEDED=false
