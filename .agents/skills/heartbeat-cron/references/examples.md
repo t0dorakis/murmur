@@ -26,8 +26,7 @@ Remind the user: if they want to be _notified_, the heartbeat itself must do the
 ```markdown
 ---
 agent: codex
-model: o3
-sandbox: read-only
+sandbox: workspace-write
 cron: "0 6 * * 1"
 timeout: 15m
 ---
