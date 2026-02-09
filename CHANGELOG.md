@@ -2,6 +2,23 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.4.0] - 2026-02-09
+
+### Documentation
+
+- Add project description, key files, and skill sync rule to CLAUDE.md
+- **skill:** Sync heartbeat-cron skill with frontmatter-based config
+- Add toolchain badges to README
+
+### Features
+
+- **cli:** Improve lifecycle feedback, status output, and YAML parsing (#31)
+- Add pre-commit hook with oxlint, oxfmt, and lint-staged
+- **skill:** Add triage-issues skill for autonomous issue classification (#32)
+- **status:** Add health checks, outcome display, and recent errors (#30)
+- Multi-heartbeat support per workspace (#33) (#34)
+- **agents:** Add OpenAI Codex CLI adapter (#36)
+
 ## [0.3.0] - 2026-02-07
 
 ### Bug Fixes
