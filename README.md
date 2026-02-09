@@ -7,7 +7,7 @@
 ![oxfmt](https://img.shields.io/badge/oxfmt-formatted-7C5CFC)
 ![MIT License](https://img.shields.io/badge/License-MIT-yellow)
 
-The agent cron daemon. Schedule automated Claude sessions that run on intervals or cron expressions — each one a fresh CLI invocation with full tool access.
+A cron daemon for Claude Code. Schedule automated Claude sessions that run on intervals or cron expressions — each one a fresh CLI invocation with full tool access.
 
 Murmur is deliberately minimal: it schedules, runs, and logs. What happens inside each session — checking APIs, sending notifications, updating files — is defined by you and your agent in a markdown prompt. Claude builds the pipeline.
 
@@ -42,12 +42,6 @@ vim ~/repos/my-project/HEARTBEAT.md
 murmur start                       # Start the daemon
 ```
 
-Or start from a battle-tested template:
-
-```bash
-murmur init ~/repos/my-project --template github-digest
-```
-
 The daemon reads `~/.murmur/config.json` and runs each workspace on schedule. Press `q` to quit, `Ctrl-D` to detach.
 
 ## Usage
@@ -59,8 +53,7 @@ murmur watch                       Attach TUI to running daemon
 murmur stop                        Stop daemon
 murmur status                      Show daemon and workspace status
 murmur beat [path] [--name <name>] Run one heartbeat immediately
-murmur init [path] [--name <name>] [--template <name>]
-                                   Create HEARTBEAT.md template
+murmur init [path] [--name <name>] Create HEARTBEAT.md template
 ```
 
 ## HEARTBEAT.md

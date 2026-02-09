@@ -86,7 +86,6 @@ You can also scaffold a workspace immediately with flags:
 ```bash
 murmur init {path} --interval 30m
 murmur init {path} --cron "0 9 * * 1-5" --timeout 15m
-murmur init {path} --template github-digest   # Use a starter template
 ```
 
 **Multiple heartbeats per repo** — Use `--name` to create heartbeats in a `heartbeats/` directory:

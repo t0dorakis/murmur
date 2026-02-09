@@ -35,11 +35,6 @@ import {
   namedHeartbeatFile,
 } from "./discovery.ts";
 import { listWorkspaces, removeWorkspace, clearWorkspaces } from "./workspaces.ts";
-import githubDigestTpl from "./templates/github-digest.md" with { type: "text" };
-
-const TEMPLATES: Record<string, string> = {
-  "github-digest": githubDigestTpl,
-};
 
 // Injected by `bun build --define` at compile time; falls back to package.json in dev
 declare const __VERSION__: string;
@@ -148,7 +143,6 @@ function parseGlobalArgs() {
   let cronFlag: string | undefined;
   let timeout: string | undefined;
   let name: string | undefined;
-  let template: string | undefined;
   let detach = false;
   let daemon = false;
   let debugFlag = false;
@@ -167,8 +161,6 @@ function parseGlobalArgs() {
       timeout = raw[++i];
     } else if (raw[i] === "--name") {
       name = raw[++i];
-    } else if (raw[i] === "--template") {
-      template = raw[++i];
     } else if (raw[i] === "--detach") {
       detach = true;
     } else if (raw[i] === "--daemon") {
@@ -188,7 +180,6 @@ function parseGlobalArgs() {
     cron: cronFlag,
     timeout,
     name,
-    template,
     detach,
     daemon,
     debug: debugFlag,
@@ -206,7 +197,6 @@ const {
   cron: initCron,
   timeout: initTimeout,
   name: initName,
-  template: initTemplate,
   detach,
   daemon,
   debug: debugFlag,
@@ -474,16 +464,8 @@ const HEARTBEAT_TEMPLATE = (interval: string, timeout?: string, cron?: string) =
 
 async function init(
   path: string,
-  opts?: { interval?: string; cron?: string; timeout?: string; name?: string; template?: string },
+  opts?: { interval?: string; cron?: string; timeout?: string; name?: string },
 ) {
-  if (opts?.template) {
-    if (!TEMPLATES[opts.template]) {
-      console.error(
-        `Unknown template: "${opts.template}". Available templates: ${Object.keys(TEMPLATES).join(", ")}`,
-      );
-      process.exit(1);
-    }
-  }
   if (opts?.interval) {
     try {
       parseInterval(opts.interval);
@@ -526,9 +508,7 @@ async function init(
   }
 
   if (!existsSync(hbFilePath)) {
-    const tpl = opts?.template
-      ? TEMPLATES[opts.template]!
-      : HEARTBEAT_TEMPLATE(opts?.interval ?? "1h", opts?.timeout, opts?.cron);
+    const tpl = HEARTBEAT_TEMPLATE(opts?.interval ?? "1h", opts?.timeout, opts?.cron);
     await Bun.write(hbFilePath, tpl);
     console.log(`Created ${hbFilePath}`);
   } else {
@@ -570,7 +550,6 @@ Options:
   --cron <expr>                Set cron in HEARTBEAT.md (init only, e.g. "0 9 * * *")
   --timeout <interval>         Set timeout in HEARTBEAT.md (init only, e.g. 15m)
   --name <name>                Target a named heartbeat in heartbeats/<name>/
-  --template <name>            Use a starter template (init only, e.g. github-digest)
   --debug                      Enable debug logging to <data-dir>/debug.log
   --quiet, -q                  Hide tool calls during beat (show summary only)
   --help, -h                   Show this help message
@@ -617,7 +596,6 @@ if (daemon) {
         cron: initCron,
         timeout: initTimeout,
         name: initName,
-        template: initTemplate,
       });
       break;
     case "workspaces": {
