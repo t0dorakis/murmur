@@ -1,5 +1,8 @@
 import { debug } from "../debug.ts";
 
+/** Default fallback shell when $SHELL is not set */
+const DEFAULT_SHELL = "/bin/sh";
+
 /**
  * Escape a shell argument for safe use in a shell command string.
  * Wraps the argument in single quotes and escapes any single quotes within it.
@@ -29,7 +32,7 @@ function shouldUseLoginShell(): boolean {
  * @returns Path to the shell executable
  */
 function getLoginShell(): string {
-  return process.env.SHELL || "/bin/sh";
+  return process.env.SHELL || DEFAULT_SHELL;
 }
 
 /**
