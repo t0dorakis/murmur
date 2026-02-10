@@ -18,6 +18,7 @@ export async function streamPlainTextProcess(
 ): Promise<AgentExecutionResult> {
   const pid = proc.pid;
   debug(`[${agentName}] Spawned process PID: ${pid}`);
+  callbacks?.onSpawn?.(pid);
   let stdout = "";
   let streamError: Error | null = null;
 

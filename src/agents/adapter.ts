@@ -28,6 +28,8 @@ export type AgentExecutionResult = {
 export type AgentStreamCallbacks = {
   onToolCall?: (toolCall: ToolCall) => void;
   onText?: (text: string) => void;
+  /** Called immediately after spawning the agent process with its PID. */
+  onSpawn?: (pid: number) => void;
 };
 
 /**

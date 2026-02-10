@@ -54,6 +54,7 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
     const pid = proc.pid;
     debug(`[claude-code] Spawned process PID: ${pid}`);
+    callbacks?.onSpawn?.(pid);
 
     if (!proc.stdout) throw new Error("Spawned process stdout is not piped");
     const stream = proc.stdout as ReadableStream<Uint8Array>;
