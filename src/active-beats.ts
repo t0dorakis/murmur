@@ -91,31 +91,3 @@ export async function clearActiveBeats(): Promise<void> {
     }
   }
 }
-
-/**
- * Check if a process is alive.
- */
-export function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (err: any) {
-    // EPERM means process exists but we don't have permission to signal it
-    if (err?.code === "EPERM") return true;
-    return false;
-  }
-}
-
-/**
- * Kill a process with SIGTERM. Returns true if the signal was sent successfully.
- */
-export function killProcess(pid: number): boolean {
-  try {
-    process.kill(pid, "SIGTERM");
-    debug(`[active-beats] Sent SIGTERM to PID ${pid}`);
-    return true;
-  } catch (err: any) {
-    debug(`[active-beats] Failed to kill PID ${pid}: ${err?.message}`);
-    return false;
-  }
-}

@@ -20,7 +20,8 @@ import { resolveWorkspaceConfig } from "./frontmatter.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
 import { startSocketServer } from "./socket.ts";
-import { readActiveBeats, clearActiveBeats, isProcessAlive, killProcess } from "./active-beats.ts";
+import { readActiveBeats, clearActiveBeats } from "./active-beats.ts";
+import { isProcessAlive, killProcess } from "./process-utils.ts";
 import type { WorkspaceConfig, WorkspaceStatus, LogEntry } from "./types.ts";
 
 export function buildWorkspaceStatuses(resolved: WorkspaceConfig[]): WorkspaceStatus[] {
@@ -63,6 +64,11 @@ async function recoverOrphanedProcesses(): Promise<void> {
     if (alive) {
       debug(`[recovery] Orphaned process found: ${id} (PID ${beat.pid}) — killing`);
       const killed = killProcess(beat.pid);
+      if (killed) {
+        debug(`[recovery] Sent SIGTERM to PID ${beat.pid}`);
+      } else {
+        debug(`[recovery] Failed to kill PID ${beat.pid}`);
+      }
 
       const ts = new Date().toISOString();
       const entry: LogEntry = {

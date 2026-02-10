@@ -7,9 +7,9 @@ import {
   recordActiveBeat,
   removeActiveBeat,
   clearActiveBeats,
-  isProcessAlive,
   getActiveBeatsPath,
 } from "./active-beats.ts";
+import { isProcessAlive } from "./process-utils.ts";
 
 describe("active-beats", () => {
   const testDir = join(import.meta.dir, ".test-data", "active-beats-test");

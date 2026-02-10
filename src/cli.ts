@@ -1,7 +1,8 @@
 #!/usr/bin/env bun
-import { existsSync, mkdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, unlinkSync, writeFileSync } from "node:fs";
 import { resolve, join, dirname } from "node:path";
 import prettyMs from "pretty-ms";
+import { readPid, isProcessAlive } from "./process-utils.ts";
 import {
   setDataDir,
   getDataDir,
@@ -53,31 +54,6 @@ const VERSION =
           return "0.0.0-unknown";
         }
       })();
-
-function readPid(): number | null {
-  try {
-    const raw = readFileSync(getPidPath(), "utf-8").trim();
-    const pid = Number(raw);
-    if (Number.isNaN(pid)) {
-      console.error(`Corrupt PID file (content: "${raw}"). Ignoring.`);
-      return null;
-    }
-    return pid;
-  } catch (err: any) {
-    if (err?.code === "ENOENT") return null;
-    throw err;
-  }
-}
-
-function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (err: any) {
-    if (err?.code === "EPERM") return true;
-    return false;
-  }
-}
 
 function cleanStaleSocket() {
   const sockPath = getSocketPath();

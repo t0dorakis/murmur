@@ -161,25 +161,15 @@ export async function runHeartbeat(
       await recordActiveBeat(id, pid, ws.path);
     }
   } catch (err) {
-    // Clean up active beat record if we recorded it
-    if (pid) {
-      try {
-        await removeActiveBeat(id);
-      } catch (cleanupErr) {
-        debug(
-          `[heartbeat] Warning: failed to remove active beat after error: ${cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)}`,
-        );
-      }
-    }
     return createErrorEntry(ts, ws, start, err, emit);
   } finally {
-    // Always remove active beat record when done
+    // Always remove active beat record when done (whether success or error)
     if (pid) {
       try {
         await removeActiveBeat(id);
       } catch (cleanupErr) {
         debug(
-          `[heartbeat] Warning: failed to remove active beat in finally block: ${cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)}`,
+          `[heartbeat] Warning: failed to remove active beat: ${cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)}`,
         );
       }
     }
