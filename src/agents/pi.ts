@@ -1,6 +1,7 @@
 import { debug } from "../debug.ts";
 import { isCommandAvailable, getCommandVersion } from "./cli-utils.ts";
 import { resolveTimeoutMs } from "./constants.ts";
+import { wrapInLoginShell } from "./shell.ts";
 import { streamPlainTextProcess } from "./plain-text-stream.ts";
 import type { AgentAdapter, AgentExecutionResult, AgentStreamCallbacks } from "./adapter.ts";
 import type { WorkspaceConfig, PiConfig } from "../types.ts";
@@ -66,7 +67,8 @@ export class PiAdapter implements AgentAdapter {
 
     debug(`[pi] Spawning: ${piArgs.join(" ")} (cwd: ${workspace.path})`);
 
-    const proc = Bun.spawn(piArgs, {
+    const wrappedCmd = wrapInLoginShell(piArgs);
+    const proc = Bun.spawn(wrappedCmd, {
       cwd: workspace.path,
       stdin: new Blob([prompt]),
       stdout: "pipe",
