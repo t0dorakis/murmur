@@ -20,7 +20,8 @@ import { resolveWorkspaceConfig } from "./frontmatter.ts";
 import { runHeartbeat } from "./heartbeat.ts";
 import { appendLog } from "./log.ts";
 import { startSocketServer } from "./socket.ts";
-import type { WorkspaceConfig, WorkspaceStatus } from "./types.ts";
+import { readActiveBeats, clearActiveBeats, isProcessAlive, killProcess } from "./active-beats.ts";
+import type { WorkspaceConfig, WorkspaceStatus, LogEntry } from "./types.ts";
 
 export function buildWorkspaceStatuses(resolved: WorkspaceConfig[]): WorkspaceStatus[] {
   return resolved.map((ws) => ({
@@ -41,6 +42,65 @@ export type DaemonHandle = {
   stop(): Promise<void>;
 };
 
+/**
+ * Recover from previous daemon crash by detecting and handling orphaned agent processes.
+ * Called once at daemon startup before entering the scheduling loop.
+ */
+async function recoverOrphanedProcesses(): Promise<void> {
+  const activeBeats = readActiveBeats();
+  const entries = Object.entries(activeBeats);
+
+  if (entries.length === 0) {
+    debug("[recovery] No active beats to recover");
+    return;
+  }
+
+  debug(`[recovery] Found ${entries.length} active beat(s) from previous session`);
+
+  for (const [id, beat] of entries) {
+    const alive = isProcessAlive(beat.pid);
+
+    if (alive) {
+      debug(`[recovery] Orphaned process found: ${id} (PID ${beat.pid}) — killing`);
+      const killed = killProcess(beat.pid);
+
+      const ts = new Date().toISOString();
+      const entry: LogEntry = {
+        ts,
+        workspace: id,
+        outcome: "recovered",
+        durationMs: 0,
+        summary: killed
+          ? `Killed orphaned process (PID ${beat.pid}) from previous daemon session`
+          : `Found orphaned process (PID ${beat.pid}) but failed to kill it`,
+      };
+      appendLog(entry);
+
+      if (!killed) {
+        console.error(
+          `Warning: could not kill orphaned process ${beat.pid} for ${id}. It may still be running.`,
+        );
+      }
+    } else {
+      debug(`[recovery] Process already dead: ${id} (PID ${beat.pid})`);
+
+      const ts = new Date().toISOString();
+      const entry: LogEntry = {
+        ts,
+        workspace: id,
+        outcome: "lost",
+        durationMs: 0,
+        summary: `Process (PID ${beat.pid}) from previous daemon session crashed or was killed`,
+      };
+      appendLog(entry);
+    }
+  }
+
+  // Clear the active-beats file after recovery
+  await clearActiveBeats();
+  debug("[recovery] Recovery complete");
+}
+
 export function startDaemon(tickMs: number): DaemonHandle {
   const bus = createEventBus();
   let running = true;
@@ -49,6 +109,15 @@ export function startDaemon(tickMs: number): DaemonHandle {
 
   const loopDone = (async () => {
     await Promise.resolve(); // yield so callers can subscribe before first events
+
+    // Recover orphaned processes from previous daemon session
+    try {
+      await recoverOrphanedProcesses();
+    } catch (err) {
+      console.error("Recovery error:", err);
+      debug(`Recovery error: ${err}`);
+    }
+
     debug(
       `Daemon ready (PID ${process.pid}, ${initialConfig.workspaces.length} workspace(s), tick=${tickMs}ms)`,
     );

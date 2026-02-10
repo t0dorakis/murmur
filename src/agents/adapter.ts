@@ -18,6 +18,8 @@ export type AgentExecutionResult = {
   numTurns?: number;
   /** Duration in milliseconds */
   durationMs: number;
+  /** Process ID of the spawned agent (for tracking orphaned processes) */
+  pid?: number;
 };
 
 /**

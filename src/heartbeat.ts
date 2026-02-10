@@ -4,6 +4,7 @@ import { getDataDir, ensureDataDir } from "./config.ts";
 import { heartbeatDisplayName, heartbeatFilePath, heartbeatId } from "./discovery.ts";
 import { parseFrontmatter, type FrontmatterResult } from "./frontmatter.ts";
 import { getAdapter } from "./agents/index.ts";
+import { recordActiveBeat, removeActiveBeat } from "./active-beats.ts";
 import type { ConversationTurn, DaemonEvent, LogEntry, Outcome, WorkspaceConfig } from "./types.ts";
 
 export type HeartbeatOptions = {
@@ -129,6 +130,7 @@ export async function runHeartbeat(
 
   // Execute agent with callbacks (unless in quiet mode)
   let result;
+  let pid: number | undefined;
   try {
     result = await adapter.execute(
       prompt,
@@ -152,8 +154,35 @@ export async function runHeartbeat(
             },
           },
     );
+
+    // Record the PID for orphan detection
+    pid = result.pid;
+    if (pid) {
+      await recordActiveBeat(id, pid, ws.path);
+    }
   } catch (err) {
+    // Clean up active beat record if we recorded it
+    if (pid) {
+      try {
+        await removeActiveBeat(id);
+      } catch (cleanupErr) {
+        debug(
+          `[heartbeat] Warning: failed to remove active beat after error: ${cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)}`,
+        );
+      }
+    }
     return createErrorEntry(ts, ws, start, err, emit);
+  } finally {
+    // Always remove active beat record when done
+    if (pid) {
+      try {
+        await removeActiveBeat(id);
+      } catch (cleanupErr) {
+        debug(
+          `[heartbeat] Warning: failed to remove active beat in finally block: ${cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)}`,
+        );
+      }
+    }
   }
 
   const { resultText, exitCode, stderr, turns, costUsd, numTurns } = result;

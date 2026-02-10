@@ -71,7 +71,7 @@ export type Config = {
   workspaces: WorkspaceConfig[];
 };
 
-export type Outcome = "ok" | "attention" | "error";
+export type Outcome = "ok" | "attention" | "error" | "lost" | "recovered";
 
 /** A tool call extracted from an agent's structured output. */
 export type ToolCall = {
