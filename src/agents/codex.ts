@@ -2,6 +2,7 @@ import { debug, truncateForLog } from "../debug.ts";
 import { runCodexParseStream } from "../codex-stream-parser.ts";
 import { isCommandAvailable, getCommandVersion } from "./cli-utils.ts";
 import { resolveTimeoutMs } from "./constants.ts";
+import { wrapInLoginShell } from "./shell.ts";
 import type { AgentAdapter, AgentExecutionResult, AgentStreamCallbacks } from "./adapter.ts";
 import type { WorkspaceConfig, CodexConfig } from "../types.ts";
 
@@ -84,7 +85,8 @@ export class CodexAdapter implements AgentAdapter {
 
     debug(`[codex] Spawning: ${codexArgs.join(" ")} (cwd: ${workspace.path})`);
 
-    const proc = Bun.spawn(codexArgs, {
+    const wrappedCmd = wrapInLoginShell(codexArgs);
+    const proc = Bun.spawn(wrappedCmd, {
       cwd: workspace.path,
       stdin: new Blob([prompt]),
       stdout: "pipe",

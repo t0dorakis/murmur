@@ -3,6 +3,7 @@ import { buildDisallowedToolsArgs } from "../permissions.ts";
 import { runParseStream } from "../stream-parser.ts";
 import { isCommandAvailable, getCommandVersion } from "./cli-utils.ts";
 import { DEFAULT_MAX_TURNS, resolveTimeoutMs } from "./constants.ts";
+import { wrapInLoginShell } from "./shell.ts";
 import type { AgentAdapter, AgentExecutionResult, AgentStreamCallbacks } from "./adapter.ts";
 import type { WorkspaceConfig } from "../types.ts";
 
@@ -44,7 +45,8 @@ export class ClaudeCodeAdapter implements AgentAdapter {
 
     debug(`[claude-code] Spawning: ${claudeArgs.join(" ")} (cwd: ${workspace.path})`);
 
-    const proc = Bun.spawn(claudeArgs, {
+    const wrappedCmd = wrapInLoginShell(claudeArgs);
+    const proc = Bun.spawn(wrappedCmd, {
       cwd: workspace.path,
       stdin: new Blob([prompt]),
       stdout: "pipe",

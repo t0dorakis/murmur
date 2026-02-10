@@ -1,13 +1,16 @@
 import { debug } from "../debug.ts";
+import { wrapInLoginShell } from "./shell.ts";
 
 /**
  * Check if a CLI command is available on the system.
+ * Uses login shell to ensure full PATH is available.
  * @param command The command name (e.g., "claude", "pi", "aider")
  * @returns true if the command is found in PATH
  */
 export async function isCommandAvailable(command: string): Promise<boolean> {
   try {
-    const proc = Bun.spawn(["which", command], {
+    const wrappedCmd = wrapInLoginShell(["which", command]);
+    const proc = Bun.spawn(wrappedCmd, {
       stdout: "pipe",
       stderr: "ignore",
     });
@@ -23,6 +26,7 @@ export async function isCommandAvailable(command: string): Promise<boolean> {
 
 /**
  * Get the version string of a CLI command.
+ * Uses login shell to ensure full PATH is available.
  * @param command The command name
  * @param flag The version flag (default: "--version")
  * @returns Version string or null if unavailable
@@ -32,7 +36,8 @@ export async function getCommandVersion(
   flag = "--version",
 ): Promise<string | null> {
   try {
-    const proc = Bun.spawn([command, flag], {
+    const wrappedCmd = wrapInLoginShell([command, flag]);
+    const proc = Bun.spawn(wrappedCmd, {
       stdout: "pipe",
       stderr: "ignore",
     });
