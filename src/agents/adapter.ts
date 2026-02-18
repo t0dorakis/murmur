@@ -18,6 +18,8 @@ export type AgentExecutionResult = {
   numTurns?: number;
   /** Duration in milliseconds */
   durationMs: number;
+  /** Process ID of the spawned agent (for tracking orphaned processes) */
+  pid?: number;
 };
 
 /**
@@ -26,6 +28,8 @@ export type AgentExecutionResult = {
 export type AgentStreamCallbacks = {
   onToolCall?: (toolCall: ToolCall) => void;
   onText?: (text: string) => void;
+  /** Called immediately after spawning the agent process with its PID. */
+  onSpawn?: (pid: number) => void;
 };
 
 /**

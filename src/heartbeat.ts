@@ -4,6 +4,7 @@ import { getDataDir, ensureDataDir } from "./config.ts";
 import { heartbeatDisplayName, heartbeatFilePath, heartbeatId } from "./discovery.ts";
 import { parseFrontmatter, type FrontmatterResult } from "./frontmatter.ts";
 import { getAdapter } from "./agents/index.ts";
+import { recordActiveBeat, removeActiveBeat } from "./active-beats.ts";
 import type { ConversationTurn, DaemonEvent, LogEntry, Outcome, WorkspaceConfig } from "./types.ts";
 
 export type HeartbeatOptions = {
@@ -129,31 +130,52 @@ export async function runHeartbeat(
 
   // Execute agent with callbacks (unless in quiet mode)
   let result;
+  let tracked = false;
   try {
-    result = await adapter.execute(
-      prompt,
-      ws,
-      quiet
-        ? undefined
-        : {
-            onToolCall: (toolCall) => {
-              emit?.({
-                type: "heartbeat:tool-call",
-                workspace: id,
-                toolCall,
-              });
-            },
-            onText: (text) => {
-              emit?.({
-                type: "heartbeat:stdout",
-                workspace: id,
-                chunk: text,
-              });
-            },
-          },
-    );
+    const callbacks: import("./agents/adapter.ts").AgentStreamCallbacks = {
+      onSpawn: (pid) => {
+        // Record PID immediately when process spawns (before execution completes)
+        // so recovery can find orphaned processes if the daemon crashes mid-execution
+        recordActiveBeat(id, pid, ws.path).catch((err) => {
+          debug(
+            `[heartbeat] Warning: failed to record active beat: ${err instanceof Error ? err.message : String(err)}`,
+          );
+        });
+        tracked = true;
+      },
+    };
+
+    if (!quiet) {
+      callbacks.onToolCall = (toolCall) => {
+        emit?.({
+          type: "heartbeat:tool-call",
+          workspace: id,
+          toolCall,
+        });
+      };
+      callbacks.onText = (text) => {
+        emit?.({
+          type: "heartbeat:stdout",
+          workspace: id,
+          chunk: text,
+        });
+      };
+    }
+
+    result = await adapter.execute(prompt, ws, callbacks);
   } catch (err) {
     return createErrorEntry(ts, ws, start, err, emit);
+  } finally {
+    // Always remove active beat record when done (whether success or error)
+    if (tracked) {
+      try {
+        await removeActiveBeat(id);
+      } catch (cleanupErr) {
+        debug(
+          `[heartbeat] Warning: failed to remove active beat: ${cleanupErr instanceof Error ? cleanupErr.message : String(cleanupErr)}`,
+        );
+      }
+    }
   }
 
   const { resultText, exitCode, stderr, turns, costUsd, numTurns } = result;

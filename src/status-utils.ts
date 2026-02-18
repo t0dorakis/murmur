@@ -1,13 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import prettyMs from "pretty-ms";
-import {
-  getLogPath,
-  getPidPath,
-  parseLastRun,
-  readConfig,
-  validateResolvedConfig,
-} from "./config.ts";
+import { getLogPath, parseLastRun, readConfig, validateResolvedConfig } from "./config.ts";
 import { debug } from "./debug.ts";
+import { readPid, isProcessAlive } from "./process-utils.ts";
 import {
   expandWorkspace,
   heartbeatDisplayName,
@@ -95,27 +90,6 @@ export function getLastOutcome(id: string): { outcome: Outcome; ts: string } | n
 }
 
 // --- Status display ---
-
-function readPid(): number | null {
-  try {
-    const raw = readFileSync(getPidPath(), "utf-8").trim();
-    const pid = Number(raw);
-    if (Number.isNaN(pid)) return null;
-    return pid;
-  } catch {
-    return null;
-  }
-}
-
-function isProcessAlive(pid: number): boolean {
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (err: any) {
-    if (err?.code === "EPERM") return true;
-    return false;
-  }
-}
 
 function formatElapsed(isoDate: string): string {
   const t = new Date(isoDate).getTime();

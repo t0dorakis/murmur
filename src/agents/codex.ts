@@ -94,6 +94,10 @@ export class CodexAdapter implements AgentAdapter {
       timeout: resolveTimeoutMs(workspace),
     });
 
+    const pid = proc.pid;
+    debug(`[codex] Spawned process PID: ${pid}`);
+    callbacks?.onSpawn?.(pid);
+
     if (!proc.stdout) throw new Error("Spawned process stdout is not piped");
     const stream = proc.stdout as ReadableStream<Uint8Array>;
 
@@ -142,6 +146,7 @@ export class CodexAdapter implements AgentAdapter {
       costUsd: parsed.costUsd,
       numTurns: parsed.numTurns,
       durationMs,
+      pid,
     };
   }
 

@@ -200,9 +200,14 @@ function tryUnlink(path: string): void {
   }
 }
 
+export function getActiveBeatsPath(): string {
+  return join(dataDir, "active-beats.json");
+}
+
 export function cleanupRuntimeFiles(): void {
   tryUnlink(getPidPath());
   tryUnlink(getSocketPath());
+  tryUnlink(getActiveBeatsPath());
 }
 
 export function parseLastRun(ws: WorkspaceConfig): number | null {
